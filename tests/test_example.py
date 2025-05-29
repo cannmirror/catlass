@@ -42,7 +42,7 @@ class CatlassExampleTest(unittest.TestCase):
         case_py = case_base + ["half"]
         ret = subprocess.run(["python", os.path.join(
             CMAKE_EXAMPLES_PATH, "19_mla", "gen_data.py")]+case_py)
-        case_cpp = case_base + ["--dtype", "half", "--datapath" os.path.join(CMAKE_EXAMPLES_PATH, "19_mla", "data")]
+        case_cpp = case_base + ["--dtype", "half", "--datapath", os.path.join(CMAKE_EXAMPLES_PATH, "19_mla", "data")]
         self.run_case("19_mla", case_cpp)
 
 
