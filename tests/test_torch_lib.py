@@ -6,11 +6,15 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+import os
+
 from torch_npu.testing.testcase import TestCase, run_tests
 import torch_npu
 import torch
+
+script_path = os.path.dirname(os.path.abspath(__file__))
 torch.ops.load_library(
-    "../output/python_extension/libcatlass_torch.so")  # 手动指定so路径
+    os.path.join(script_path, "../output/python_extension/libcatlass_torch.so"))  # 手动指定so路径
 
 
 class CatlassTest(TestCase):
