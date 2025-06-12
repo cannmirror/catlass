@@ -9,7 +9,7 @@ python3 "$SCRIPT_PATH/test_example.py"
 bash "$BUILD_SCRIPT_PATH" --clean python_extension || exit 1
 pip install "$SCRIPT_PATH/../output/python_extension/*.whl"
 python3 "$SCRIPT_PATH/test_python_extension.py"
-pip remove torch_catlass
+pip uninstall torch_catlass
 
 # torch lib
 bash "$BUILD_SCRIPT_PATH" --clean torch_library || exit 1

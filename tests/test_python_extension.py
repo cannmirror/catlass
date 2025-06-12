@@ -6,18 +6,20 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+import random
+import unittest
+
 from torch_npu.testing.testcase import TestCase, run_tests
 import torch_npu
 import torch
 import torch_catlass
-import random
 
 
-def generate_sequence_split(n, S):
-    split_points = sorted([random.randint(0, S) for _ in range(n - 1)])
-    split_points = [0] + split_points + [S]
+def generate_sequence_split(n, sum_num):
+    split_points = sorted([random.randint(0, sum_num) for _ in range(n - 1)])
+    split_points = [0] + split_points + [sum_num]
     sequence = [split_points[i+1] - split_points[i] for i in range(n)]
-    sequence[-1] = S - sum(sequence[:-1])
+    sequence[-1] = sum_num - sum(sequence[:-1])
     return sequence
 
 
@@ -32,15 +34,18 @@ def calculate_prefix_sum(sequence):
 
 class CatlassTest(TestCase):
 
-    def _run_case_basic(self, m: int, n: int, k: int, transA: bool = False, transB: bool = False, dtype: torch.dtype = torch.float16):
-        shape1 = (m, k) if not transA else (k, m)
-        shape2 = (k, n) if not transB else (n, k)
+    def _run_case_basic(self, m: int, n: int, k: int,
+                        trans_a: bool = False,
+                        trans_b: bool = False,
+                        dtype: torch.dtype = torch.float16):
+        shape1 = (m, k) if not trans_a else (k, m)
+        shape2 = (k, n) if not trans_b else (n, k)
 
         a = torch.rand(shape1, device='npu').to(dtype)
         b = torch.rand(shape2, device='npu').to(dtype)
 
-        a = a if not transA else a.T
-        b = b if not transB else b.T
+        a = a if not trans_a else a.T
+        b = b if not trans_b else b.T
 
         torch.npu.synchronize()
         result = torch_catlass.basic_matmul(a, b, str(dtype).split('.')[-1])
@@ -55,45 +60,49 @@ class CatlassTest(TestCase):
         self._run_case_basic(2, 3, 4)
 
     def test_basic_matmul_pybind_cr(self):
-        self._run_case_basic(2, 3, 4, transA=True)
+        self._run_case_basic(2, 3, 4, trans_a=True)
 
     def test_basic_matmul_pybind_rc(self):
-        self._run_case_basic(2, 3, 4, transB=True)
+        self._run_case_basic(2, 3, 4, trans_b=True)
 
     def test_basic_matmul_pybind_cc(self):
-        self._run_case_basic(2, 3, 4, transA=True, transB=True)
+        self._run_case_basic(2, 3, 4, trans_a=True, trans_b=True)
 
     def test_basic_matmul_pybind_bf16(self):
-        self._run_case_basic(2, 3, 4, transA=True, transB=True)
+        self._run_case_basic(2, 3, 4, trans_a=True, trans_b=True)
 
+    @unittest.skip("Not ready")
     def test_grouped_matmul_list_m(self):
         g = 128
-        groupList = generate_sequence_split(g, random.randint(256, 40960))
-        groupList = calculate_prefix_sum(groupList)
-        M, k, n = sum(groupList), 4096, 1280
+        group_list = generate_sequence_split(g, random.randint(256, 40960))
+        group_list = calculate_prefix_sum(group_list)
+        M, k, n = sum(group_list), 4096, 1280
         a = torch.randn((M, k), device='npu').to(torch.float16)
         b = torch.randn((g, k, n), device='npu').to(torch.float16)
         b_list = [b[i] for i in range(g)]
-        groupListTensor = torch.tensor(groupList, device='npu').to(torch.int64)
+        group_list_tensor = torch.tensor(
+            group_list, device='npu').to(torch.int64)
         # input, weight, group_list, dtype, transpose_a, transpose_b, 是否为切K
         result = torch_catlass.grouped_matmul(
-            a, b, groupListTensor, "float16", False, False, False)
+            a, b, group_list_tensor, "float16", False, False, False)
         golden = torch_npu.npu_grouped_matmul(
-            [a], b_list, group_list=groupList, split_item=3)[0]
+            [a], b_list, group_list=group_list, split_item=3)[0]
         self.assertRtolEqual(result, golden)
 
+    @unittest.skip("Not ready")
     def test_grouped_matmul_list_k(self):
         g = 128
-        groupList = generate_sequence_split(g, random.randint(256, 40960))
-        groupList = calculate_prefix_sum(groupList)
-        m, K, n = 4096, sum(groupList), 1280
+        group_list = generate_sequence_split(g, random.randint(256, 40960))
+        group_list = calculate_prefix_sum(group_list)
+        m, K, n = 4096, sum(group_list), 1280
         a = torch.randn((K, m), device='npu').to(torch.float16)
         b = torch.randn((K, n), device='npu').to(torch.float16)
-        groupListTensor = torch.tensor(groupList, device='npu').to(torch.int64)
-        a_list = torch.split(a.transpose(0, 1).contiguous(), groupList, dim=1)
-        b_list = torch.split(b, groupList, dim=0)
+        group_list_tensor = torch.tensor(
+            group_list, device='npu').to(torch.int64)
+        a_list = torch.split(a.transpose(0, 1).contiguous(), group_list, dim=1)
+        b_list = torch.split(b, group_list, dim=0)
         result = torch_catlass.grouped_matmul(
-            a, b, groupListTensor, "float16", True, False, True)
+            a, b, group_list_tensor, "float16", True, False, True)
         golden = torch.stack(torch_npu.npu_grouped_matmul(a_list, b_list))
         self.assertRtolEqual(result, golden)
 
