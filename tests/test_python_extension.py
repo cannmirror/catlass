@@ -18,7 +18,7 @@ import torch_catlass
 def generate_sequence_split(n, sum_num):
     split_points = sorted([random.randint(0, sum_num) for _ in range(n - 1)])
     split_points = [0] + split_points + [sum_num]
-    sequence = [split_points[i+1] - split_points[i] for i in range(n)]
+    sequence = [split_points[i + 1] - split_points[i] for i in range(n)]
     sequence[-1] = sum_num - sum(sequence[:-1])
     return sequence
 
@@ -76,8 +76,8 @@ class CatlassTest(TestCase):
         g = 128
         group_list = generate_sequence_split(g, random.randint(256, 40960))
         group_list = calculate_prefix_sum(group_list)
-        M, k, n = sum(group_list), 4096, 1280
-        a = torch.randn((M, k), device='npu').to(torch.float16)
+        m_sum, k, n = sum(group_list), 4096, 1280
+        a = torch.randn((m_sum, k), device='npu').to(torch.float16)
         b = torch.randn((g, k, n), device='npu').to(torch.float16)
         b_list = [b[i] for i in range(g)]
         group_list_tensor = torch.tensor(
@@ -94,9 +94,9 @@ class CatlassTest(TestCase):
         g = 128
         group_list = generate_sequence_split(g, random.randint(256, 40960))
         group_list = calculate_prefix_sum(group_list)
-        m, K, n = 4096, sum(group_list), 1280
-        a = torch.randn((K, m), device='npu').to(torch.float16)
-        b = torch.randn((K, n), device='npu').to(torch.float16)
+        m, k_sum, n = 4096, sum(group_list), 1280
+        a = torch.randn((k_sum, m), device='npu').to(torch.float16)
+        b = torch.randn((k_sum, n), device='npu').to(torch.float16)
         group_list_tensor = torch.tensor(
             group_list, device='npu').to(torch.int64)
         a_list = torch.split(a.transpose(0, 1).contiguous(), group_list, dim=1)
