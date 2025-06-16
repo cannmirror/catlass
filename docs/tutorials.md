@@ -239,7 +239,7 @@ int main(int argc, const char **argv)
     return 0;
 }
 ```
-### 编译执行
+### 编译运行
 #### 编辑编译文件
 在算子目录下（即basic_matmul.cpp同级目录）的CMakeLists.txt文件中加入以下代码
 
@@ -290,6 +290,7 @@ using L0TileShape = GemmShape<128, 256, 64>;
 ## SplitK Matmul体验
 ### 原理说明
 ![](./images/split_k_matmul.png)
+
 由于硬件约束，基本块的大小最小为`16x16`，如果Matmul的M和N轴很小，例如`M=16,N=16`,那么只能划分出一个基本块，只能利用一个计算核心，浪费了很多计算资源，如图所示，如果K方向足够大，可以对K方向进行切分，从而话分出更多的任务块，利用更多的计算核心，提高计算效率。
 ### 代码实现
 首先在`example`目录下面创建新文件夹，命名为`22_splitk_matmul`，然后在该文件夹下创建新文件`splitk_matmul.cpp`。
