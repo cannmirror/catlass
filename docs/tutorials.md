@@ -32,11 +32,11 @@ git clone https://gitee.com/ascend/catlass.git
 需要依赖组件：
 CANN 8.2.RC1.alpha002及之后版本
 cmake >= 3.15
-### 代码开发
+### 代码实现
 此处以basicmatmul为例进行展示，`cd catlass/example`，创建算子目录`mkdir 21_basic_matmul`，在该目录下创建对应的算子文件`basic_matmul.cpp`和编译文件`CMakeLists.txt`。
-#### 编辑算子文件basic_matmul.cpp
+
 下面将展示3段代码，需要写入basic_matmul.cpp文件中。
-##### 配置头文件，定义输入参数解析结构体
+#### 配置头文件，定义输入参数解析结构体
 
 ```cpp
 // 引入必要的头文件
@@ -97,7 +97,7 @@ struct Options {
 };
 
 ```
-##### 申请计算资源、配置Kernel模板，调用Kernel，释放计算资源
+#### 申请计算资源、配置Kernel模板，调用Kernel，释放计算资源
 
 ```cpp
 void Run(Options const &options)  //
@@ -227,7 +227,7 @@ void Run(Options const &options)  //
 }
 
 ```
-##### 定义main函数
+#### 定义main函数
 
 ```cpp
 int main(int argc, const char **argv)
