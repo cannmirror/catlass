@@ -13,9 +13,9 @@
 # 项目操作指导文档
     算子模板库针对不同算子应用场景，提供了高性能的算子基础组件和算子模板实现样例。样例中包含了在昇腾硬件上可参考的实现，如高效数据搬运模式，异步流水编排技巧，高性能接口使用示例，在Block和Tile层级提供40+高性能模块示例供参考。基于这些示例开发者可以充分学习理解昇腾硬件的性能优化技术，从而针对各种优化实现场景高效完成自定义算子开发。相关样例在从上至下完全开源可参考。
 
-## 一、BasicMatmul体验
+## BasicMatmul体验
 以BasicMatmul为例，以下代码示例将展示如何基于Catlass算子模板库快速开发实现matmul，展示BasicMatmul的搭建，编译，运行过程。
-### 1、代码部署
+### 代码部署
 配置环境变量：
 
 ```
@@ -31,11 +31,11 @@ git clone https://gitee.com/ascend/catlass.git
 需要依赖组件：
 CANN 8.2.RC1.alpha002及之后版本
 cmake >= 3.15
-### 2、代码开发
+### 代码开发
 此处以basicmatmul为例进行展示，`cd catlass/example`，创建算子目录`mkdir 21_basic_matmul`，在该目录下创建对应的算子文件`basic_matmul.cpp`和编译文件`CMakeLists.txt`。
 #### 编辑算子文件basic_matmul.cpp
 下面将展示3段代码，需要写入basic_matmul.cpp文件中。
-##### 2.1 配置头文件，定义输入参数解析结构体
+##### 配置头文件，定义输入参数解析结构体
 
 ```cpp
 // 引入必要的头文件
@@ -96,7 +96,7 @@ struct Options {
 };
 
 ```
-##### 2.2 申请计算资源、配置Kernel模板，调用Kernel，释放计算资源
+##### 申请计算资源、配置Kernel模板，调用Kernel，释放计算资源
 
 ```cpp
 void Run(Options const &options)  //
@@ -226,7 +226,7 @@ void Run(Options const &options)  //
 }
 
 ```
-##### 2.3 定义main函数
+##### 定义main函数
 
 ```cpp
 int main(int argc, const char **argv)
@@ -239,7 +239,7 @@ int main(int argc, const char **argv)
     return 0;
 }
 ```
-### 3、编译执行
+### 编译执行
 #### 编辑编译文件
 在算子目录下（即basic_matmul.cpp同级目录）的CMakeLists.txt文件中加入以下代码
 
@@ -264,10 +264,10 @@ foreach中已有20个项目，在列表后面追加即可。
 `cd build/bin`目录，执行`./21_basic_matmul 128 256 4096 0`命令执行算子。
 执行结果如出现`Compare success`。说明精度比对成功。(由于使用CPU进行精度对比，所以执行需要一点时间)
 
-## 4、性能测试
+#### 性能测试
 执行`msprof op ./21_basic_matmul 128 256 4096 0`命令即可调用msprof工具对算子进行性能测试。
 执行完毕后会在同目录下生成“OPPROF_xxxx”文件夹，进入该文件夹，查看`OpBasicInfo.csv`文件，其中`“Task Duration(us)”`表示该算子执行的耗时。
-## 5、tiling调优
+#### tiling调优
 此处展示如何通过调整tile shape对算子的性能进行优化。
 通过改动上面代码中的下面两行代码改动tile shape：
 ```cpp
@@ -288,10 +288,10 @@ using L0TileShape = GemmShape<128, 256, 64>;
 3. 重新编译后，执行命令`msprof op ./21_basic_matmul 128 256 4096 0`，测试算子修改tileShape后的性能。通过比对tileShape修改前后的性能，观察调整tiling对算子性能的影响。
 
 ## SplitK Matmul体验
-### 1.原理说明
+### 原理说明
 ![](./images/split_k_matmul.png)
 由于硬件约束，基本块的大小最小为`16x16`，如果Matmul的M和N轴很小，例如`M=16,N=16`,那么只能划分出一个基本块，只能利用一个计算核心，浪费了很多计算资源，如图所示，如果K方向足够大，可以对K方向进行切分，从而话分出更多的任务块，利用更多的计算核心，提高计算效率。
-### 2.代码实现
+### 代码实现
 首先在`example`目录下面创建新文件夹，命名为`22_splitk_matmul`，然后在该文件夹下创建新文件`splitk_matmul.cpp`。
 1.更改包含的头文件（此处仅供说明，请使用下面完整代码进行实验）
 ```cpp
@@ -531,7 +531,7 @@ int main(int argc, const char **argv)
     return 0;
 }
 ```
-### 3.编译运行
+### 编译运行
 在`splitk_matmul.cpp`同级文件夹下创建`CMakeLists.txt`文件，填如以下内容：
 ```cmake
 catlass_example_add_executable(
@@ -555,7 +555,7 @@ bash scripts/build.sh 22_splitk_matmul
 ./build/bin/22_splitk_matmul 16 16 32768 0
 ```
 
-### 4.性能测试
+### 性能测试
 使用msprof op采集性能数据：
 ```bash
 msprof op ./build/bin/22_splitk_matmul 16 16 32768 0
@@ -563,7 +563,7 @@ msprof op ./build/bin/22_splitk_matmul 16 16 32768 0
 在当前目录下会生成profiling数据，查看`OpBasicInfo.csv`文件获取性能数据。可将该性能数据与Basic Matmul的性能数据进行比较，观察收益。
 
 ## GroupMatmul体验
-### 1.代码组装
+### 代码组装
 首先在`example`目录下面创建新文件夹，命名为`23_grouped_matmul`，然后在该文件夹下创建新文件`grouped_matmul.cpp`。写入以下代码：
 ```cpp
 // 如果不需使用AscendC Tensor中的ShapeInfo信息，可以设置K_MAX_SHAPE_DIM为0减少使用的栈空间
@@ -835,7 +835,7 @@ int main(int argc, const char **argv)
     return 0;
 }
 ```
-### 2.编译运行
+### 编译运行
 在`grouped_matmul.cpp`同级文件夹下创建`CMakeLists.txt`文件，填如以下内容：
 ```cmake
 catlass_example_add_executable(
@@ -860,6 +860,6 @@ bash scripts/build.sh 23_grouped_matmul
 # msprof op测试程序性能
 msprof op ./build/bin/23_grouped_matmul 128 32768 1280 4096 0
 ```
-### 3.切换配置，观察性能变化
+### 切换配置，观察性能变化
 以上代码中有两种配置策略，分别是配置一和配置二，配置一为通常的简单配置，配置二为优化配置，增加了`Preload，ShuffleK`两个优化措施，两者使用不同的block层实现，展示了模板库可按需组装搭配各组件的特性。
 分别采用配置一和配置二测试同一组shape，例如下面的shape：group_count=64,m=49152,n=1280,k=4096。观察配置一和配置二的性能差别。（**请找到上面代码中的配置一和配置二，使用一个配置时注释另一个**）
