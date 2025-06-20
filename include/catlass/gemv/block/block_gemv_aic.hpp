@@ -97,7 +97,7 @@ public:
 
     /// Construct
     CATLASS_DEVICE
-    BlockGemv(Arch::Resource<ArchTag>& resource, uint32_t l1BufAddrStart = 0) 
+    BlockGemv(Arch::Resource<ArchTag>& resource, uint32_t l1BufAddrStart = 0)
     {
         uint32_t l1AOffset = l1BufAddrStart;
         uint32_t l1BOffset = l1BufAddrStart + L1A_SIZE * STAGES;
@@ -109,10 +109,10 @@ public:
             l0ATensorList[i] = resource.l0ABuf.template GetBufferByByte<ElementX>(L0A_PINGPONG_BUF_SIZE * i);
             l0BTensorList[i] = resource.l0BBuf.template GetBufferByByte<ElementA>(L0B_PINGPONG_BUF_SIZE * i);
 
-            l1AEventList[i] = i;          
-            l1BEventList[i] = i + STAGES;  
-            l0AEventList[i] = i;           
-            l0BEventList[i] = i + STAGES; 
+            l1AEventList[i] = i;
+            l1BEventList[i] = i + STAGES;
+            l0AEventList[i] = i;
+            l0BEventList[i] = i + STAGES;
 
             // The event id that needs to be set before the loop
             AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(l1AEventList[i]);
@@ -125,7 +125,7 @@ public:
 
     /// Destructor
     CATLASS_DEVICE
-    ~BlockGemv() 
+    ~BlockGemv()
     {
         for (uint32_t i = 0; i < STAGES; i++) {
             AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(l1AEventList[i]);
@@ -226,7 +226,7 @@ public:
                 auto l1BTensor = l1BTensorList[l1ListIdNext];
 
                 // Get GM tensor for next stage
-                nActualNext = (firstTileIdx < nTileCount - 1) ? L1TileShape::N : (actualShapeNext.n() - firstTileIdx * L1TileShape::N);  
+                nActualNext = (firstTileIdx < nTileCount - 1) ? L1TileShape::N : (actualShapeNext.n() - firstTileIdx * L1TileShape::N);
                 nRoundNext = RoundUp<L1AAlignHelper::N_ALIGNED>(nActualNext);
 
                 // Get GM tile

@@ -13,6 +13,7 @@
 
 #include "catlass/catlass.hpp"
 #include "catlass/layout/layout.hpp"
+#include "catlass\gemm\gemm_type.hpp“
 #include "tla/layout.hpp"
 
 namespace Catlass::Gemm::helper {

@@ -12,6 +12,7 @@
 #define CATLASS_GEMM_KERNEL_GEMM_HPP
 
 #include "catlass/catlass.hpp"
+#include "catlass/arch/resource.hpp"
 #include "catlass/arch/cross_core_sync.hpp"
 #include "catlass/gemm_coord.hpp"
 #include "catlass/matrix_coord.hpp"
@@ -20,6 +21,7 @@
 #include "catlass/gemm/helper.hpp"
 
 namespace Catlass::Gemm::Kernel{
+
 template<
     class ArchTag_,
     class Element_,
@@ -43,20 +45,20 @@ public:
     CATLASS_DEVICE
     PaddingMatrix(Arch::Resource<ArchTag> &resource){
         int64_t bufferOffset = 0;
-        for (uint32_t i = 0; i < BUFFER_NUM; i++) { // 
+        for (uint32_t i = 0; i < BUFFER_NUM; i++) { //
             inputBuffer[i] = resource.ubBuf.template GetBufferByByte<Element>(bufferOffset * sizeof(Element));
             bufferOffset += COMPUTE_LENGTH;
         }
     }
 
     CATLASS_DEVICE
-    ComputeLayout GetPaddingComputeLayout(layout::RowMajor const &layout){ 
-        return ComputeLayout(layout.shape(0), layout.shape(1), layout.stride(0)); 
+    ComputeLayout GetPaddingComputeLayout(layout::RowMajor const &layout){
+        return ComputeLayout(layout.shape(0), layout.shape(1), layout.stride(0));
     }
 
     CATLASS_DEVICE
-    ComputeLayout GetPaddingComputeLayout(layout::ColumnMajor const &layout){ 
-        return ComputeLayout(layout.shape(1), layout.shape(0), layout.stride(1)); 
+    ComputeLayout GetPaddingComputeLayout(layout::ColumnMajor const &layout){
+        return ComputeLayout(layout.shape(1), layout.shape(0), layout.stride(1));
     }
 
     CATLASS_DEVICE
@@ -67,32 +69,32 @@ public:
         ComputeLayout computeLayoutSrc = GetPaddingComputeLayout(layoutSrc);
         ComputeLayout computeLayoutDst = GetPaddingComputeLayout(layoutDst);
 
-        uint32_t aivNum = AscendC::GetBlockNum() * AscendC::GetSubBlockNum(); 
+        uint32_t aivNum = AscendC::GetBlockNum() * AscendC::GetSubBlockNum();
         uint32_t aivId = AscendC::GetBlockIdx();
 
         // Each line is a tile.
-        uint32_t tilesNum = computeLayoutSrc.shape(0); 
-        uint32_t tileLen = computeLayoutSrc.shape(1); 
+        uint32_t tilesNum = computeLayoutSrc.shape(0);
+        uint32_t tileLen = computeLayoutSrc.shape(1);
         uint32_t paddingStride = computeLayoutDst.stride(0);
 
-        uint32_t tilesPerAiv = tilesNum / aivNum; 
+        uint32_t tilesPerAiv = tilesNum / aivNum;
         uint32_t tileRemain = tilesNum % aivNum;
         if (aivId < tileRemain) {
-            tilesPerAiv++; 
+            tilesPerAiv++;
         }
-        uint32_t mIdx = aivId * tilesPerAiv; 
+        uint32_t mIdx = aivId * tilesPerAiv;
         if (aivId >= tileRemain) {
-            mIdx += tileRemain; 
+            mIdx += tileRemain;
         }
         MatrixCoord blockOffset(mIdx, 0);
 
         AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[0]);
-        AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[1]); 
+        AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[1]);
         uint32_t coreLoops{ 0 };
-        if (paddingStride > COMPUTE_LENGTH) { 
+        if (paddingStride > COMPUTE_LENGTH) {
             // Handle the same tile on multiple loops.
-            uint32_t loopsPerTile = CeilDiv(tileLen, COMPUTE_LENGTH); 
-            coreLoops = tilesPerAiv * loopsPerTile;  
+            uint32_t loopsPerTile = CeilDiv(tileLen, COMPUTE_LENGTH);
+            coreLoops = tilesPerAiv * loopsPerTile;
             for (uint32_t loopIdx = 0; loopIdx < coreLoops; ++loopIdx) {
                 uint32_t tileIdx = loopIdx / loopsPerTile;
                 uint32_t inTileLoopIdx = loopIdx % loopsPerTile;
@@ -103,7 +105,7 @@ public:
                     actualDataNum = tileLen - inTileLoopIdx * COMPUTE_LENGTH;
                 }
                 AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[bufferIndex]);
-                ComputeLayout dstLayout = computeLayoutDst.GetTileLayout(MatrixCoord(1, actualDataNum)); 
+                ComputeLayout dstLayout = computeLayoutDst.GetTileLayout(MatrixCoord(1, actualDataNum));
                 ComputeLayout srcLayout = computeLayoutSrc.GetTileLayout(MatrixCoord(1, actualDataNum));
                 ComputeLayout &ubLayout = dstLayout;
                 copyGm2Ub(inputBuffer[bufferIndex], src[gmSrcOffset], ubLayout, srcLayout);
@@ -116,18 +118,18 @@ public:
             }
         } else {
             // Handle multiple tile each loop.
-            uint32_t tilesPerLoop = COMPUTE_LENGTH / paddingStride; 
+            uint32_t tilesPerLoop = COMPUTE_LENGTH / paddingStride;
             coreLoops = CeilDiv(tilesPerAiv, tilesPerLoop);
-            for (uint32_t loopIdx = 0; loopIdx < coreLoops; ++loopIdx) { 
+            for (uint32_t loopIdx = 0; loopIdx < coreLoops; ++loopIdx) {
                 uint32_t tileIdx = loopIdx * tilesPerLoop;
                 MatrixCoord tileOffset(tileIdx, 0);
                 uint64_t gmSrcOffset = computeLayoutSrc.GetOffset(blockOffset + tileOffset);
                 uint32_t actualTilesNum = tilesPerLoop;
-                if (tilesPerAiv - tileIdx < tilesPerLoop) { 
+                if (tilesPerAiv - tileIdx < tilesPerLoop) {
                     actualTilesNum = tilesPerAiv - tileIdx;
                 }
                 AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[bufferIndex]);
-                ComputeLayout dstLayout = computeLayoutDst.GetTileLayout(MatrixCoord(actualTilesNum, tileLen)); 
+                ComputeLayout dstLayout = computeLayoutDst.GetTileLayout(MatrixCoord(actualTilesNum, tileLen));
                 ComputeLayout srcLayout = computeLayoutSrc.GetTileLayout(MatrixCoord(actualTilesNum, tileLen));
                 ComputeLayout &ubLayout = dstLayout;
                 copyGm2Ub(inputBuffer[bufferIndex], src[gmSrcOffset], ubLayout, srcLayout);
@@ -139,7 +141,7 @@ public:
                 bufferIndex = 1 - bufferIndex;
             }
         }
-        AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[0]); 
+        AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[0]);
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[1]);
     }
 
@@ -182,11 +184,11 @@ public:
     const uint32_t l0CBlockNum = ArchTag::L0C_SIZE / cSize;
     using ElementCompute =
         typename Catlass::Gemm::helper::ElementAccumulatorSelector<ElementA, ElementB>::ElementAccumulator;
-    using ElementScalar = ElementCompute; 
-    static constexpr uint32_t STAGES = BlockGemm::STAGES; 
+    using ElementScalar = ElementCompute;
+    static constexpr uint32_t STAGES = BlockGemm::STAGES;
     using BlockScheduler = BlockScheduler_;
-    
-    static const uint32_t COMPUTE_LENGTH_A = 96 * 1024 / sizeof(ElementA); 
+
+    static const uint32_t COMPUTE_LENGTH_A = 96 * 1024 / sizeof(ElementA);
     using PaddingA = PaddingMatrix<ArchTag, ElementA, LayoutA, COMPUTE_LENGTH_A>;
     static const uint32_t COMPUTE_LENGTH_B = 96 * 1024 / sizeof(ElementB);
     using PaddingB = PaddingMatrix<ArchTag, ElementB, LayoutB, COMPUTE_LENGTH_B>;
@@ -199,7 +201,7 @@ public:
         LayoutB layoutB;
         GM_ADDR gmWorkspace;
         GM_ADDR ptrWA;
-        LayoutA layoutWA; 
+        LayoutA layoutWA;
         GM_ADDR ptrWB;
         LayoutB layoutWB;
         EpilogueParams epilogueParams;
@@ -210,12 +212,12 @@ public:
 
         CATLASS_HOST_DEVICE
         Params(GemmCoord problemShape_, GM_ADDR ptrA_, LayoutA layoutA_,
-            GM_ADDR ptrB_, LayoutB layoutB_, GM_ADDR gmWorkspace_, 
-            GM_ADDR ptrWA_, LayoutA layoutWA_, GM_ADDR ptrWB_, LayoutB layoutWB_, 
-            EpilogueParams epilogueParams_) : problemShape(problemShape_), ptrA(ptrA_), layoutA(layoutA_), 
-                ptrB(ptrB_), layoutB(layoutB_), gmWorkspace(gmWorkspace_), 
-                ptrWA(ptrWA_), layoutWA(layoutWA_), ptrWB(ptrWB_), layoutWB(layoutWB_), 
-                epilogueParams(epilogueParams_){} 
+            GM_ADDR ptrB_, LayoutB layoutB_, GM_ADDR gmWorkspace_,
+            GM_ADDR ptrWA_, LayoutA layoutWA_, GM_ADDR ptrWB_, LayoutB layoutWB_,
+            EpilogueParams epilogueParams_) : problemShape(problemShape_), ptrA(ptrA_), layoutA(layoutA_),
+                ptrB(ptrB_), layoutB(layoutB_), gmWorkspace(gmWorkspace_),
+                ptrWA(ptrWA_), layoutWA(layoutWA_), ptrWB(ptrWB_), layoutWB(layoutWB_),
+                epilogueParams(epilogueParams_){}
     };
 
     struct Arguments{
@@ -237,7 +239,7 @@ public:
         return layout::RowMajor(layout.shape(0), layout.shape(1),
             RoundUp(layout.shape(1), align));
     }
-    
+
     static layout::ColumnMajor GetWorkspaceLayout(layout::ColumnMajor layout, uint32_t align)
     {
         if (align == 0) {
@@ -307,7 +309,7 @@ public:
         uint32_t N = params.problemShape.n();
         uint32_t K = params.problemShape.k();
         #pragma unroll
-        for (uint32_t i = 0; i < l0CBlockNum; i++) 
+        for (uint32_t i = 0; i < l0CBlockNum; i++)
         {
             AscendC::SetFlag<AscendC::HardEvent::FIX_M>((int32_t)i);
         }
@@ -326,7 +328,7 @@ public:
             bool hasNextBlock = false;
             GemmCoord nextActualShape;
             uint32_t mNextGmBlockIdx = 0; uint32_t nNextGmBlockIdx = 0;
-            if (loopIdx + AscendC::GetBlockNum() < coreLoops) 
+            if (loopIdx + AscendC::GetBlockNum() < coreLoops)
             {
                 hasNextBlock = true;
                 uint32_t nextLoopIdx = loopIdx + AscendC::GetBlockNum();
@@ -334,19 +336,19 @@ public:
                 nNextGmBlockIdx = nextLoopIdx % nLoops;
                 uint32_t mNextGmActual = (mNextGmBlockIdx == mLoops - 1) ? (M - mNextGmBlockIdx * maxMPerBlock) : maxMPerBlock;
                 uint32_t nNextGmActual = (nNextGmBlockIdx == nLoops - 1) ? (N - nNextGmBlockIdx * maxNPerBlock) : maxNPerBlock;
-                nextActualShape = MakeCoord(mNextGmActual, nNextGmActual, K); 
+                nextActualShape = MakeCoord(mNextGmActual, nNextGmActual, K);
             }
             GemmCoord actualShape{mGmActual, nGmActual, K};
             AscendC::WaitFlag<AscendC::HardEvent::FIX_M>((int32_t)singleIdx);
-            MatrixCoord gmTileAOffset{mGmBlockIdx * maxMPerBlock, 0}; 
+            MatrixCoord gmTileAOffset{mGmBlockIdx * maxMPerBlock, 0};
             auto gmTileA = gmA[params.layoutWA.GetOffset(gmTileAOffset)];
-            MatrixCoord gmTileBOffset{0, nGmBlockIdx * maxNPerBlock}; 
+            MatrixCoord gmTileBOffset{0, nGmBlockIdx * maxNPerBlock};
             auto gmTileB = gmB[params.layoutWB.GetOffset(gmTileBOffset)];
-            MatrixCoord gmTileCOffset{mGmBlockIdx * maxMPerBlock, nGmBlockIdx * maxNPerBlock}; 
+            MatrixCoord gmTileCOffset{mGmBlockIdx * maxMPerBlock, nGmBlockIdx * maxNPerBlock};
             auto gmTileC = gmC[layoutC.GetOffset(gmTileCOffset)];
-            MatrixCoord gmTileNextAOffset{mNextGmBlockIdx * maxMPerBlock, 0}; 
+            MatrixCoord gmTileNextAOffset{mNextGmBlockIdx * maxMPerBlock, 0};
             auto gmTileNextA = gmA[params.layoutWA.GetOffset(gmTileNextAOffset)];
-            MatrixCoord gmTileNextBOffset{0, nNextGmBlockIdx * maxNPerBlock}; 
+            MatrixCoord gmTileNextBOffset{0, nNextGmBlockIdx * maxNPerBlock};
             auto gmTileNextB = gmB[params.layoutWB.GetOffset(gmTileNextBOffset)];
             blockGemm(
                 gmTileA, params.layoutWA,
@@ -363,7 +365,7 @@ public:
         for(uint32_t i = 0; i < l0CBlockNum; i++){
             AscendC::WaitFlag<AscendC::HardEvent::FIX_M>((int32_t)i);
         }
-    } 
+    }
 
     template<>
     CATLASS_DEVICE
@@ -415,7 +417,7 @@ public:
             GemmCoord actualShape{mGmActual, nGmActual, K};
             GemmCoord blockCoord{mGmBlockIdx, nGmBlockIdx, 0};
             LayoutC layoutC(params.problemShape.m(), params.problemShape.n());
-            Arch::CrossCoreWaitFlagWithReverse<0x2, PIPE_MTE3>(flagAicFinishStore); 
+            Arch::CrossCoreWaitFlagWithReverse<0x2, PIPE_MTE3>(flagAicFinishStore);
             blockEpilogue(actualShape, blockCoord, gmC, layoutC, inGroupOffsetWorkspace);
         }
         inGroupOffsetWorkspace += params.problemShape.m() * params.problemShape.n();

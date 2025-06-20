@@ -15,6 +15,7 @@
 #include "catlass/arch/resource.hpp"
 #include "catlass/epilogue/tile/copy_gm_to_ub.hpp"
 #include "catlass/epilogue/tile/copy_ub_to_gm.hpp"
+#include "catlass/gemm/helper.hpp"
 #include "catlass/gemv_coord.hpp"
 #include "catlass/matrix_coord.hpp"
 
@@ -103,7 +104,7 @@ public:
         LayoutA layoutA{m, n};
         LayoutZ layoutZ{m};
         typename BlockEpilogue::Params epilogueParams{args.alpha, args.beta, args.ptrZ, layoutZ, args.ptrZ, layoutZ};
-   
+
         Params params{problemShape, args.ptrX, layoutX, args.ptrA, layoutA, workspace, epilogueParams};
         return params;
     }
@@ -113,12 +114,12 @@ public:
     KernelGemvAic() {}
 
     template <int32_t CORE_TYPE = g_coreType>
-    CATLASS_DEVICE 
+    CATLASS_DEVICE
     void operator()(Params const& params);
 
     template <>
-    CATLASS_DEVICE 
-    void operator()<AscendC::AIC>(Params const& params) 
+    CATLASS_DEVICE
+    void operator()<AscendC::AIC>(Params const& params)
     {
         BlockGemv blockGemv(resource);
         // Represent the full gm
@@ -224,8 +225,8 @@ public:
     }
 
     template <>
-    CATLASS_DEVICE 
-    void operator()<AscendC::AIV>(Params const& params) 
+    CATLASS_DEVICE
+    void operator()<AscendC::AIV>(Params const& params)
     {
         BlockEpilogue blockEpilogue(resource, params.epilogueParams);
 

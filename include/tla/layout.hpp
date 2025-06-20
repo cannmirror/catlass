@@ -12,6 +12,7 @@
 #define TLA_LAYOUT_HPP
 
 #include "catlass/catlass.hpp"
+#include "catlass/layout/layout.hpp"
 #include "tla/numeric/integral_constant.hpp"
 #include "tla/tuple.hpp"
 #include "tla/int_tuple.hpp"
