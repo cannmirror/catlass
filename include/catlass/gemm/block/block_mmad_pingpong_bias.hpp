@@ -308,7 +308,8 @@ public:
                         }
                         // Perform calculation operations
                         if (initC) {
-                            tileMmad(l0CTile, l0ATile, l0BTile, l0BiasTensor, mPartActual, nPartActual, kPartActual, initC, unitFlag);
+                            tileMmad(l0CTile, l0ATile, l0BTile, l0BiasTensor, mPartActual, nPartActual, kPartActual,
+                                     initC, unitFlag);
                         } else {
                             tileMmad(l0CTile, l0ATile, l0BTile, mPartActual, nPartActual, kPartActual, initC, unitFlag);
                         }

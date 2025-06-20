@@ -145,7 +145,8 @@ public:
         AscendC::GlobalTensor<ElementX> const& gmNextBlockX,
         AscendC::GlobalTensor<ElementA> const& gmNextBlockA,
         GemvCoord const& actualShape, GemvCoord const& actualShapeNext,
-        bool isFirstBlock, bool hasNextBlock, uint32_t singleIdx) {
+        bool isFirstBlock, bool hasNextBlock, uint32_t singleIdx)
+    {
         auto layoutXInL1 = LayoutXInL1::template MakeLayout<ElementX>(L1XAlignHelper::M_ALIGNED, L1TileShape::N);
         auto layoutAInL1 = LayoutAInL1::template MakeLayout<ElementA>(L1TileShape::M, L1TileShape::N);
         auto layoutInL0C = LayoutYInL0::MakeLayoutInL0C(MatrixCoord(L1XAlignHelper::M_ALIGNED, actualShape.m()));

@@ -150,6 +150,7 @@ public:
 
     CATLASS_DEVICE
     ~PaddingMatrix() {}
+
 private:
     static const uint32_t BUFFER_NUM = 2;
     AscendC::LocalTensor<Element> inputBuffer[BUFFER_NUM];
@@ -222,7 +223,7 @@ public:
               epilogueParams(epilogueParams_) {}
     };
 
-    struct Arguments{
+    struct Arguments {
         GemmCoord problemShape;
         uint32_t align;
         GM_ADDR ptrA;
@@ -238,8 +239,7 @@ public:
         if (align == 0) {
             return layout;
         }
-        return layout::RowMajor(layout.shape(0), layout.shape(1),
-            RoundUp(layout.shape(1), align));
+        return layout::RowMajor(layout.shape(0), layout.shape(1), RoundUp(layout.shape(1), align));
     }
 
     static layout::ColumnMajor GetWorkspaceLayout(layout::ColumnMajor layout, uint32_t align)
@@ -247,11 +247,11 @@ public:
         if (align == 0) {
             return layout;
         }
-        return layout::ColumnMajor(layout.shape(0), layout.shape(1),
-            RoundUp(layout.shape(0), align));
+        return layout::ColumnMajor(layout.shape(0), layout.shape(1), RoundUp(layout.shape(0), align));
     }
 
-    static bool CanImplement(const Arguments &args){
+    static bool CanImplement(const Arguments &args)
+    {
         return true;
     }
 
@@ -260,13 +260,23 @@ public:
         return 0;
     }
 
-    static Params ToUnderlyingArguments(const Arguments &args, uint8_t *workspace){
+    static Params ToUnderlyingArguments(const Arguments &args, uint8_t *workspace)
+    {
         LayoutA layoutA{args.problemShape.m(), args.problemShape.k()};
         LayoutB layoutB{args.problemShape.k(), args.problemShape.n()};
         LayoutWA layoutWA = GetWorkspaceLayout(layoutA, args.align);
         LayoutWB layoutWB = GetWorkspaceLayout(layoutB, args.align);
-        Params params{args.problemShape, args.ptrA, layoutA, args.ptrB, layoutB, args.gmWorkspace,
-                    args.ptrWA, layoutWA, args.ptrWB, layoutWB, args.epilogueParams};
+        Params params{args.problemShape,
+            args.ptrA,
+            layoutA,
+            args.ptrB,
+            layoutB,
+            args.gmWorkspace,
+            args.ptrWA,
+            layoutWA,
+            args.ptrWB,
+            layoutWB,
+            args.epilogueParams};
         return params;
     }
 
@@ -282,18 +292,16 @@ public:
     }
 
     CATLASS_DEVICE
-    KernelGemm(){}
+    KernelGemm() {}
 
     CATLASS_DEVICE
-    ~KernelGemm(){}
+    ~KernelGemm() {}
 
-    template<int32_t CORE_TYPE = g_coreType>
-    CATLASS_DEVICE
-    void operator()(Params &params){}
+    template <int32_t CORE_TYPE = g_coreType>
+    CATLASS_DEVICE void operator()(Params &params) {}
 
-    template<>
-    CATLASS_DEVICE
-    void operator()<AscendC::AIC>(Params &params)
+    template <>
+    CATLASS_DEVICE void operator()<AscendC::AIC>(Params &params)
     {
         if (!IsSameStride(params.layoutWA, params.layoutA) || !IsSameStride(params.layoutWB, params.layoutB)) {
             Arch::CrossCoreWaitFlag(flagAivFinishPadding);
@@ -302,17 +310,16 @@ public:
         BlockGemm blockGemm(resource);
         // Represent the full gm
         AscendC::GlobalTensor<ElementA> gmA;
-        gmA.SetGlobalBuffer((__gm__ ElementA*)params.ptrWA);
+        gmA.SetGlobalBuffer((__gm__ ElementA *)params.ptrWA);
         AscendC::GlobalTensor<ElementB> gmB;
-        gmB.SetGlobalBuffer((__gm__ ElementB*)params.ptrWB);
+        gmB.SetGlobalBuffer((__gm__ ElementB *)params.ptrWB);
         AscendC::GlobalTensor<ElementC> gmC;
-        gmC.SetGlobalBuffer((__gm__ ElementC*)params.gmWorkspace);
+        gmC.SetGlobalBuffer((__gm__ ElementC *)params.gmWorkspace);
         uint32_t M = params.problemShape.m();
         uint32_t N = params.problemShape.n();
         uint32_t K = params.problemShape.k();
         #pragma unroll
-        for (uint32_t i = 0; i < l0CBlockNum; i++)
-        {
+        for (uint32_t i = 0; i < l0CBlockNum; i++) {
             AscendC::SetFlag<AscendC::HardEvent::FIX_M>((int32_t)i);
         }
         uint32_t mLoops = CeilDiv(M, maxMPerBlock);
@@ -320,8 +327,7 @@ public:
         uint32_t coreLoops = mLoops * nLoops;
         uint32_t singleIdx = 0;
         LayoutC layoutC(params.problemShape.m(), params.problemShape.n());
-        for (uint32_t loopIdx = AscendC::GetBlockIdx(); loopIdx < coreLoops; loopIdx += AscendC::GetBlockNum())
-        {
+        for (uint32_t loopIdx = AscendC::GetBlockIdx(); loopIdx < coreLoops; loopIdx += AscendC::GetBlockNum()) {
             uint32_t mGmBlockIdx = loopIdx / nLoops;
             uint32_t nGmBlockIdx = loopIdx % nLoops;
             uint32_t mGmActual = (mGmBlockIdx == mLoops - 1) ? (M - mGmBlockIdx * maxMPerBlock) : maxMPerBlock;
@@ -329,15 +335,17 @@ public:
             bool isFirstBlock = (loopIdx == AscendC::GetBlockIdx());
             bool hasNextBlock = false;
             GemmCoord nextActualShape;
-            uint32_t mNextGmBlockIdx = 0; uint32_t nNextGmBlockIdx = 0;
-            if (loopIdx + AscendC::GetBlockNum() < coreLoops)
-            {
+            uint32_t mNextGmBlockIdx = 0;
+            uint32_t nNextGmBlockIdx = 0;
+            if (loopIdx + AscendC::GetBlockNum() < coreLoops) {
                 hasNextBlock = true;
                 uint32_t nextLoopIdx = loopIdx + AscendC::GetBlockNum();
                 mNextGmBlockIdx = nextLoopIdx / nLoops;
                 nNextGmBlockIdx = nextLoopIdx % nLoops;
-                uint32_t mNextGmActual = (mNextGmBlockIdx == mLoops - 1) ? (M - mNextGmBlockIdx * maxMPerBlock) : maxMPerBlock;
-                uint32_t nNextGmActual = (nNextGmBlockIdx == nLoops - 1) ? (N - nNextGmBlockIdx * maxNPerBlock) : maxNPerBlock;
+                uint32_t mNextGmActual =
+                    (mNextGmBlockIdx == mLoops - 1) ? (M - mNextGmBlockIdx * maxMPerBlock) : maxMPerBlock;
+                uint32_t nNextGmActual =
+                    (nNextGmBlockIdx == nLoops - 1) ? (N - nNextGmBlockIdx * maxNPerBlock) : maxNPerBlock;
                 nextActualShape = MakeCoord(mNextGmActual, nNextGmActual, K);
             }
             GemmCoord actualShape{mGmActual, nGmActual, K};
@@ -364,22 +372,21 @@ public:
             singleIdx = (singleIdx + 1) % l0CBlockNum;
         }
         #pragma unroll
-        for(uint32_t i = 0; i < l0CBlockNum; i++){
+        for (uint32_t i = 0; i < l0CBlockNum; i++) {
             AscendC::WaitFlag<AscendC::HardEvent::FIX_M>((int32_t)i);
         }
     }
 
-    template<>
-    CATLASS_DEVICE
-    void operator()<AscendC::AIV>(Params &params)
+    template <>
+    CATLASS_DEVICE void operator()<AscendC::AIV>(Params &params)
     {
         Arch::Resource<ArchTag> resource;
         uint64_t inGroupOffsetWorkspace = 0;
         if (!IsSameStride(params.layoutWA, params.layoutA)) {
             AscendC::GlobalTensor<ElementA> gmA;
             AscendC::GlobalTensor<ElementA> gmWA;
-            gmA.SetGlobalBuffer(reinterpret_cast<__gm__ ElementA*>(params.ptrA));
-            gmWA.SetGlobalBuffer(reinterpret_cast<__gm__ ElementA*>(params.ptrWA));
+            gmA.SetGlobalBuffer(reinterpret_cast<__gm__ ElementA *>(params.ptrA));
+            gmWA.SetGlobalBuffer(reinterpret_cast<__gm__ ElementA *>(params.ptrWA));
             PaddingA paddingA(resource);
             paddingA(gmWA, gmA, params.layoutWA, params.layoutA);
         }
@@ -387,8 +394,8 @@ public:
         if (!IsSameStride(params.layoutWB, params.layoutB)) {
             AscendC::GlobalTensor<ElementB> gmB;
             AscendC::GlobalTensor<ElementB> gmWB;
-            gmB.SetGlobalBuffer(reinterpret_cast<__gm__ ElementB*>(params.ptrB));
-            gmWB.SetGlobalBuffer(reinterpret_cast<__gm__ ElementB*>(params.ptrWB));
+            gmB.SetGlobalBuffer(reinterpret_cast<__gm__ ElementB *>(params.ptrB));
+            gmWB.SetGlobalBuffer(reinterpret_cast<__gm__ ElementB *>(params.ptrWB));
             PaddingB paddingB(resource);
             paddingB(gmWB, gmB, params.layoutWB, params.layoutB);
             // 0x0 synchronization control between AI Core
@@ -409,9 +416,8 @@ public:
         uint32_t aivIndex = AscendC::GetBlockIdx();
         uint32_t aicoreIndex = aivIndex / aivNum;
         AscendC::GlobalTensor<ElementC> gmC;
-        gmC.SetGlobalBuffer((__gm__ ElementC*)params.gmWorkspace);
-        for (uint32_t loopIdx = aicoreIndex; loopIdx < coreLoops; loopIdx += AscendC::GetBlockNum())
-        {
+        gmC.SetGlobalBuffer((__gm__ ElementC *)params.gmWorkspace);
+        for (uint32_t loopIdx = aicoreIndex; loopIdx < coreLoops; loopIdx += AscendC::GetBlockNum()) {
             uint32_t mGmBlockIdx = loopIdx / nLoops;
             uint32_t nGmBlockIdx = loopIdx % nLoops;
             uint32_t mGmActual = (mGmBlockIdx == mLoops - 1) ? (M - mGmBlockIdx * maxMPerBlock) : maxMPerBlock;
@@ -424,6 +430,7 @@ public:
         }
         inGroupOffsetWorkspace += params.problemShape.m() * params.problemShape.n();
     }
+
 private:
     static constexpr Arch::FlagID FLAG_AIC_FINISH_STORE = 0;
     static constexpr Arch::FlagID RV_FLAG_AIC_FINISH_STORE = 1;

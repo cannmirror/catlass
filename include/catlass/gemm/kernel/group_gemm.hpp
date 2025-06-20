@@ -24,17 +24,15 @@ namespace Catlass::Gemm::Kernel{
 
 namespace detail {
 
-    template <class T>
-    CATLASS_DEVICE
-    void UnpackListParam(T *const dst, GM_ADDR src, uint32_t len)
-    {
-        for (uint32_t i = 0; i * sizeof(uint64_t) < len * sizeof(T); ++i) {
-            reinterpret_cast<uint64_t *>(dst)[i] = reinterpret_cast<__gm__ uint64_t *>(src)[i];
-        }
+template <class T>
+CATLASS_DEVICE void UnpackListParam(T *const dst, GM_ADDR src, uint32_t len)
+{
+    for (uint32_t i = 0; i * sizeof(uint64_t) < len * sizeof(T); ++i) {
+        reinterpret_cast<uint64_t *>(dst)[i] = reinterpret_cast<__gm__ uint64_t *>(src)[i];
     }
+}
 
 }  // namespace detail
-
 
 template<
     class ArchTag_,
@@ -57,29 +55,31 @@ public:
     CopyUb2Gm copyUb2Gm;
 
     CATLASS_DEVICE
-    PaddingMatrix(Arch::Resource<ArchTag> &resource){
+    PaddingMatrix(Arch::Resource<ArchTag> &resource)
+    {
         int64_t bufferOffset = 0;
-        for (uint32_t i = 0; i < BUFFER_NUM; i++) { //
+        for (uint32_t i = 0; i < BUFFER_NUM; i++) {  //
             inputBuffer[i] = resource.ubBuf.template GetBufferByByte<Element>(bufferOffset * sizeof(Element));
             bufferOffset += COMPUTE_LENGTH;
         }
     }
 
     CATLASS_DEVICE
-    ComputeLayout GetPaddingComputeLayout(layout::RowMajor const &layout){
+    ComputeLayout GetPaddingComputeLayout(layout::RowMajor const &layout)
+    {
         return ComputeLayout(layout.shape(0), layout.shape(1), layout.stride(0));
     }
 
     CATLASS_DEVICE
-    ComputeLayout GetPaddingComputeLayout(layout::ColumnMajor const &layout){
+    ComputeLayout GetPaddingComputeLayout(layout::ColumnMajor const &layout)
+    {
         return ComputeLayout(layout.shape(1), layout.shape(0), layout.stride(1));
     }
 
     CATLASS_DEVICE
-    void operator()(AscendC::GlobalTensor<Element> const &dst,
-                    AscendC::GlobalTensor<Element> const &src,
-                    Layout layoutDst, Layout layoutSrc
-    ){
+    void operator()(AscendC::GlobalTensor<Element> const &dst, AscendC::GlobalTensor<Element> const &src,
+        Layout layoutDst, Layout layoutSrc)
+    {
         ComputeLayout computeLayoutSrc = GetPaddingComputeLayout(layoutSrc);
         ComputeLayout computeLayoutDst = GetPaddingComputeLayout(layoutDst);
 
@@ -104,7 +104,7 @@ public:
 
         AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[0]);
         AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[1]);
-        uint32_t coreLoops{ 0 };
+        uint32_t coreLoops{0};
         if (paddingStride > COMPUTE_LENGTH) {
             // Handle the same tile on multiple loops.
             uint32_t loopsPerTile = CeilDiv(tileLen, COMPUTE_LENGTH);
@@ -161,6 +161,7 @@ public:
 
     CATLASS_DEVICE
     ~PaddingMatrix() {}
+
 private:
     static const uint32_t BUFFER_NUM = 2;
     AscendC::LocalTensor<Element> inputBuffer[BUFFER_NUM];
@@ -210,7 +211,7 @@ public:
     static const uint32_t COMPUTE_LENGTH_B = 96 * 1024 / sizeof(ElementB);
     using PaddingB = PaddingMatrix<ArchTag, ElementB, LayoutB, COMPUTE_LENGTH_B>;
 
-    struct Params{
+    struct Params {
         // Data members
         uint32_t problemCount;
         GM_ADDR ptrProblemShape;
@@ -263,7 +264,8 @@ public:
         GM_ADDR ptrD;
     };
 
-    static bool CanImplement(const Arguments &args){
+    static bool CanImplement(const Arguments &args)
+    {
         return true;
     }
 
@@ -294,10 +296,10 @@ public:
     }
 
     CATLASS_DEVICE
-    KernelGroupGemm(){}
+    KernelGroupGemm() {}
 
     CATLASS_DEVICE
-    ~KernelGroupGemm(){}
+    ~KernelGroupGemm() {}
 
     CATLASS_DEVICE
     size_t GetWorkspaceLen(layout::RowMajor layout)
@@ -311,13 +313,11 @@ public:
         return layout.shape(1) * layout.stride(1);
     }
 
-    template<int32_t CORE_TYPE = g_coreType>
-    CATLASS_DEVICE
-    void operator()(Params &params){}
+    template <int32_t CORE_TYPE = g_coreType>
+    CATLASS_DEVICE void operator()(Params &params) {}
 
-    template<>
-    CATLASS_DEVICE
-    void operator()<AscendC::AIC>(Params &params)
+    template <>
+    CATLASS_DEVICE void operator()<AscendC::AIC>(Params &params)
     {
         GemmCoord problemShapeList[MAX_TENSOR_COUNT];
         LayoutA layoutAList[MAX_TENSOR_COUNT];
@@ -341,8 +341,7 @@ public:
         uint32_t startLoopIdx;
         Arch::Resource<ArchTag> resource;
         BlockGemm blockGemm(resource);
-        for (uint32_t groupIdx = 0; groupIdx < params.problemCount; ++groupIdx)
-        {
+        for (uint32_t groupIdx = 0; groupIdx < params.problemCount; ++groupIdx) {
             GemmCoord problemShape = problemShapeList[groupIdx];
             LayoutA layoutA = layoutAList[groupIdx];
             LayoutB layoutB = layoutBList[groupIdx];
@@ -351,17 +350,16 @@ public:
             LayoutB layoutWB = layoutWBList[groupIdx];
             Arch::CrossCoreWaitFlag(flagAivFinishPadding);
             AscendC::GlobalTensor<ElementA> gmA;
-            gmA.SetGlobalBuffer((__gm__ ElementA*)params.ptrWA);
+            gmA.SetGlobalBuffer((__gm__ ElementA *)params.ptrWA);
             AscendC::GlobalTensor<ElementB> gmB;
-            gmB.SetGlobalBuffer((__gm__ ElementB*)params.ptrWB);
+            gmB.SetGlobalBuffer((__gm__ ElementB *)params.ptrWB);
             AscendC::GlobalTensor<ElementC> gmC;
-            gmC.SetGlobalBuffer((__gm__ ElementC*)params.ptrWorkspace);
+            gmC.SetGlobalBuffer((__gm__ ElementC *)params.ptrWorkspace);
             uint32_t M = problemShape.m();
             uint32_t N = problemShape.n();
             uint32_t K = problemShape.k();
             #pragma unroll
-            for (uint32_t i = 0; i < l0CBlockNum; i++)
-            {
+            for (uint32_t i = 0; i < l0CBlockNum; i++) {
                 AscendC::SetFlag<AscendC::HardEvent::FIX_M>((int32_t)i);
             }
             uint32_t mLoops = CeilDiv(M, maxMPerBlock);
@@ -374,8 +372,7 @@ public:
                 startLoopIdx = coreIdx - startCoreIdx;
             }
             uint32_t singleIdx = 0;
-            for (uint32_t loopIdx = startLoopIdx; loopIdx < coreLoops; loopIdx += AscendC::GetBlockNum())
-            {
+            for (uint32_t loopIdx = startLoopIdx; loopIdx < coreLoops; loopIdx += AscendC::GetBlockNum()) {
                 uint32_t mGmBlockIdx = loopIdx / nLoops;
                 uint32_t nGmBlockIdx = loopIdx % nLoops;
                 uint32_t mGmActual = (mGmBlockIdx == mLoops - 1) ? (M - mGmBlockIdx * maxMPerBlock) : maxMPerBlock;
@@ -383,9 +380,9 @@ public:
                 bool isFirstBlock = (loopIdx == startLoopIdx);
                 bool hasNextBlock = false;
                 GemmCoord nextActualShape;
-                uint32_t mNextGmBlockIdx = 0; uint32_t nNextGmBlockIdx = 0;
-                if (loopIdx + AscendC::GetBlockNum() < coreLoops)
-                {
+                uint32_t mNextGmBlockIdx = 0;
+                uint32_t nNextGmBlockIdx = 0;
+                if (loopIdx + AscendC::GetBlockNum() < coreLoops) {
                     hasNextBlock = true;
                     uint32_t nextLoopIdx = loopIdx + AscendC::GetBlockNum();
                     mNextGmBlockIdx = nextLoopIdx / nLoops;
@@ -424,16 +421,15 @@ public:
             inGroupOffsetWorkspace += problemShape.m() * problemShape.n();
             startCoreIdx = (startCoreIdx + coreLoops) % coreNum;
             #pragma unroll
-            for (uint32_t i = 0; i < l0CBlockNum; i++)
-            {
+            for (uint32_t i = 0; i < l0CBlockNum; i++) {
                 AscendC::WaitFlag<AscendC::HardEvent::FIX_M>((int32_t)i);
             }
         }
     }
 
-    template<>
-    CATLASS_DEVICE
-    void operator()<AscendC::AIV>(Params &params){
+    template <>
+    CATLASS_DEVICE void operator()<AscendC::AIV>(Params &params)
+    {
         GemmCoord problemShapeList[MAX_TENSOR_COUNT];
         LayoutA layoutAList[MAX_TENSOR_COUNT];
         LayoutB layoutBList[MAX_TENSOR_COUNT];
@@ -463,18 +459,17 @@ public:
         Arch::Resource<ArchTag> resource;
         AscendC::GlobalTensor<ElementA> gmA;
         AscendC::GlobalTensor<ElementA> gmWA;
-        gmA.SetGlobalBuffer(reinterpret_cast<__gm__ ElementA*>(params.ptrA));
-        gmWA.SetGlobalBuffer(reinterpret_cast<__gm__ ElementA*>(params.ptrWA));
+        gmA.SetGlobalBuffer(reinterpret_cast<__gm__ ElementA *>(params.ptrA));
+        gmWA.SetGlobalBuffer(reinterpret_cast<__gm__ ElementA *>(params.ptrWA));
         AscendC::GlobalTensor<ElementB> gmB;
         AscendC::GlobalTensor<ElementB> gmWB;
-        gmB.SetGlobalBuffer(reinterpret_cast<__gm__ ElementB*>(params.ptrB));
-        gmWB.SetGlobalBuffer(reinterpret_cast<__gm__ ElementB*>(params.ptrWB));
+        gmB.SetGlobalBuffer(reinterpret_cast<__gm__ ElementB *>(params.ptrB));
+        gmWB.SetGlobalBuffer(reinterpret_cast<__gm__ ElementB *>(params.ptrWB));
         PaddingA paddingA(resource);
         PaddingB paddingB(resource);
         AscendC::GlobalTensor<ElementC> gmC;
         gmC.SetGlobalBuffer((__gm__ ElementC*)params.ptrWorkspace);
-        for (uint32_t groupIdx = 0; groupIdx < params.problemCount; ++groupIdx)
-        {
+        for (uint32_t groupIdx = 0; groupIdx < params.problemCount; ++groupIdx) {
             GemmCoord problemShape = problemShapeList[groupIdx];
             LayoutA layoutA = layoutAList[groupIdx];
             LayoutB layoutB = layoutBList[groupIdx];
@@ -500,8 +495,7 @@ public:
             } else {
                 startLoopIdx = coreIdx - startCoreIdx;
             }
-            for (uint32_t loopIdx = startLoopIdx; loopIdx < coreLoops; loopIdx += AscendC::GetBlockNum())
-            {
+            for (uint32_t loopIdx = startLoopIdx; loopIdx < coreLoops; loopIdx += AscendC::GetBlockNum()) {
                 uint32_t mGmBlockIdx = loopIdx / nLoops;
                 uint32_t nGmBlockIdx = loopIdx % nLoops;
                 uint32_t mGmActual = (mGmBlockIdx == mLoops - 1) ? (M - mGmBlockIdx * maxMPerBlock) : maxMPerBlock;
@@ -520,6 +514,7 @@ public:
             startCoreIdx = (startCoreIdx + coreLoops) % coreNum;
         }
     }
+
 private:
     static constexpr Arch::FlagID FLAG_AIC_FINISH_STORE = 0;
     static constexpr Arch::FlagID RV_FLAG_AIC_FINISH_STORE = 1;
