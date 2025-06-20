@@ -298,10 +298,12 @@ public:
     ~KernelGemm() {}
 
     template <int32_t CORE_TYPE = g_coreType>
-    CATLASS_DEVICE void operator()(Params &params) {}
+    CATLASS_DEVICE
+    void operator()(Params &params) {}
 
     template <>
-    CATLASS_DEVICE void operator()<AscendC::AIC>(Params &params)
+    CATLASS_DEVICE
+    void operator()<AscendC::AIC>(Params &params)
     {
         if (!IsSameStride(params.layoutWA, params.layoutA) || !IsSameStride(params.layoutWB, params.layoutB)) {
             Arch::CrossCoreWaitFlag(flagAivFinishPadding);
@@ -378,7 +380,8 @@ public:
     }
 
     template <>
-    CATLASS_DEVICE void operator()<AscendC::AIV>(Params &params)
+    CATLASS_DEVICE
+    void operator()<AscendC::AIV>(Params &params)
     {
         Arch::Resource<ArchTag> resource;
         uint64_t inGroupOffsetWorkspace = 0;
