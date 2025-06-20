@@ -229,27 +229,19 @@ public:
         GM_ADDR ptrX;
         GM_ADDR ptrD;
 
-
         // Methods
         CATLASS_HOST_DEVICE
         Params() {}
 
         CATLASS_HOST_DEVICE
-        Params(
-            uint32_t problemCount_, GM_ADDR ptrProblemShape_,
-            GM_ADDR alpha_, GM_ADDR beta_,
-            GM_ADDR ptrA_, GM_ADDR ptrLayoutA_,
-            GM_ADDR ptrB_, GM_ADDR ptrLayoutB_,
-            GM_ADDR ptrWorkspace_, GM_ADDR ptrLayoutWorkspace_,
-            GM_ADDR ptrWA_,GM_ADDR ptrLayoutWA_,
-            GM_ADDR ptrWB_,GM_ADDR ptrLayoutWB_, GM_ADDR ptrX_, GM_ADDR ptrD_)
-                :problemCount(problemCount_), ptrProblemShape(ptrProblemShape_),
-                alpha(alpha_), beta(beta_),
-                ptrA(ptrA_), ptrLayoutA(ptrLayoutA_),
-                ptrB(ptrB_), ptrLayoutB(ptrLayoutB_),
-                ptrWorkspace(ptrWorkspace_), ptrLayoutWorkspace(ptrLayoutWorkspace_),
-                ptrWA(ptrWA_), ptrLayoutWA(ptrLayoutWA_),
-                ptrWB(ptrWB_), ptrLayoutWB(ptrLayoutWB_),ptrX(ptrX_), ptrD(ptrD_){}
+        Params(uint32_t problemCount_, GM_ADDR ptrProblemShape_, GM_ADDR alpha_, GM_ADDR beta_, GM_ADDR ptrA_,
+            GM_ADDR ptrLayoutA_, GM_ADDR ptrB_, GM_ADDR ptrLayoutB_, GM_ADDR ptrWorkspace_, GM_ADDR ptrLayoutWorkspace_,
+            GM_ADDR ptrWA_, GM_ADDR ptrLayoutWA_, GM_ADDR ptrWB_, GM_ADDR ptrLayoutWB_, GM_ADDR ptrX_, GM_ADDR ptrD_)
+            : problemCount(problemCount_), ptrProblemShape(ptrProblemShape_), alpha(alpha_), beta(beta_), ptrA(ptrA_),
+              ptrLayoutA(ptrLayoutA_), ptrB(ptrB_), ptrLayoutB(ptrLayoutB_), ptrWorkspace(ptrWorkspace_),
+              ptrLayoutWorkspace(ptrLayoutWorkspace_), ptrWA(ptrWA_), ptrLayoutWA(ptrLayoutWA_), ptrWB(ptrWB_),
+              ptrLayoutWB(ptrLayoutWB_), ptrX(ptrX_), ptrD(ptrD_)
+        {}
     };
 
     struct Arguments{
@@ -280,10 +272,24 @@ public:
         return 0;
     }
 
-    static Params ToUnderlyingArguments(const Arguments &args, uint8_t *workspace){
-        Params params{args.problemCount, args.ptrProblemShape, args.alpha, args.beta, args.ptrA, args.ptrLayoutA, args.ptrB, args.ptrLayoutB,
-                    args.ptrWorkspace, args.ptrLayoutWorkspace, args.ptrWA, args.ptrLayoutWA, args.ptrWB, args.ptrLayoutWB,
-                    args.ptrX, args.ptrD};
+    static Params ToUnderlyingArguments(const Arguments &args, uint8_t *workspace)
+    {
+        Params params{args.problemCount,
+            args.ptrProblemShape,
+            args.alpha,
+            args.beta,
+            args.ptrA,
+            args.ptrLayoutA,
+            args.ptrB,
+            args.ptrLayoutB,
+            args.ptrWorkspace,
+            args.ptrLayoutWorkspace,
+            args.ptrWA,
+            args.ptrLayoutWA,
+            args.ptrWB,
+            args.ptrLayoutWB,
+            args.ptrX,
+            args.ptrD};
         return params;
     }
 
@@ -384,8 +390,10 @@ public:
                     uint32_t nextLoopIdx = loopIdx + AscendC::GetBlockNum();
                     mNextGmBlockIdx = nextLoopIdx / nLoops;
                     nNextGmBlockIdx = nextLoopIdx % nLoops;
-                    uint32_t mNextGmActual = (mNextGmBlockIdx == mLoops - 1) ? (M - mNextGmBlockIdx * maxMPerBlock) : maxMPerBlock;
-                    uint32_t nNextGmActual = (nNextGmBlockIdx == nLoops - 1) ? (N - nNextGmBlockIdx * maxNPerBlock) : maxNPerBlock;
+                    uint32_t mNextGmActual =
+                        (mNextGmBlockIdx == mLoops - 1) ? (M - mNextGmBlockIdx * maxMPerBlock) : maxMPerBlock;
+                    uint32_t nNextGmActual =
+                        (nNextGmBlockIdx == nLoops - 1) ? (N - nNextGmBlockIdx * maxNPerBlock) : maxNPerBlock;
                     nextActualShape = MakeCoord(mNextGmActual, nNextGmActual, K);
                 }
                 GemmCoord actualShape{mGmActual, nGmActual, K};
@@ -511,7 +519,6 @@ public:
 
             startCoreIdx = (startCoreIdx + coreLoops) % coreNum;
         }
-
     }
 private:
     static constexpr Arch::FlagID FLAG_AIC_FINISH_STORE = 0;

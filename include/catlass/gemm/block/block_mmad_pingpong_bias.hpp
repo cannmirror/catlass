@@ -313,7 +313,6 @@ public:
                             tileMmad(l0CTile, l0ATile, l0BTile, mPartActual, nPartActual, kPartActual, initC, unitFlag);
                         }
 
-
                         // Notify to move the next L0B tile
                         AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(l0BEventList[l0BListId]);
                         l0BListId = (l0BListId + 1 < STAGES) ? (l0BListId + 1) : 0;

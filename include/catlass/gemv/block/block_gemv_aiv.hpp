@@ -22,6 +22,7 @@
 #include "catlass/gemm/dispatch_policy.hpp"
 
 namespace Catlass::Gemv::Block {
+
 template <
     class UBTileShape_,
     class AType_,
@@ -69,14 +70,14 @@ public:
     static constexpr uint32_t Xbuf_SIZE_ = 16 * 1024;
     static constexpr uint32_t Ybuf_SIZE_ = 16 * 1024;
     static constexpr uint32_t workspace_SIZE_ = 32 * 1024;
+
     CATLASS_DEVICE
     BlockGemv(){}
+
     /// Construct
     CATLASS_DEVICE
     BlockGemv(Arch::Resource<ArchTag> &resource, uint32_t UBufAddrStart = 0)
     {
-
-
         uint32_t UbAOffset = UBufAddrStart;
         uint32_t UbXOffset = UBufAddrStart + Abuf_SIZE_;
         uint32_t UbYOffset = UBufAddrStart + Abuf_SIZE_+Xbuf_SIZE_;
@@ -84,10 +85,11 @@ public:
         // Init buffers
         for (uint32_t i = 0; i < STAGES; i++) {
             // Assign L1/L0A/L0B space for each stages
-            UbATensorList[i] = resource.ubBuf.template GetBufferByByte<ElementA>(UbAOffset+i * (Abuf_SIZE_/2));
-            UbXTensorList[i] = resource.ubBuf.template GetBufferByByte<ElementX>(UbXOffset+i * (Xbuf_SIZE_/2));
-            UbYTensorList[i] = resource.ubBuf.template GetBufferByByte<ElementY>(UbYOffset+i * (Ybuf_SIZE_/2));
-            UbWTensorList[i] = resource.ubBuf.template GetBufferByByte<ElementAccumulator>(UbWOffset+i * (workspace_SIZE_/2));
+            UbATensorList[i] = resource.ubBuf.template GetBufferByByte<ElementA>(UbAOffset + i * (Abuf_SIZE_ / 2));
+            UbXTensorList[i] = resource.ubBuf.template GetBufferByByte<ElementX>(UbXOffset + i * (Xbuf_SIZE_ / 2));
+            UbYTensorList[i] = resource.ubBuf.template GetBufferByByte<ElementY>(UbYOffset + i * (Ybuf_SIZE_ / 2));
+            UbWTensorList[i] =
+                resource.ubBuf.template GetBufferByByte<ElementAccumulator>(UbWOffset + i * (workspace_SIZE_ / 2));
 
             // Assign event ID for each stages
             UbInAEventList[i] = i;
@@ -106,11 +108,10 @@ public:
     ~BlockGemv()
     {
         for (uint32_t i = 0; i < STAGES; i++) {
-           AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(UbInAEventList[i]);
-           AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(UbInXEventList[i]);
-           AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(UbOutEventList[i]);
+            AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(UbInAEventList[i]);
+            AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(UbInXEventList[i]);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(UbOutEventList[i]);
         }
-
     }
 
     CATLASS_DEVICE
@@ -121,97 +122,96 @@ public:
         AscendC::GlobalTensor<ElementY> const &gmZ,
         GemvCoord const &actualShape,
         float alpha,
-        float beta
-       )
+        float beta)
     {
-       AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>((event_t)(UbOutEventList[UbOutListId]));
-       vecCopyGmToUb(UbYTensorList[UbOutListId], gmY,actualShape.m());
-       AscendC::SetFlag<AscendC::HardEvent::MTE2_V>((event_t)(UbOutEventList[UbOutListId]));
-       AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>((event_t)(UbOutEventList[UbOutListId]));
-       tileVmuls(
-           UbYTensorList[UbOutListId],
-           UbYTensorList[UbOutListId],
-           (ElementY)beta,
-           actualShape.m()
-       );
-       AscendC::SetFlag<AscendC::HardEvent::V_MTE2>((event_t)(UbOutEventList[UbOutListId]));
-       AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>((event_t)(UbOutEventList[UbOutListId]));
+        AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>((event_t)(UbOutEventList[UbOutListId]));
+        vecCopyGmToUb(UbYTensorList[UbOutListId], gmY, actualShape.m());
+        AscendC::SetFlag<AscendC::HardEvent::MTE2_V>((event_t)(UbOutEventList[UbOutListId]));
+        AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>((event_t)(UbOutEventList[UbOutListId]));
+        tileVmuls(
+            UbYTensorList[UbOutListId],
+            UbYTensorList[UbOutListId],
+            (ElementY)beta,
+            actualShape.m()
+        );
+        AscendC::SetFlag<AscendC::HardEvent::V_MTE2>((event_t)(UbOutEventList[UbOutListId]));
+        AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>((event_t)(UbOutEventList[UbOutListId]));
 
-       TileMRound = RoundUp(UBTileShape::M,UBAlignHelper::ALIGN);
-       TileNRound = RoundUp(UBTileShape::N,UBAlignHelper::ALIGN);
-       strideA = layoutA.stride(1) * TileNRound;
-       m_catlassual = (actualShape.m() < TileMRound) ? actualShape.m():TileMRound;
-       n_catlassual = (actualShape.n() < TileNRound) ? actualShape.n():TileNRound;
-       AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>((event_t)(UbInXEventList[UbInListId]));
-       vecCopyGmToUb(UbXTensorList[UbInListId], gmX,n_catlassual);
-       AscendC::SetFlag<AscendC::HardEvent::MTE2_V>((event_t)(UbInXEventList[UbInListId]));
+        TileMRound = RoundUp(UBTileShape::M,UBAlignHelper::ALIGN);
+        TileNRound = RoundUp(UBTileShape::N,UBAlignHelper::ALIGN);
+        strideA = layoutA.stride(1) * TileNRound;
+        m_catlassual = (actualShape.m() < TileMRound) ? actualShape.m():TileMRound;
+        n_catlassual = (actualShape.n() < TileNRound) ? actualShape.n():TileNRound;
+        AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>((event_t)(UbInXEventList[UbInListId]));
+        vecCopyGmToUb(UbXTensorList[UbInListId], gmX,n_catlassual);
+        AscendC::SetFlag<AscendC::HardEvent::MTE2_V>((event_t)(UbInXEventList[UbInListId]));
 
-       AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>((event_t)(UbInAEventList[UbInListId]));
-       auto layoutAInUb = layoutA.GetTileLayout(MakeCoord(TileMRound, TileNRound));
-       auto layoutTileA = layoutA.GetTileLayout(MakeCoord(m_catlassual, n_catlassual));
-       matrixCopyGmToUb(UbATensorList[UbInListId], gmA, layoutAInUb, layoutTileA);
-       AscendC::SetFlag<AscendC::HardEvent::MTE2_V>((event_t)(UbInAEventList[UbInListId]));
-        // main loop
-       uint32_t Nloop = CeilDiv(actualShape.n(),TileNRound);
-       for(uint32_t LoopIdx = 0;LoopIdx < Nloop; LoopIdx++){
-           m_catlassual = (actualShape.m() < TileMRound) ? actualShape.m():TileMRound;
-           n_catlassual = (LoopIdx == Nloop - 1) ? (actualShape.n() - LoopIdx * TileNRound) : TileNRound;
-           y_catlassual = m_catlassual;
-           x_catlassual = n_catlassual;
+        AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>((event_t)(UbInAEventList[UbInListId]));
+        auto layoutAInUb = layoutA.GetTileLayout(MakeCoord(TileMRound, TileNRound));
+        auto layoutTileA = layoutA.GetTileLayout(MakeCoord(m_catlassual, n_catlassual));
+        matrixCopyGmToUb(UbATensorList[UbInListId], gmA, layoutAInUb, layoutTileA);
+        AscendC::SetFlag<AscendC::HardEvent::MTE2_V>((event_t)(UbInAEventList[UbInListId]));
+         // main loop
+        uint32_t Nloop = CeilDiv(actualShape.n(),TileNRound);
+        for (uint32_t LoopIdx = 0; LoopIdx < Nloop; LoopIdx++) {
+            m_catlassual = (actualShape.m() < TileMRound) ? actualShape.m():TileMRound;
+            n_catlassual = (LoopIdx == Nloop - 1) ? (actualShape.n() - LoopIdx * TileNRound) : TileNRound;
+            y_catlassual = m_catlassual;
+            x_catlassual = n_catlassual;
 
-           uint32_t UbInListIdNext = (UbInListId + 1 < STAGES) ? (UbInListId + 1) : 0;
-           if(LoopIdx < Nloop - 1) {
-               uint32_t LoopIdxNext = LoopIdx + 1;
-               uint32_t m_catlassual_next = m_catlassual;
-               uint32_t n_catlassual_next = (LoopIdxNext == Nloop - 1) ? (actualShape.n() - LoopIdxNext * TileNRound) : TileNRound;
-               uint32_t y_catlassual_next = m_catlassual_next;
-               uint32_t x_catlassual_next = n_catlassual_next;
-               // Get L1 tensor for next stage
-               auto matrixTensor = UbATensorList[UbInListIdNext];
-               auto vecTensor = UbXTensorList[UbInListIdNext];
+            uint32_t UbInListIdNext = (UbInListId + 1 < STAGES) ? (UbInListId + 1) : 0;
+            if (LoopIdx < Nloop - 1) {
+                uint32_t LoopIdxNext = LoopIdx + 1;
+                uint32_t m_catlassual_next = m_catlassual;
+                uint32_t n_catlassual_next =
+                    (LoopIdxNext == Nloop - 1) ? (actualShape.n() - LoopIdxNext * TileNRound) : TileNRound;
+                uint32_t y_catlassual_next = m_catlassual_next;
+                uint32_t x_catlassual_next = n_catlassual_next;
+                // Get L1 tensor for next stage
+                auto matrixTensor = UbATensorList[UbInListIdNext];
+                auto vecTensor = UbXTensorList[UbInListIdNext];
 
-               AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>((event_t)(UbInXEventList[UbInListIdNext]));
-               vecCopyGmToUb(vecTensor, gmX[LoopIdxNext * TileNRound],x_catlassual_next);
-               AscendC::SetFlag<AscendC::HardEvent::MTE2_V>((event_t)(UbInXEventList[UbInListIdNext]));
-               AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>((event_t)(UbInAEventList[UbInListIdNext]));
-               auto layoutAInUb = layoutA.GetTileLayout(MakeCoord(TileMRound, TileNRound));
-               auto layoutTileA = layoutA.GetTileLayout(MakeCoord(m_catlassual_next, n_catlassual_next));
-               matrixCopyGmToUb(matrixTensor, gmA[LoopIdxNext * strideA], layoutAInUb, layoutTileA);
-               AscendC::SetFlag<AscendC::HardEvent::MTE2_V>((event_t)(UbInAEventList[UbInListIdNext]));
+                AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>((event_t)(UbInXEventList[UbInListIdNext]));
+                vecCopyGmToUb(vecTensor, gmX[LoopIdxNext * TileNRound], x_catlassual_next);
+                AscendC::SetFlag<AscendC::HardEvent::MTE2_V>((event_t)(UbInXEventList[UbInListIdNext]));
+                AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>((event_t)(UbInAEventList[UbInListIdNext]));
+                auto layoutAInUb = layoutA.GetTileLayout(MakeCoord(TileMRound, TileNRound));
+                auto layoutTileA = layoutA.GetTileLayout(MakeCoord(m_catlassual_next, n_catlassual_next));
+                matrixCopyGmToUb(matrixTensor, gmA[LoopIdxNext * strideA], layoutAInUb, layoutTileA);
+                AscendC::SetFlag<AscendC::HardEvent::MTE2_V>((event_t)(UbInAEventList[UbInListIdNext]));
+            }
+            AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>((event_t)(UbInXEventList[UbInListId]));
+            tileVmuls(
+                UbXTensorList[UbInListId],
+                UbXTensorList[UbInListId],
+                (ElementA)alpha,
+                x_catlassual
+            );
+            AscendC::PipeBarrier<PIPE_V>();
 
-           }
-           AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>((event_t)(UbInXEventList[UbInListId]));
-           tileVmuls(
-               UbXTensorList[UbInListId],
-               UbXTensorList[UbInListId],
-               (ElementA)alpha,
-               x_catlassual
-           );
-           AscendC::PipeBarrier<PIPE_V>();
-
-           AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>((event_t)(UbInAEventList[UbInListId]));
-           auto layoutComputeInUb = layoutA.GetTileLayout(MakeCoord(TileMRound, TileNRound));
-           auto layoutTileCompute = layoutA.GetTileLayout(MakeCoord(m_catlassual, n_catlassual));
-           tileVmad(
-               UbYTensorList[UbOutListId],
-               UbXTensorList[UbInListId],
-               UbATensorList[UbInListId],
-               UbWTensorList[UbInListId],
-               layoutComputeInUb,
-               layoutTileCompute
-           );
-           AscendC::SetFlag<AscendC::HardEvent::V_MTE2>((event_t)(UbInAEventList[UbInListId]));
-           AscendC::SetFlag<AscendC::HardEvent::V_MTE2>((event_t)(UbInXEventList[UbInListId]));
-           UbInListId = UbInListIdNext;
-       }
-       AscendC::SetFlag<AscendC::HardEvent::V_MTE3>((event_t)(UbOutEventList[UbOutListId]));
-       AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>((event_t)(UbOutEventList[UbOutListId]));
-       auto layoutDstY = layoutY.GetTileLayout(TensorCoord(y_catlassual));
-       auto layoutComputeInUb = layoutY.GetTileLayout(TensorCoord(y_catlassual));
-       vecCopyUbToGm(gmZ, UbYTensorList[UbOutListId],layoutDstY, layoutComputeInUb);
-       AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>((event_t)(UbOutEventList[UbOutListId]));
-       UbOutListId = (UbOutListId + 1 < STAGES) ? (UbOutListId + 1) : 0;
-    }
+            AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>((event_t)(UbInAEventList[UbInListId]));
+            auto layoutComputeInUb = layoutA.GetTileLayout(MakeCoord(TileMRound, TileNRound));
+            auto layoutTileCompute = layoutA.GetTileLayout(MakeCoord(m_catlassual, n_catlassual));
+            tileVmad(
+                UbYTensorList[UbOutListId],
+                UbXTensorList[UbInListId],
+                UbATensorList[UbInListId],
+                UbWTensorList[UbInListId],
+                layoutComputeInUb,
+                layoutTileCompute
+            );
+            AscendC::SetFlag<AscendC::HardEvent::V_MTE2>((event_t)(UbInAEventList[UbInListId]));
+            AscendC::SetFlag<AscendC::HardEvent::V_MTE2>((event_t)(UbInXEventList[UbInListId]));
+            UbInListId = UbInListIdNext;
+        }
+        AscendC::SetFlag<AscendC::HardEvent::V_MTE3>((event_t)(UbOutEventList[UbOutListId]));
+        AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>((event_t)(UbOutEventList[UbOutListId]));
+        auto layoutDstY = layoutY.GetTileLayout(TensorCoord(y_catlassual));
+        auto layoutComputeInUb = layoutY.GetTileLayout(TensorCoord(y_catlassual));
+        vecCopyUbToGm(gmZ, UbYTensorList[UbOutListId], layoutDstY, layoutComputeInUb);
+        AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>((event_t)(UbOutEventList[UbOutListId]));
+        UbOutListId = (UbOutListId + 1 < STAGES) ? (UbOutListId + 1) : 0;
+     }
 
 protected:
     // Multi-stage tensors list
@@ -229,8 +229,8 @@ protected:
     uint32_t UbOutListId{0};
     uint32_t UbInListId{0};
 
-    uint32_t m_catlassual, n_catlassual,x_catlassual, y_catlassual;
-    uint32_t TileMRound,TileNRound;
+    uint32_t m_catlassual, n_catlassual, x_catlassual, y_catlassual;
+    uint32_t TileMRound, TileNRound;
     uint32_t strideA;
 
     TileVmad tileVmad;

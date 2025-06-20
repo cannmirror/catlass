@@ -43,7 +43,8 @@ public:
     CopyUb2Gm copyUb2Gm;
 
     CATLASS_DEVICE
-    PaddingMatrix(Arch::Resource<ArchTag> &resource){
+    PaddingMatrix(Arch::Resource<ArchTag> &resource)
+    {
         int64_t bufferOffset = 0;
         for (uint32_t i = 0; i < BUFFER_NUM; i++) { //
             inputBuffer[i] = resource.ubBuf.template GetBufferByByte<Element>(bufferOffset * sizeof(Element));
@@ -52,20 +53,22 @@ public:
     }
 
     CATLASS_DEVICE
-    ComputeLayout GetPaddingComputeLayout(layout::RowMajor const &layout){
+    ComputeLayout GetPaddingComputeLayout(layout::RowMajor const &layout)
+    {
         return ComputeLayout(layout.shape(0), layout.shape(1), layout.stride(0));
     }
 
     CATLASS_DEVICE
-    ComputeLayout GetPaddingComputeLayout(layout::ColumnMajor const &layout){
+    ComputeLayout GetPaddingComputeLayout(layout::ColumnMajor const &layout)
+    {
         return ComputeLayout(layout.shape(1), layout.shape(0), layout.stride(1));
     }
 
     CATLASS_DEVICE
     void operator()(AscendC::GlobalTensor<Element> const &dst,
                     AscendC::GlobalTensor<Element> const &src,
-                    Layout layoutDst, Layout layoutSrc
-    ){
+                    Layout layoutDst, Layout layoutSrc)
+    {
         ComputeLayout computeLayoutSrc = GetPaddingComputeLayout(layoutSrc);
         ComputeLayout computeLayoutDst = GetPaddingComputeLayout(layoutDst);
 
@@ -211,13 +214,12 @@ public:
         Params() {}
 
         CATLASS_HOST_DEVICE
-        Params(GemmCoord problemShape_, GM_ADDR ptrA_, LayoutA layoutA_,
-            GM_ADDR ptrB_, LayoutB layoutB_, GM_ADDR gmWorkspace_,
-            GM_ADDR ptrWA_, LayoutA layoutWA_, GM_ADDR ptrWB_, LayoutB layoutWB_,
-            EpilogueParams epilogueParams_) : problemShape(problemShape_), ptrA(ptrA_), layoutA(layoutA_),
-                ptrB(ptrB_), layoutB(layoutB_), gmWorkspace(gmWorkspace_),
-                ptrWA(ptrWA_), layoutWA(layoutWA_), ptrWB(ptrWB_), layoutWB(layoutWB_),
-                epilogueParams(epilogueParams_){}
+        Params(GemmCoord problemShape_, GM_ADDR ptrA_, LayoutA layoutA_, GM_ADDR ptrB_, LayoutB layoutB_,
+            GM_ADDR gmWorkspace_, GM_ADDR ptrWA_, LayoutA layoutWA_, GM_ADDR ptrWB_, LayoutB layoutWB_,
+            EpilogueParams epilogueParams_)
+            : problemShape(problemShape_), ptrA(ptrA_), layoutA(layoutA_), ptrB(ptrB_), layoutB(layoutB_),
+              gmWorkspace(gmWorkspace_), ptrWA(ptrWA_), layoutWA(layoutWA_), ptrWB(ptrWB_), layoutWB(layoutWB_),
+              epilogueParams(epilogueParams_) {}
     };
 
     struct Arguments{

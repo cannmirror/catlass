@@ -114,7 +114,8 @@ public:
     }
     // destroy function
     CATLASS_DEVICE
-    ~BlockGemm(){
+    ~BlockGemm()
+    {
         for (uint32_t i = 0; i < STAGES; i++)
         {
             AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(l1AEventList[i]);
