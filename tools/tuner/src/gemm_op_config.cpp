@@ -241,7 +241,7 @@ bool QuantMatmulGemmOpConfig::CheckArgument(const Library::QuantMatmulGemmOperat
     argSize.layoutASize = LibraryHelper::GetLayoutSize(mdesp.A.layout);
     argSize.layoutBSize = LibraryHelper::GetLayoutSize(mdesp.B.layout);
     argSize.layoutCSize = LibraryHelper::GetLayoutSize(mdesp.C.layout);
-    argSize.layoutDSize = LibraryHelper::GetLayoutSize(mdesp.D.layout);
+    argSize.layoutDSize = LibraryHelper::GetLayoutSize(mdesp.C.layout);
     argSize.layoutScaleSize = LibraryHelper::GetLayoutSize(mdesp.Scale.layout);
     argSize.layoutPerTokenScaleSize = LibraryHelper::GetLayoutSize(mdesp.PerTokenScale.layout);
 
@@ -255,13 +255,22 @@ bool QuantMatmulGemmOpConfig::CheckArgument(const Library::QuantMatmulGemmOperat
     if (!SafeMul<uint32_t>({config_.m, config_.k}, argSize.lenA) ||
         !SafeMul<uint32_t>({config_.k, config_.n}, argSize.lenB) ||
         !SafeMul<uint32_t>({config_.m, config_.n}, argSize.lenC) ||
-        // !SafeMul<uint32_t>({config_.m, config_.n}, argSize.lenD) ||
+        !SafeMul<uint32_t>({config_.m, config_.n}, argSize.lenD) ||
+        !SafeMul<uint32_t>({1, config_.n}, argSize.lenScale) ||
+        !SafeMul<uint32_t>({config_.m, 1}, argSize.lenPerTokenScale) ||
         !SafeMul<size_t>({argSize.lenA, LibraryHelper::GetDataTypeSize(mdesp.A.element)}, argSize.sizeA) ||
         !SafeMul<size_t>({argSize.lenB, LibraryHelper::GetDataTypeSize(mdesp.B.element)}, argSize.sizeB) ||
-        !SafeMul<size_t>({argSize.lenC, LibraryHelper::GetDataTypeSize(mdesp.C.element)}, argSize.sizeC)) {
+        !SafeMul<size_t>({argSize.lenC, LibraryHelper::GetDataTypeSize(mdesp.C.element)}, argSize.sizeC) ||
+        !SafeMul<size_t>({argSize.lenD, LibraryHelper::GetDataTypeSize(mdesp.C.element)}, argSize.sizeD) ||
+        !SafeMul<size_t>({argSize.lenScale, LibraryHelper::GetDataTypeSize(mdesp.Scale.element)}, argSize.sizeScale) ||
+        !SafeMul<size_t>({argSize.lenPerTokenScale, LibraryHelper::GetDataTypeSize(mdesp.PerTokenScale.element)}, argSize.sizePerTokenScale) 
+    ) {
         LOGE("Arguments size overflows, please check command line input --m --n --k");
         return false;
     }
+
+    argSize.sizeProblemShape = sizeof(Catlass::GemmCoord);
+
     return true;
 }
 
@@ -292,6 +301,9 @@ void QuantMatmulGemmOpConfig::GenerateInput(const Library::QuantMatmulGemmOperat
 
     DeviceMemoryManager::Instance().FillDeviceData(arg_.problemShape, argSize.sizeProblemShape,
                                                    &problemShape);
+
+    LOGE("XX QuantMatmulGemmOpConfig::GenerateInput FillDeviceData done, argSize.sizeA=%zu, argSize.sizeB=%zu, argSize.sizeC=%zu, argSize.sizeD=%zu, argSize.sizeScale=%zu, argSize.sizePerTokenScale=%zu",
+         argSize.sizeA, argSize.sizeB, argSize.sizeC, argSize.sizeD, argSize.sizeScale, argSize.sizePerTokenScale);
 
     DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrA, argSize.sizeA, layoutAList.data()); // 使用 ptrA
     DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrB, argSize.sizeB, layoutBList.data()); // 使用 ptrB

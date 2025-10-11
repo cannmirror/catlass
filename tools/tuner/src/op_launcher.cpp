@@ -44,6 +44,10 @@ OpRunStatus OpLauncher::Init()
         return OpRunStatus::FAILED;
     }
     LOGE("XXX OpLauncher::Initxxx2");
+    LOGE("XXX OpLauncher::Initxxx1, op_:%s", op_->GetDescription().name);
+    opConfig_->GetArg();
+    opConfig_->GetConfig();
+    LOGE("XXX OpLauncher::Initxxx2");
     auto status = op_->CanImplement(opConfig_->GetArg(), opConfig_->GetConfig());
     if (status != Status::kSuccess) {
         LOGE("Call CanImplement failed");

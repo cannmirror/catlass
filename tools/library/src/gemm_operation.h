@@ -59,6 +59,9 @@ public:
 
     virtual Status CanImplement(void *argsPtr, void *configPtr) override
     {
+        printf("XX GemmOperationBase::CanImplement\n");
+        printf("XX GemmOperationBase::CanImplement, argPtr=%p, configPtr=%p\n", argsPtr, configPtr);
+
         BuildArgs(argsPtr, configPtr);
         return op_.CanImplement(this->args_);
     }
@@ -111,6 +114,7 @@ public:
 private:
     virtual void BuildArgs(void *argsPtr, void *configPtr) override
     {
+        printf("XX BasicMatmulGemmOperation::BuildArgs\n");
         BasicMatmulGemmArguments *arguments = (BasicMatmulGemmArguments *)argsPtr;
         BasicMatmulGemmConfiguration *config = (BasicMatmulGemmConfiguration *)configPtr;
         this->args_.problemShape = GemmCoord{config->m, config->n, config->k};
@@ -133,6 +137,7 @@ public:
 private:
     virtual void BuildArgs(void *argsPtr, void *configPtr) override
     {
+        printf("XX GroupedMatmulGemmOperation::BuildArgs\n");
         GroupedMatmulGemmArguments *arguments = (GroupedMatmulGemmArguments *)argsPtr;
         GroupedMatmulGemmConfiguration *config = (GroupedMatmulGemmConfiguration *)configPtr;
 
@@ -207,9 +212,12 @@ private:
     {
         QuantMatmulGemmArguments *arguments = (QuantMatmulGemmArguments *)argsPtr;
         QuantMatmulGemmConfiguration *config = (QuantMatmulGemmConfiguration *)configPtr;
-
         // TODO
-        this->args_.problemShape = *reinterpret_cast<GemmCoord*>(arguments->problemShape);
+        this->args_.problemShape = *(reinterpret_cast<GemmCoord*>(
+            
+
+            
+        ));
         this->args_.ptrA = arguments->ptrA;
         this->args_.ptrB = arguments->ptrB;
         this->args_.ptrD = arguments->ptrD;
