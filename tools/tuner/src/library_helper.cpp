@@ -84,6 +84,8 @@ size_t LibraryHelper::GetLayoutSize(LibraryHelper::LayoutType layoutType)
             return sizeof(layout::PaddingColumnMajor);
         case LayoutType::nN:
             return sizeof(layout::nN);
+        case LayoutType::VectorLayout:
+            return sizeof(layout::VectorLayout);
         default:
             return 0;
     }

@@ -216,4 +216,121 @@ bool GroupedGemmOpConfig::InitArgument(Library::Operation *op)
     return true;
 }
 
+
+//////////
+void QuantMatmulGemmOpConfig::SaveMetric(Metric &metric)
+{
+    GemmOpConfig::SaveMetric(metric);
+    // metric.SetField("_count", std::to_string(config_.groupCount));
+}
+
+bool QuantMatmulGemmOpConfig::InitConfig(CommandLineParser &parser)
+{
+    bool res = GemmOpConfig::InitConfig(parser);
+    if (!res) {
+        return false;
+    }
+    config_.m = m_;
+    config_.n = n_;
+    config_.k = k_;
+    return true;
+}
+
+bool QuantMatmulGemmOpConfig::CheckArgument(const Library::QuantMatmulGemmOperationDescription &mdesp, ArgumentSize &argSize)
+{
+    argSize.layoutASize = LibraryHelper::GetLayoutSize(mdesp.A.layout);
+    argSize.layoutBSize = LibraryHelper::GetLayoutSize(mdesp.B.layout);
+    argSize.layoutCSize = LibraryHelper::GetLayoutSize(mdesp.C.layout);
+    argSize.layoutDSize = LibraryHelper::GetLayoutSize(mdesp.D.layout);
+    argSize.layoutScaleSize = LibraryHelper::GetLayoutSize(mdesp.Scale.layout);
+    argSize.layoutPerTokenScaleSize = LibraryHelper::GetLayoutSize(mdesp.PerTokenScale.layout);
+
+    LOGE("XX QuantMatmulGemmOpConfig::CheckArgument layoutASize=%zu, layoutBSize=%zu, layoutCSize=%zu",
+         argSize.layoutASize, argSize.layoutBSize, argSize.layoutCSize);
+    LOGE("XX QuantMatmulGemmOpConfig::CheckArgument m=%u,n=%u,k=%u", config_.m, config_.n, config_.k);
+    LOGE("XX QuantMatmulGemmOpConfig::CheckArgument mdesp.A.element=%d,mdesp.B.element=%d,mdesp.C.element=%d",
+          static_cast<int>(mdesp.A.element), static_cast<int>(mdesp.B.element), static_cast<int>(mdesp.C.element));
+   
+
+    if (!SafeMul<uint32_t>({config_.m, config_.k}, argSize.lenA) ||
+        !SafeMul<uint32_t>({config_.k, config_.n}, argSize.lenB) ||
+        !SafeMul<uint32_t>({config_.m, config_.n}, argSize.lenC) ||
+        // !SafeMul<uint32_t>({config_.m, config_.n}, argSize.lenD) ||
+        !SafeMul<size_t>({argSize.lenA, LibraryHelper::GetDataTypeSize(mdesp.A.element)}, argSize.sizeA) ||
+        !SafeMul<size_t>({argSize.lenB, LibraryHelper::GetDataTypeSize(mdesp.B.element)}, argSize.sizeB) ||
+        !SafeMul<size_t>({argSize.lenC, LibraryHelper::GetDataTypeSize(mdesp.C.element)}, argSize.sizeC)) {
+        LOGE("Arguments size overflows, please check command line input --m --n --k");
+        return false;
+    }
+    return true;
+}
+
+void QuantMatmulGemmOpConfig::GenerateInput(const Library::QuantMatmulGemmOperationDescription &mdesp,
+                                        const ArgumentSize &argSize)
+{
+    LOGE("XX QuantMatmulGemmOpConfig::GenerateInput m=%u,n=%u,k=%u", config_.m, config_.n, config_.k);
+
+    Catlass::GemmCoord problemShape = Catlass::GemmCoord{config_.m, config_.n, config_.k};
+    std::vector<uint8_t> layoutAList(argSize.layoutASize);
+    std::vector<uint8_t> layoutBList(argSize.layoutBSize);
+    std::vector<uint8_t> layoutDList(argSize.layoutDSize);
+    std::vector<uint8_t> layoutScaleList(argSize.layoutScaleSize);
+    std::vector<uint8_t> layoutPerTokenScaleList(argSize.layoutPerTokenScaleSize);
+
+    LOGE("XX QuantMatmulGemmOpConfig::GenerateInput layoutASize=%zu, layoutBSize=%zu, layoutCSize=%zu, layoutDSize=%zu, layoutScaleSize=%zu, layoutPerTokenScaleSize=%zu",
+         argSize.layoutASize, argSize.layoutBSize, argSize.layoutCSize, argSize.layoutDSize,
+        argSize.layoutScaleSize, argSize.layoutPerTokenScaleSize);
+
+    LibraryHelper::ConstructLayout(mdesp.A.layout, mdesp.A.element, config_.m, config_.k, layoutAList.data());
+    LOGE("XX QuantMatmulGemmOpConfig::GenerateInput ConstructLayout");
+    LibraryHelper::ConstructLayout(mdesp.B.layout, mdesp.B.element, config_.k, config_.n, layoutBList.data());
+    LibraryHelper::ConstructLayout(mdesp.C.layout, mdesp.C.element, config_.m, config_.n, layoutDList.data());
+    LibraryHelper::ConstructLayout(mdesp.Scale.layout, mdesp.C.element, 1, config_.n, layoutScaleList.data());
+    LibraryHelper::ConstructLayout(mdesp.PerTokenScale.layout, mdesp.C.element, 1, config_.m, layoutPerTokenScaleList.data());
+
+    LOGE("XX QuantMatmulGemmOpConfig::GenerateInput FillDeviceData");
+
+    DeviceMemoryManager::Instance().FillDeviceData(arg_.problemShape, argSize.sizeProblemShape,
+                                                   &problemShape);
+
+    DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrA, argSize.sizeA, layoutAList.data()); // 使用 ptrA
+    DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrB, argSize.sizeB, layoutBList.data()); // 使用 ptrB
+    // 内部实际ID为D
+    DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrD, argSize.sizeC, layoutDList.data()); // 使用 ptrC
+    DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrScale, argSize.sizeScale, layoutScaleList.data()); // 使用 ptrC
+    DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrPerTokenScale, argSize.sizePerTokenScale, layoutPerTokenScaleList.data()); // 使用 ptrC
+}
+
+bool QuantMatmulGemmOpConfig::InitArgument(Library::Operation *op)
+{
+    LOGE("XX QuantMatmulGemmOpConfig::InitArgument");
+    auto &mdesp = static_cast<const Library::QuantMatmulGemmOperationDescription &>(op->GetDescription());
+    ArgumentSize safeArg{};
+    if (!CheckArgument(mdesp, safeArg)) {
+        return false;
+    }
+
+    LOGE("XX QuantMatmulGemmOpConfig::InitArgument m=%u,n=%u,k=%u", config_.m, config_.n, config_.k);
+
+    std::vector<DeviceMemoryParam> params{
+        {reinterpret_cast<void**>(&arg_.problemShape), safeArg.sizeProblemShape},
+        {reinterpret_cast<void**>(&arg_.ptrA), safeArg.sizeA},
+        {reinterpret_cast<void**>(&arg_.ptrB), safeArg.sizeB},
+        {reinterpret_cast<void**>(&arg_.ptrD), safeArg.sizeD},
+        {reinterpret_cast<void**>(&arg_.ptrScale), safeArg.sizeScale},
+        {reinterpret_cast<void**>(&arg_.ptrPerTokenScale), safeArg.sizePerTokenScale}
+    };
+
+    LOGE("XX QuantMatmulGemmOpConfig::InitArgument MallocDeviceMemory");
+
+    if (!MallocDeviceMemory(params)) {
+        return false;
+    }
+
+    LOGE("XX QuantMatmulGemmOpConfig::InitArgument GenerateInput");
+    GenerateInput(mdesp, safeArg);
+
+    return true;
+}
+
 } // namespace Catlass

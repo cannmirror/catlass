@@ -111,6 +111,52 @@ static void Run(const Options &options) {
     uint32_t fftsLen{0};
     RT_CHECK(rtGetC2cCtrlAddr(&fftsAddr, &fftsLen));
 
+
+    // using catlass_gemm_quant_matmul_fp16xColumnMajor_fp16xRowMajor_fp16xRowMajor_128x144x256_128x144x48_swizzle3x1 =
+        
+    //     Gemm::Device::DeviceGemm<
+    //         Gemm::Kernel::QuantMatmulMultiStageWorkspace<
+    //             Gemm::Block::BlockMmad<
+    //                 Gemm::MmadAtlasA2PreloadAsync<1,2,2,2,1,false,true>,
+    //                 GemmShape<128, 144, 256>,
+    //                 GemmShape<128, 144, 48>,
+    //                 Gemm::GemmType<int8_t, layout::RowMajor>,
+    //                 Gemm::GemmType<int8_t, layout::ColumnMajor>,
+    //                 Gemm::GemmType<int32_t, layout::RowMajor>
+    //             >,
+    //             Epilogue::Block::BlockEpilogue<
+    //                     Epilogue::EpilogueAtlasA2PerTokenDequant<2>,
+    //                     Gemm::GemmType<int32_t, layout::RowMajor>,
+    //                     Gemm::GemmType<half, layout::VectorLayout>,
+    //                     Gemm::GemmType<half, layout::VectorLayout>, 
+    //                     Gemm::GemmType<half, layout::RowMajor>, 
+    //                     Epilogue::Tile::TileRowBroadcastMul<
+    //                         Arch::AtlasA2, 
+    //                         Gemm::GemmType<float, layout::RowMajor>, 
+    //                         MatrixShape<32, 256>
+    //                     >,
+    //                     Epilogue::Tile::TileBroadcastOneBlk<Arch::AtlasA2, 
+    //                         Gemm::GemmType<float, layout::RowMajor>, 
+    //                         MatrixShape<32, 256>::ROW
+    //                     >,
+    //                     Epilogue::Tile::TileOneBlkColumnBroadcastMul<Arch::AtlasA2,
+    //                             Gemm::GemmType<float, layout::RowMajor>,
+    //                             MatrixShape<32, 256>
+    //                     >,
+    //                     Epilogue::Tile::TileCopy<Arch::AtlasA2,
+    //                             Gemm::GemmType<int32_t, layout::RowMajor>,
+    //                             Gemm::GemmType<half, layout::VectorLayout>,
+    //                             Gemm::GemmType<half, layout::VectorLayout>, 
+    //                             Gemm::GemmType<half, layout::RowMajor>
+    //                     >,
+    //                     Epilogue::Tile::EpilogueHorizontalTileSwizzle
+    //             >,
+    //             Gemm::Block::GemmIdentityBlockSwizzle<3, 0>,
+    //             2
+    //         >
+    //     >;
+        
+
     using ArchTag = Arch::AtlasA2;
     constexpr uint32_t preloadStages = 1;
     constexpr uint32_t l1Stages = 2;

@@ -42,6 +42,7 @@ enum class LayoutType {
     PaddingRowMajor,
     PaddingColumnMajor,
     nN,
+    VectorLayout,
     Invalid
 };
 
@@ -136,6 +137,23 @@ struct GemmOperationDescription : public OperationDescription {
 };
 
 
+struct QuantMatmulGemmOperationDescription : public GemmOperationDescription {
+    TensorDescription D;
+    TensorDescription Scale;
+    TensorDescription PerTokenScale;
+    QuantMatmulGemmOperationDescription(
+        GemmKind gemmKind = GemmKind::Invalid,
+        TensorDescription A = TensorDescription(),
+        TensorDescription B = TensorDescription(),
+        TensorDescription C = TensorDescription(),
+        DataType epilogueElementType = DataType::Invalid,
+        TensorDescription D = TensorDescription(),
+        TensorDescription Scale = TensorDescription(),
+        TensorDescription PerTokenScale = TensorDescription()
+    ) : GemmOperationDescription(gemmKind, A, B, C, epilogueElementType),
+        D(D), Scale(Scale), PerTokenScale(PerTokenScale){}
+};
+
 class Operation {
 public:
     virtual ~Operation() = default;
@@ -196,6 +214,22 @@ struct GroupedMatmulGemmConfiguration {
     uint32_t n;
     uint32_t k;
     uint32_t groupCount;
+};
+
+struct QuantMatmulGemmArguments {
+    uint8_t *problemShape;
+    uint32_t aicCoreNum;
+    uint8_t *ptrA;
+    uint8_t *ptrB;
+    uint8_t *ptrD;
+    uint8_t *ptrScale;
+    uint8_t *ptrPerTokenScale;
+};
+
+struct QuantMatmulGemmConfiguration {
+    uint32_t m;
+    uint32_t n;
+    uint32_t k;
 };
 
 }
