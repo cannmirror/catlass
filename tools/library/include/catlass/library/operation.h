@@ -217,7 +217,7 @@ struct GroupedMatmulGemmConfiguration {
 };
 
 struct QuantMatmulGemmArguments {
-    uint8_t *problemShape;
+    GemmCoord problemShape;
     uint32_t aicCoreNum;
     uint8_t *ptrA;
     uint8_t *ptrB;

@@ -279,7 +279,6 @@ void QuantMatmulGemmOpConfig::GenerateInput(const Library::QuantMatmulGemmOperat
 {
     LOGE("XX QuantMatmulGemmOpConfig::GenerateInput m=%u,n=%u,k=%u", config_.m, config_.n, config_.k);
 
-    Catlass::GemmCoord problemShape = Catlass::GemmCoord{config_.m, config_.n, config_.k};
     std::vector<uint8_t> layoutAList(argSize.layoutASize);
     std::vector<uint8_t> layoutBList(argSize.layoutBSize);
     std::vector<uint8_t> layoutDList(argSize.layoutDSize);
@@ -299,18 +298,18 @@ void QuantMatmulGemmOpConfig::GenerateInput(const Library::QuantMatmulGemmOperat
 
     LOGE("XX QuantMatmulGemmOpConfig::GenerateInput FillDeviceData");
 
-    DeviceMemoryManager::Instance().FillDeviceData(arg_.problemShape, argSize.sizeProblemShape,
-                                                   &problemShape);
-
     LOGE("XX QuantMatmulGemmOpConfig::GenerateInput FillDeviceData done, argSize.sizeA=%zu, argSize.sizeB=%zu, argSize.sizeC=%zu, argSize.sizeD=%zu, argSize.sizeScale=%zu, argSize.sizePerTokenScale=%zu",
          argSize.sizeA, argSize.sizeB, argSize.sizeC, argSize.sizeD, argSize.sizeScale, argSize.sizePerTokenScale);
-
+    arg_.problemShape = Catlass::GemmCoord{config_.m, config_.n, config_.k};
     DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrA, argSize.sizeA, layoutAList.data()); // 使用 ptrA
     DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrB, argSize.sizeB, layoutBList.data()); // 使用 ptrB
     // 内部实际ID为D
     DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrD, argSize.sizeC, layoutDList.data()); // 使用 ptrC
     DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrScale, argSize.sizeScale, layoutScaleList.data()); // 使用 ptrC
     DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrPerTokenScale, argSize.sizePerTokenScale, layoutPerTokenScaleList.data()); // 使用 ptrC
+
+
+    LOGE("XX QuantMatmulGemmOpConfig::GenerateInput FillDeviceData done");
 }
 
 bool QuantMatmulGemmOpConfig::InitArgument(Library::Operation *op)

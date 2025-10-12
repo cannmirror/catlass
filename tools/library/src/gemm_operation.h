@@ -212,12 +212,7 @@ private:
     {
         QuantMatmulGemmArguments *arguments = (QuantMatmulGemmArguments *)argsPtr;
         QuantMatmulGemmConfiguration *config = (QuantMatmulGemmConfiguration *)configPtr;
-        // TODO
-        this->args_.problemShape = *(reinterpret_cast<GemmCoord*>(
-            
-
-            
-        ));
+        this->args_.problemShape = arguments->problemShape;
         this->args_.ptrA = arguments->ptrA;
         this->args_.ptrB = arguments->ptrB;
         this->args_.ptrD = arguments->ptrD;

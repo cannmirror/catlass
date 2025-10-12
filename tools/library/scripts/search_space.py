@@ -287,6 +287,7 @@ def register_gemm_basic_matmul_operation(manifest):
             block_swizzle=block_swizzle,
         )
         manifest.append(op)
+        break #TODO: 仅生成一个kernel
 ################## basic_matmul end ##################
 
 
@@ -339,6 +340,7 @@ def register_gemm_grouped_matmul_operation(manifest):
             block_swizzle=block_swizzle,
         )
         manifest.append(op)
+        break #TODO: 仅生成一个kernel
 ################## grouped_matmul end ##################
 
 
