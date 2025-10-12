@@ -13,6 +13,7 @@
 #include "metrics.h"
 #include "library_helper.h"
 #include "catlass/gemm_coord.hpp"
+#include "tiling/platform/platform_ascendc.h"
 
 namespace Catlass {
 
@@ -245,13 +246,6 @@ bool QuantMatmulGemmOpConfig::CheckArgument(const Library::QuantMatmulGemmOperat
     argSize.layoutScaleSize = LibraryHelper::GetLayoutSize(mdesp.Scale.layout);
     argSize.layoutPerTokenScaleSize = LibraryHelper::GetLayoutSize(mdesp.PerTokenScale.layout);
 
-    LOGE("XX QuantMatmulGemmOpConfig::CheckArgument layoutASize=%zu, layoutBSize=%zu, layoutCSize=%zu",
-         argSize.layoutASize, argSize.layoutBSize, argSize.layoutCSize);
-    LOGE("XX QuantMatmulGemmOpConfig::CheckArgument m=%u,n=%u,k=%u", config_.m, config_.n, config_.k);
-    LOGE("XX QuantMatmulGemmOpConfig::CheckArgument mdesp.A.element=%d,mdesp.B.element=%d,mdesp.C.element=%d",
-          static_cast<int>(mdesp.A.element), static_cast<int>(mdesp.B.element), static_cast<int>(mdesp.C.element));
-   
-
     if (!SafeMul<uint32_t>({config_.m, config_.k}, argSize.lenA) ||
         !SafeMul<uint32_t>({config_.k, config_.n}, argSize.lenB) ||
         !SafeMul<uint32_t>({config_.m, config_.n}, argSize.lenC) ||
@@ -277,54 +271,33 @@ bool QuantMatmulGemmOpConfig::CheckArgument(const Library::QuantMatmulGemmOperat
 void QuantMatmulGemmOpConfig::GenerateInput(const Library::QuantMatmulGemmOperationDescription &mdesp,
                                         const ArgumentSize &argSize)
 {
-    LOGE("XX QuantMatmulGemmOpConfig::GenerateInput m=%u,n=%u,k=%u", config_.m, config_.n, config_.k);
-
-    std::vector<uint8_t> layoutAList(argSize.layoutASize);
-    std::vector<uint8_t> layoutBList(argSize.layoutBSize);
-    std::vector<uint8_t> layoutDList(argSize.layoutDSize);
-    std::vector<uint8_t> layoutScaleList(argSize.layoutScaleSize);
-    std::vector<uint8_t> layoutPerTokenScaleList(argSize.layoutPerTokenScaleSize);
-
-    LOGE("XX QuantMatmulGemmOpConfig::GenerateInput layoutASize=%zu, layoutBSize=%zu, layoutCSize=%zu, layoutDSize=%zu, layoutScaleSize=%zu, layoutPerTokenScaleSize=%zu",
-         argSize.layoutASize, argSize.layoutBSize, argSize.layoutCSize, argSize.layoutDSize,
-        argSize.layoutScaleSize, argSize.layoutPerTokenScaleSize);
-
-    LibraryHelper::ConstructLayout(mdesp.A.layout, mdesp.A.element, config_.m, config_.k, layoutAList.data());
-    LOGE("XX QuantMatmulGemmOpConfig::GenerateInput ConstructLayout");
-    LibraryHelper::ConstructLayout(mdesp.B.layout, mdesp.B.element, config_.k, config_.n, layoutBList.data());
-    LibraryHelper::ConstructLayout(mdesp.C.layout, mdesp.C.element, config_.m, config_.n, layoutDList.data());
-    LibraryHelper::ConstructLayout(mdesp.Scale.layout, mdesp.C.element, 1, config_.n, layoutScaleList.data());
-    LibraryHelper::ConstructLayout(mdesp.PerTokenScale.layout, mdesp.C.element, 1, config_.m, layoutPerTokenScaleList.data());
-
-    LOGE("XX QuantMatmulGemmOpConfig::GenerateInput FillDeviceData");
-
-    LOGE("XX QuantMatmulGemmOpConfig::GenerateInput FillDeviceData done, argSize.sizeA=%zu, argSize.sizeB=%zu, argSize.sizeC=%zu, argSize.sizeD=%zu, argSize.sizeScale=%zu, argSize.sizePerTokenScale=%zu",
-         argSize.sizeA, argSize.sizeB, argSize.sizeC, argSize.sizeD, argSize.sizeScale, argSize.sizePerTokenScale);
+    arg_.aicCoreNum = platform_ascendc::PlatformAscendCManager::GetInstance()->GetCoreNumAic();
     arg_.problemShape = Catlass::GemmCoord{config_.m, config_.n, config_.k};
-    DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrA, argSize.sizeA, layoutAList.data()); // 使用 ptrA
-    DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrB, argSize.sizeB, layoutBList.data()); // 使用 ptrB
-    // 内部实际ID为D
-    DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrD, argSize.sizeC, layoutDList.data()); // 使用 ptrC
-    DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrScale, argSize.sizeScale, layoutScaleList.data()); // 使用 ptrC
-    DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrPerTokenScale, argSize.sizePerTokenScale, layoutPerTokenScaleList.data()); // 使用 ptrC
 
+    std::vector<uint8_t> layoutAData(argSize.sizeA);
+    FillRandomData<uint8_t, uint8_t>(layoutAData, 0, 255);
+    std::vector<uint8_t> layoutBData(argSize.sizeB);
+    FillRandomData<uint8_t, uint8_t>(layoutBData, 0, 255);
+    std::vector<uint8_t> layoutScaleData(argSize.sizeScale);
+    FillRandomData<uint8_t, uint8_t>(layoutScaleData, 0, 255);
+    std::vector<uint8_t> layoutPerTokenScaleData(argSize.sizePerTokenScale);
+    FillRandomData<uint8_t, uint8_t>(layoutPerTokenScaleData, 0, 255);
 
-    LOGE("XX QuantMatmulGemmOpConfig::GenerateInput FillDeviceData done");
+    DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrA, argSize.sizeA, layoutAData.data());
+    DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrB, argSize.sizeB, layoutBData.data());
+    DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrScale, argSize.sizeScale, layoutScaleData.data());
+    DeviceMemoryManager::Instance().FillDeviceData(arg_.ptrPerTokenScale, argSize.sizePerTokenScale, layoutPerTokenScaleData.data());
 }
 
 bool QuantMatmulGemmOpConfig::InitArgument(Library::Operation *op)
 {
-    LOGE("XX QuantMatmulGemmOpConfig::InitArgument");
     auto &mdesp = static_cast<const Library::QuantMatmulGemmOperationDescription &>(op->GetDescription());
     ArgumentSize safeArg{};
     if (!CheckArgument(mdesp, safeArg)) {
         return false;
     }
 
-    LOGE("XX QuantMatmulGemmOpConfig::InitArgument m=%u,n=%u,k=%u", config_.m, config_.n, config_.k);
-
     std::vector<DeviceMemoryParam> params{
-        {reinterpret_cast<void**>(&arg_.problemShape), safeArg.sizeProblemShape},
         {reinterpret_cast<void**>(&arg_.ptrA), safeArg.sizeA},
         {reinterpret_cast<void**>(&arg_.ptrB), safeArg.sizeB},
         {reinterpret_cast<void**>(&arg_.ptrD), safeArg.sizeD},
@@ -332,13 +305,10 @@ bool QuantMatmulGemmOpConfig::InitArgument(Library::Operation *op)
         {reinterpret_cast<void**>(&arg_.ptrPerTokenScale), safeArg.sizePerTokenScale}
     };
 
-    LOGE("XX QuantMatmulGemmOpConfig::InitArgument MallocDeviceMemory");
-
     if (!MallocDeviceMemory(params)) {
         return false;
     }
 
-    LOGE("XX QuantMatmulGemmOpConfig::InitArgument GenerateInput");
     GenerateInput(mdesp, safeArg);
 
     return true;

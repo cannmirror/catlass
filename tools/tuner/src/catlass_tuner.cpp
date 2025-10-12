@@ -97,17 +97,13 @@ void CatlassTuner::Run()
     // Get the number of cube cores of the current hardware
     uint32_t aicCoreNum = platform_ascendc::PlatformAscendCManager::GetInstance()->GetCoreNumAic();
     for (auto &p : pool.GetPool()) {
-        LOGE("1....");
         auto &opConfig = p.first;
         if (!opConfig || opConfig->Invalid()) {
             continue;
         }
-        LOGE("2....");
         for (auto op : p.second) {
             metrics_.Add(opConfig, op);
-            LOGE("3....");
             auto stat = RunOp(opConfig, op, aicCoreNum);
-            LOGE("4....");
             UpdateMetrics();
             if (stat != OpRunStatus::FATAL) {
                 continue;
@@ -126,20 +122,16 @@ void CatlassTuner::Run()
 
 OpRunStatus CatlassTuner::RunOp(const std::shared_ptr<OpConfig>& opConfig, Library::Operation *op, uint32_t aicCoreNum)
 {
-    LOGE("XX RunOp1....");
     std::vector<KernelType> kernels;
     std::shared_ptr<void> defer(nullptr, [&](void*) {
         // all kernel type ran by current operator
         kernelsQueue_.emplace(kernels);
     });
-    LOGE("XX RunOp2....");
     OpLauncher launcher(opConfig, op, aicCoreNum);
-    LOGE("XX RunOp3....");
     if (launcher.Init() != OpRunStatus::SUCCESS) {
         LOGE("Initialize operator %s failed", op->GetDescription().name);
         return OpRunStatus::FAILED;
     }
-    LOGE("XX RunOp4....");
     auto freq = profileHandler_.GetAicoreFreq();
     if (freq.first > freq.second) {
         LOGW("Current freq %d is lower than rated freq %ld, run warm up", freq.second, freq.first);
@@ -158,8 +150,7 @@ OpRunStatus CatlassTuner::RunOp(const std::shared_ptr<OpConfig>& opConfig, Libra
         }
         LOGI("Warm up finished, rated freq %ld, current freq %d", freq.first, freq.second);
     }
-    LOGE("31....");
-    OpRunStatus stat = OpRunStatus::SUCCESS;
+        OpRunStatus stat = OpRunStatus::SUCCESS;
     for (int i = 0; i < RUN_TIMES; ++i) {
         if (DeviceMemoryManager::Instance().ClearL2Cache(aicCoreNum)) {
             kernels.emplace_back(KernelType::CACHE_CLEAR);

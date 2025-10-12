@@ -287,7 +287,6 @@ def register_gemm_basic_matmul_operation(manifest):
             block_swizzle=block_swizzle,
         )
         manifest.append(op)
-        break #TODO: 仅生成一个kernel
 ################## basic_matmul end ##################
 
 
@@ -340,7 +339,6 @@ def register_gemm_grouped_matmul_operation(manifest):
             block_swizzle=block_swizzle,
         )
         manifest.append(op)
-        break #TODO: 仅生成一个kernel
 ################## grouped_matmul end ##################
 
 
@@ -350,12 +348,14 @@ def register_gemm_grouped_matmul_operation(manifest):
 def register_gemm_quant_matmul_operation(manifest):
 
     layouts = [
-        [library.LayoutType.ColumnMajor, library.LayoutType.RowMajor, library.LayoutType.RowMajor],
+        [library.LayoutType.RowMajor, library.LayoutType.RowMajor, library.LayoutType.RowMajor],
+        [library.LayoutType.RowMajor, library.LayoutType.ColumnMajor, library.LayoutType.RowMajor],
     ]
     data_types = [
-        [library.DataType.int8, library.DataType.int8, library.DataType.bf16],
+        [library.DataType.int8, library.DataType.int8, library.DataType.fp16],
     ]
     block_swizzle_descriptions = [
+        'Gemm::Block::GemmIdentityBlockSwizzle<3, 0>',
         'Gemm::Block::GemmIdentityBlockSwizzle<3, 1>',
     ]
 
@@ -368,10 +368,10 @@ def register_gemm_quant_matmul_operation(manifest):
         tile_shape_range=TileShapeRange(
             l1_tile_m_range=(128, 256),
             l1_tile_n_range=(128, 256),
-            l1_tile_k_range=(128, 256),
+            l1_tile_k_range=(128, 512),
             l0_tile_m_range=(128, 256),
             l0_tile_n_range=(128, 256),
-            l0_tile_k_range=(32, 64)
+            l0_tile_k_range=(32, 256)
         )
     ))
     LOGGER.info(f'quant_matmul tile_shapes size={len(tile_shapes)}')
@@ -394,5 +394,4 @@ def register_gemm_quant_matmul_operation(manifest):
             block_swizzle=block_swizzle,
         )
         manifest.append(op)
-        break # TODO: tmp
 ################## quant_matmul end ##################

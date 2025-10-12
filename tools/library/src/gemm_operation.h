@@ -59,9 +59,6 @@ public:
 
     virtual Status CanImplement(void *argsPtr, void *configPtr) override
     {
-        printf("XX GemmOperationBase::CanImplement\n");
-        printf("XX GemmOperationBase::CanImplement, argPtr=%p, configPtr=%p\n", argsPtr, configPtr);
-
         BuildArgs(argsPtr, configPtr);
         return op_.CanImplement(this->args_);
     }
@@ -113,8 +110,7 @@ public:
 
 private:
     virtual void BuildArgs(void *argsPtr, void *configPtr) override
-    {
-        printf("XX BasicMatmulGemmOperation::BuildArgs\n");
+    {        
         BasicMatmulGemmArguments *arguments = (BasicMatmulGemmArguments *)argsPtr;
         BasicMatmulGemmConfiguration *config = (BasicMatmulGemmConfiguration *)configPtr;
         this->args_.problemShape = GemmCoord{config->m, config->n, config->k};
@@ -136,8 +132,7 @@ public:
 
 private:
     virtual void BuildArgs(void *argsPtr, void *configPtr) override
-    {
-        printf("XX GroupedMatmulGemmOperation::BuildArgs\n");
+    {        
         GroupedMatmulGemmArguments *arguments = (GroupedMatmulGemmArguments *)argsPtr;
         GroupedMatmulGemmConfiguration *config = (GroupedMatmulGemmConfiguration *)configPtr;
 
@@ -201,7 +196,6 @@ public:
     QuantMatmulGemmOperation(char const *name = "") : GemmOperationBase<Operator_, QuantMatmulGemmOperationDescription>(name)
     {
         this->description_.gemmKind = GemmKind::QuantMatmul;
-
         this->description_.D = MakeTensorDescription<ElementD, LayoutD>();
         this->description_.Scale = MakeTensorDescription<ElementScale, LayoutScale>();
         this->description_.PerTokenScale = MakeTensorDescription<ElementPerTokenScale, LayoutPerTokenScale>();
@@ -212,12 +206,13 @@ private:
     {
         QuantMatmulGemmArguments *arguments = (QuantMatmulGemmArguments *)argsPtr;
         QuantMatmulGemmConfiguration *config = (QuantMatmulGemmConfiguration *)configPtr;
-        this->args_.problemShape = arguments->problemShape;
+        this->args_.problemShape = GemmCoord{config->m, config->n, config->k};
         this->args_.ptrA = arguments->ptrA;
         this->args_.ptrB = arguments->ptrB;
         this->args_.ptrD = arguments->ptrD;
         this->args_.ptrScale = arguments->ptrScale;
         this->args_.ptrPerTokenScale = arguments->ptrPerTokenScale;
+        this->args_.aicCoreNum = arguments->aicCoreNum;
     }
 
     virtual Status Run(
@@ -226,9 +221,7 @@ private:
         uint64_t fftsAddr
     ) override
     {
-        (void)fftsAddr;
-        this->args_.aicCoreNum = blockDim;
-        return this->op_.Run(stream, blockDim, 0);
+        return this->op_.Run(stream, blockDim, fftsAddr);        
     }
 private:
 };

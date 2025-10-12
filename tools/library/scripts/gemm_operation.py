@@ -205,7 +205,7 @@ class BasicMatmulKernelInstance:
                     Gemm::GemmType<{element_c}, {layout_c}>
                 >,
                 void,
-                # {block_swizzle}
+                {block_swizzle}
             >
         >"""
 
@@ -295,38 +295,41 @@ class QuantMatmulKernelInstance:
                     Gemm::MmadAtlasA2PreloadAsyncWithCallback<1,2,2,2,1,false,true>,
                     GemmShape<{l1_m}, {l1_n}, {l1_k}>,
                     GemmShape<{l0_m}, {l0_n}, {l0_k}>,
-                    Gemm::GemmType<int8_t, layout::RowMajor>,
-                    Gemm::GemmType<int8_t, layout::ColumnMajor>,
+                    Gemm::GemmType<{element_a}, {layout_a}>,
+                    Gemm::GemmType<{element_b}, {layout_b}>,
                     Gemm::GemmType<int32_t, layout::RowMajor>
                 >,
                 Epilogue::Block::BlockEpilogue<
                         Epilogue::EpilogueAtlasA2PerTokenDequant<2>,
                         Gemm::GemmType<int32_t, layout::RowMajor>,
-                        Gemm::GemmType<half, layout::VectorLayout>,
-                        Gemm::GemmType<half, layout::VectorLayout>, 
-                        Gemm::GemmType<half, layout::RowMajor>, 
+                        Gemm::GemmType<{element_c}, layout::VectorLayout>,
+                        Gemm::GemmType<{element_c}, layout::VectorLayout>, 
+                        Gemm::GemmType<{element_c}, {layout_c}>, 
                         Epilogue::Tile::TileRowBroadcastMul<
-                            Arch::AtlasA2, 
+                            {arch}, 
                             Gemm::GemmType<float, layout::RowMajor>, 
                             MatrixShape<32, 256>
                         >,
-                        Epilogue::Tile::TileBroadcastOneBlk<Arch::AtlasA2, 
+                        Epilogue::Tile::TileBroadcastOneBlk<
+                            {arch}, 
                             Gemm::GemmType<float, layout::RowMajor>, 
                             MatrixShape<32, 256>::ROW
                         >,
-                        Epilogue::Tile::TileOneBlkColumnBroadcastMul<Arch::AtlasA2,
+                        Epilogue::Tile::TileOneBlkColumnBroadcastMul<
+                                {arch},
                                 Gemm::GemmType<float, layout::RowMajor>,
                                 MatrixShape<32, 256>
                         >,
-                        Epilogue::Tile::TileCopy<Arch::AtlasA2,
+                        Epilogue::Tile::TileCopy<
+                                {arch},
                                 Gemm::GemmType<int32_t, layout::RowMajor>,
-                                Gemm::GemmType<half, layout::VectorLayout>,
-                                Gemm::GemmType<half, layout::VectorLayout>, 
-                                Gemm::GemmType<half, layout::RowMajor>
+                                Gemm::GemmType<{element_c}, layout::VectorLayout>,
+                                Gemm::GemmType<{element_c}, layout::VectorLayout>, 
+                                Gemm::GemmType<{element_c}, {layout_c}>
                         >,
                         Epilogue::Tile::EpilogueHorizontalTileSwizzle
                 >,
-                Gemm::Block::GemmIdentityBlockSwizzle<3, 0>,
+                {block_swizzle},
                 2
             >
         >"""
@@ -347,7 +350,8 @@ class QuantMatmulKernelInstance:
             layout_a=gemm_operation.a_type.layout.to_code(),
             layout_b=gemm_operation.b_type.layout.to_code(),
             layout_c=gemm_operation.c_type.layout.to_code(),
-            block_swizzle=gemm_operation.block_swizzle
+            block_swizzle=gemm_operation.block_swizzle,
+            arch=gemm_operation.arch.to_code()
         )
         return src
 

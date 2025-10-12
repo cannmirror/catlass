@@ -17,7 +17,6 @@ namespace Catlass {
 OpRunStatus OpLauncher::operator()(void* stream, int times, bool sync)
 {
     for (int i = 0; i < times; ++i) {
-        LOGE("XXX %s, times %d", op_->GetDescription().name, i + 1);
         auto status = op_->Run(stream, aicCoreNum_, DeviceMemoryManager::Instance().GetFftsAddr());
         if (status != Status::kSuccess) {
             LOGE("Operator %s run failed", op_->GetDescription().name);
@@ -38,22 +37,17 @@ OpRunStatus OpLauncher::operator()(void* stream, int times, bool sync)
 
 OpRunStatus OpLauncher::Init()
 {
-    LOGE("XXX OpLauncher::Initxxx");
     if (!opConfig_->InitArgument(op_)) {
         LOGE("Initialize device resource failed");
         return OpRunStatus::FAILED;
     }
-    LOGE("XXX OpLauncher::Initxxx2");
-    LOGE("XXX OpLauncher::Initxxx1, op_:%s", op_->GetDescription().name);
     opConfig_->GetArg();
     opConfig_->GetConfig();
-    LOGE("XXX OpLauncher::Initxxx2");
     auto status = op_->CanImplement(opConfig_->GetArg(), opConfig_->GetConfig());
     if (status != Status::kSuccess) {
         LOGE("Call CanImplement failed");
         return OpRunStatus::FAILED;
     }
-    LOGE("XXX OpLauncher::Initxxx3");
 
     DeviceMemoryParam param{reinterpret_cast<void**>(&workspace_), 0};
     param.size = op_->GetWorkspaceSize(opConfig_->GetArg(), opConfig_->GetConfig());
@@ -61,7 +55,6 @@ OpRunStatus OpLauncher::Init()
         LOGE("Malloc workspace failed");
         return OpRunStatus::FAILED;
     }
-    LOGE("XXX OpLauncher::Initxxx4");
 
     status = op_->Initialize(opConfig_->GetArg(), opConfig_->GetConfig(), reinterpret_cast<uint8_t*>(workspace_));
     if (status != Status::kSuccess) {
