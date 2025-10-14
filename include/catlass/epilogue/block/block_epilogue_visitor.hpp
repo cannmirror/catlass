@@ -48,7 +48,7 @@ public:
 
     CATLASS_DEVICE
     BlockEpilogue(Arch::Resource<ArchTag>& resource, Params const& params)
-        : params(params), fusion_callbacks(params.fusion_params)
+        : params(params), fusion_callbacks(params.fusion_params), resource_(resource)
     {
         // 为两个buffer分配独立的event_id
         eventV_MTE2[0] = 0;
@@ -74,7 +74,6 @@ public:
 
     CATLASS_DEVICE
     void operator()(
-        Arch::Resource<ArchTag>& resource,
         GemmCoord const& blockShapeMNK,
         GemmCoord const& blockCoordMNK,
         GemmCoord const& actualBlockShapeMNK,
@@ -104,14 +103,14 @@ public:
         // 分配 UB 空间并获取两套 callbacks（双缓冲）
         uint32_t ub_offset0 = 0;
         auto callbacks0 = fusion_callbacks.get_callbacks(
-            resource, ub_offset0, COMPUTE_LENGTH,
+            resource_, ub_offset0, COMPUTE_LENGTH,
             blockShapeMNK, blockCoordMNK,
             actualSubblockShape, subblockCoord,
             gmSubblockC, layoutSubblockC
         );
         uint32_t ub_offset1 = ub_offset0;
         auto callbacks1 = fusion_callbacks.get_callbacks(
-            resource, ub_offset1, COMPUTE_LENGTH,
+            resource_, ub_offset1, COMPUTE_LENGTH,
             blockShapeMNK, blockCoordMNK,
             actualSubblockShape, subblockCoord,
             gmSubblockC, layoutSubblockC
@@ -248,6 +247,7 @@ public:
 private:
     Params params;
     FusionCallbacks fusion_callbacks;
+    Arch::Resource<ArchTag>& resource_;  // 新增成员引用
     int32_t eventV_MTE2[2];  // MTE2→V同步事件（两个buffer）
     int32_t eventMTE3_V[2];  // V→MTE3同步事件（两个buffer）
 };

@@ -167,7 +167,7 @@ public:
             auto layoutBlockC = layoutC.GetTileLayout(actualBlockShape.GetCoordMN());
             
             Arch::CrossCoreWaitFlagWithReverse<0x2, PIPE_MTE3>(flagAicFinishStore);
-            blockEpilogue(resource, blockShape, blockCoord, actualBlockShape, gmBlockC, layoutBlockC);
+            blockEpilogue(blockShape, blockCoord, actualBlockShape, gmBlockC, layoutBlockC);
         }
 
         AscendC::PipeBarrier<PIPE_ALL>();
