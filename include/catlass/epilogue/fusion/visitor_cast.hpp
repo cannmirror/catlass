@@ -6,7 +6,7 @@
 
 namespace Catlass::Epilogue::Fusion {
 
-template <class ElementTo, AscendC::RoundMode RoundStyle = AscendC::RoundMode::CAST_NONE>
+template <class ElementTo, class ElementFrom, AscendC::RoundMode RoundStyle = AscendC::RoundMode::CAST_NONE>
 struct VisitorCast : VisitorImpl<> {
     using VisitorImpl<>::VisitorImpl;
 
@@ -54,10 +54,20 @@ struct VisitorCast : VisitorImpl<> {
             VisitStage stage,
             AscendC::LocalTensor<ElementInput> const& input
         ) {
+            static_assert(std::is_same_v<ElementInput, ElementFrom>,
+                            "VisitorCast: input type mismatch");
             if (stage == VisitStage::COMPUTE || stage == VisitStage::ALL) {
-                NumericArrayConverter<ElementTo, ElementInput, RoundStyle>{}(ubOut, input, calCount);
+                if constexpr (std::is_same_v<ElementInput, ElementTo>) {
+                    // 透传：类型相同，无需拷贝/转换
+                } else {
+                    NumericArrayConverter<ElementTo, ElementInput, RoundStyle>{}(ubOut, input, calCount);
+                }
             }
-            return ubOut;
+            if constexpr (std::is_same_v<ElementInput, ElementTo>) {
+                return input;
+            } else {
+                return ubOut;
+            }
         }
     };
 

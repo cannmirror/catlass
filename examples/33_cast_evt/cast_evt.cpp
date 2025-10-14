@@ -125,14 +125,14 @@ static void Run(const Options &options) {
     using EVT_AuxLoad = Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>;
     
     // Cast: half -> float
-    using EVT_CastAcc = Epilogue::Fusion::VisitorCast<float, AscendC::RoundMode::CAST_NONE>;
-    using EVT_CastAux = Epilogue::Fusion::VisitorCast<float, AscendC::RoundMode::CAST_NONE>;
+    using EVT_CastAcc = Epilogue::Fusion::VisitorCast<float, half, AscendC::RoundMode::CAST_NONE>;
+    using EVT_CastAux = Epilogue::Fusion::VisitorCast<float, half, AscendC::RoundMode::CAST_NONE>;
     
     // Compute: float + float -> float
     using EVT_Compute = Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, float>;
     
     // Cast: float -> half
-    using EVT_CastOut = Epilogue::Fusion::VisitorCast<half, AscendC::RoundMode::CAST_NONE>;
+    using EVT_CastOut = Epilogue::Fusion::VisitorCast<half, float, AscendC::RoundMode::CAST_NONE>;
     
     // Store: half
     using EVT_Store = Epilogue::Fusion::VisitorAuxStore<half, LayoutC>;
@@ -186,19 +186,6 @@ static void Run(const Options &options) {
         },
         ArgsStore{deviceD, layoutD}
     };
-
-    // 显式 Cast 示例（可选）：将 C、X 转为 float 计算后再存回 half
-    // using EVT_FP32 = Epilogue::Fusion::TreeVisitor<
-    //     Epilogue::Fusion::VisitorAuxStore<half, AscendC::RoundMode::CAST_NONE, LayoutC>,
-    //     Epilogue::Fusion::TreeVisitor< // cast(float)->half 供存储
-    //         Epilogue::Fusion::VisitorCast<float, AscendC::RoundMode::CAST_NONE>,
-    //         Epilogue::Fusion::TreeVisitor< // compute(float)
-    //             Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, float, float, AscendC::RoundMode::CAST_NONE, 2>,
-    //             Epilogue::Fusion::TreeVisitor<Epilogue::Fusion::VisitorCast<float, AscendC::RoundMode::CAST_NONE>, Epilogue::Fusion::VisitorAccLoad<half>>,
-    //             Epilogue::Fusion::TreeVisitor<Epilogue::Fusion::VisitorCast<float, AscendC::RoundMode::CAST_NONE>, Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>>
-    //         >
-    //     >
-    // >;
 
     std::vector<fp16_t> hostD(lenD);
     // Define BlockScheduler

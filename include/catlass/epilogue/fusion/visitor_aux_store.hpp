@@ -56,15 +56,11 @@ struct VisitorAuxStore : VisitorImpl<> {
     VisitorAuxStore(Params const& params_) : params(params_) {}
 
     struct Callbacks : EmptyCallbacks {
-        AscendC::LocalTensor<Element> ubAux;
         Params const* params_ptr;
-        uint32_t compute_length;
 
         CATLASS_DEVICE
-        Callbacks(AscendC::LocalTensor<Element> ubAux_,
-                 Params const* params_ptr_,
-                 uint32_t compute_length_)
-            : ubAux(ubAux_), params_ptr(params_ptr_), compute_length(compute_length_) {}
+        Callbacks(Params const* params_ptr_)
+            : params_ptr(params_ptr_) {}
 
         template <typename ElementInput>
         CATLASS_DEVICE void visit(
@@ -77,9 +73,6 @@ struct VisitorAuxStore : VisitorImpl<> {
         ) {
             static_assert(std::is_same_v<ElementInput, Element>,
                           "VisitorAuxStore: element type mismatch. Insert VisitorCast<...> before store.");
-            if (stage == VisitStage::COMPUTE || stage == VisitStage::ALL) {
-                AscendC::DataCopy(ubAux, input, calCount);
-            }
             if (stage == VisitStage::STORE || stage == VisitStage::ALL) {
                 // 写回 GM（使用全局坐标，tile 封装处理跨距）
                 if (params_ptr->ptr_aux != nullptr) {
@@ -90,7 +83,7 @@ struct VisitorAuxStore : VisitorImpl<> {
                     gmAux.SetGlobalBuffer((__gm__ Element*)(params_ptr->ptr_aux));
                     auto gmTile = gmAux[params_ptr->layout.GetOffset(globalTileOffset)];
                     auto layoutDst = params_ptr->layout.GetTileLayout(tileShape);
-                    copyUb2Gm(gmTile, ubAux, layoutDst, layoutUb);
+                    copyUb2Gm(gmTile, input, layoutDst, layoutUb);
                 }
 
             }
@@ -109,9 +102,7 @@ struct VisitorAuxStore : VisitorImpl<> {
         AscendC::GlobalTensor<Element> const&,
         layout::RowMajor const&
     ) {
-        auto ubAux = resource.ubBuf.template GetBufferByByte<Element>(ub_offset);
-        ub_offset += compute_length * sizeof(Element);
-        return Callbacks(ubAux, &params, compute_length);
+        return Callbacks(&params);
     }
 
     Params params;
