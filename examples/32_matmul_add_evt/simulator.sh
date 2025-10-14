@@ -1,10 +1,9 @@
 source /home/workspace/wyf/cann/ascend-toolkit/set_env.sh
-bash scripts/build.sh --clean --simulator 32_matmul_add_evt
+bash ../../scripts/build.sh --clean --simulator 32_matmul_add_evt
 if [ $? -eq 0 ]; then
     # export ASCEND_SLOG_PRINT_TO_STDOUT=1
     LD_LIBRARY_PATH=/home/workspace/wyf/cann/ascend-toolkit/latest/tools/simulator/Ascend910B3/lib:$LD_LIBRARY_PATH
-    cd output/bin
-    msprof op simulator ./32_matmul_add_evt 256 512 1024 0
+    msprof op simulator ../../output/bin/32_matmul_add_evt 256 512 1024 0
     # ./32_matmul_add_evt 256 512 1024 0
     # 随机生成一些用例
     # for m in 64 128 192 256 320; do
