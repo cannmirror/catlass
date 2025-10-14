@@ -176,49 +176,14 @@ static void Run(const Options &options) {
         ACL_CHECK(aclrtFree(deviceWorkspace));
     }
 
-    // 打印问题规模和指针
-    std::cout << "=== Debug Info ===" << std::endl;
-    std::cout << "Problem shape: M=" << m << ", N=" << n << ", K=" << k << std::endl;
-    std::cout << "deviceX ptr: " << (void*)deviceX << std::endl;
-    std::cout << "deviceD ptr: " << (void*)deviceD << std::endl;
-    std::cout << "computeLength: " << computeLength << std::endl;
-    std::cout << "Workspace size: " << sizeWorkspace << std::endl;
 
     // Copy the result from device to host
     ACL_CHECK(aclrtMemcpy(hostD.data(), sizeD, deviceD, sizeD, ACL_MEMCPY_DEVICE_TO_HOST));
-
-    // 打印前几个输入和输出
-    std::cout << "\n=== First 5 inputs (X) ===" << std::endl;
-    for (int i = 0; i < 5 && i < lenX; ++i) {
-        std::cout << "  X[" << i << "] = " << static_cast<float>(hostX[i]) << std::endl;
-    }
-
-    std::cout << "\n=== First 5 results (D) ===" << std::endl;
-    for (int i = 0; i < 5 && i < lenD; ++i) {
-        std::cout << "  D[" << i << "] = " << static_cast<float>(hostD[i]) << std::endl;
-    }
 
     // Compute the golden result
     std::vector<float> hostGolden(lenD);
     golden::ComputeMatmulElemWiseAdd(options.problemShape, hostA, layoutA, hostB, layoutB, hostX, hostGolden, layoutD);
 
-    std::cout << "\n=== First 5 golden ===" << std::endl;
-    for (int i = 0; i < 5 && i < lenD; ++i) {
-        std::cout << "  Golden[" << i << "] = " << hostGolden[i] << std::endl;
-    }
-
-    std::cout << "\n=== Middle 5 results (around M*N/2) ===" << std::endl;
-    size_t mid = lenD / 2;
-    for (int i = 0; i < 5 && (mid + i) < lenD; ++i) {
-        std::cout << "  D[" << (mid+i) << "] = " << static_cast<float>(hostD[mid+i]) 
-                  << " vs Golden = " << hostGolden[mid+i] << std::endl;
-    }
-
-    std::cout << "\n=== Last 5 results (D) ===" << std::endl;
-    for (int i = 0; i < 5 && i < lenD; ++i) {
-        std::cout << "  D[" << (lenD-i-1) << "] = " << static_cast<float>(hostD[lenD-i-1]) 
-                  << " vs Golden = " << hostGolden[lenD-i-1] << std::endl;
-    }
 
     // Compare the result
     std::vector<uint64_t> errorIndices = golden::CompareData(hostD, hostGolden, k);
@@ -226,6 +191,9 @@ static void Run(const Options &options) {
         std::cout << "Compare success." << std::endl;
     } else {
         std::cerr << "Compare failed. Error count: " << errorIndices.size() << std::endl;
+        for (size_t i = 0; i < min(10, errorIndices.size()); ++i) {
+            std::cerr << "  Error[" << i << "] = " << errorIndices[i] << " (D[" << errorIndices[i] << "] = " << static_cast<float>(hostD[errorIndices[i]]) << ", Golden[" << errorIndices[i] << "] = " << static_cast<float>(hostGolden[errorIndices[i]]) << ")" << std::endl;
+        }
     }
 
     ACL_CHECK(aclrtFree(deviceA));
