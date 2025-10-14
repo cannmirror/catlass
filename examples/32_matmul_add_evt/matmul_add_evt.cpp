@@ -144,14 +144,59 @@ static void Run(const Options &options) {
     using ArgsAccLoad = typename Epilogue::Fusion::VisitorAccLoad<half>::Arguments;
     using ArgsAuxLoad = typename Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>::Arguments;
     using ArgsStore = typename Epilogue::Fusion::VisitorAuxStore<half, AscendC::RoundMode::CAST_NONE, LayoutC>::Arguments;
+    // 以纯花括号形式构造 EVT::Arguments：先构造子树的 Arguments，再作为第一个元素传入
+    using InnerEVT = Epilogue::Fusion::TreeVisitor<
+        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half, ElementCompute, AscendC::RoundMode::CAST_NONE, 2>,
+        Epilogue::Fusion::VisitorAccLoad<half>,
+        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>
+    >;
     typename EVT::Arguments evt_args{
-        tla::MakeTuple(
-            ArgsAccLoad{},  // VisitorAccLoad - 无参数
-            ArgsAuxLoad{deviceX, layoutD},  // VisitorAuxLoad - 从 deviceX 读取
-            ArgsCompute{}  // VisitorCompute
-        ),
-        ArgsStore{deviceD, layoutD}  // VisitorAuxStore
+        {
+            ArgsAccLoad{},
+            ArgsAuxLoad{deviceX, layoutD},
+            ArgsCompute{}
+        },
+        ArgsStore{deviceD, layoutD}
     };
+
+    // 更复杂的嵌套 EVT 示例：D = (((C + X1) + X2) + X3)
+    using EVT_Compute1 = Epilogue::Fusion::TreeVisitor<
+        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half, ElementCompute, AscendC::RoundMode::CAST_NONE, 2>,
+        Epilogue::Fusion::VisitorAccLoad<half>,
+        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>
+    >;
+    using EVT_Compute2 = Epilogue::Fusion::TreeVisitor<
+        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half, ElementCompute, AscendC::RoundMode::CAST_NONE, 2>,
+        EVT_Compute1,
+        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>
+    >;
+    using EVT_Compute3 = Epilogue::Fusion::TreeVisitor<
+        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half, ElementCompute, AscendC::RoundMode::CAST_NONE, 2>,
+        EVT_Compute2,
+        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>
+    >;
+    using EVT_Complex = Epilogue::Fusion::TreeVisitor<
+        Epilogue::Fusion::VisitorAuxStore<half, AscendC::RoundMode::CAST_NONE, LayoutC>,
+        EVT_Compute3
+    >;
+
+    typename EVT_Complex::Arguments evt_args_complex{
+        {
+            {
+                {
+                    ArgsAccLoad{},
+                    ArgsAuxLoad{deviceX, layoutD},
+                    ArgsCompute{}
+                },
+                ArgsAuxLoad{deviceX, layoutD},
+                ArgsCompute{}
+            },
+            ArgsAuxLoad{deviceX, layoutD},
+            ArgsCompute{}
+        },
+        ArgsStore{deviceD, layoutD}
+    };
+    (void)evt_args_complex; // 仅用于示例，不参与执行
 
     std::vector<fp16_t> hostD(lenD);
     // Define BlockScheduler
