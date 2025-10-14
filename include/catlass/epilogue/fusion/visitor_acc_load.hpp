@@ -1,36 +1,23 @@
-#ifndef CATLASS_EPILOGUE_FUSION_VISITOR_AUX_LOAD_HPP
-#define CATLASS_EPILOGUE_FUSION_VISITOR_AUX_LOAD_HPP
+#ifndef CATLASS_EPILOGUE_FUSION_VISITOR_ACC_LOAD_HPP
+#define CATLASS_EPILOGUE_FUSION_VISITOR_ACC_LOAD_HPP
 
 #include "catlass/epilogue/fusion/visitor_impl.hpp"
 #include "catlass/epilogue/tile/tile_copy.hpp"
 
 namespace Catlass::Epilogue::Fusion {
 
-template<class Element, class Layout>
-struct VisitorAuxLoad : VisitorImpl<> {
+template<class Element>
+struct VisitorAccLoad : VisitorImpl<> {
     using VisitorImpl<>::VisitorImpl;
 
-    struct Arguments {
-        GM_ADDR ptr_aux = nullptr;
-        Layout layout = {};
-    };
+    struct Arguments {};
 
-    struct Params {
-        GM_ADDR ptr_aux;
-        Layout layout;
-
-        CATLASS_HOST_DEVICE
-        Params() {}
-
-        CATLASS_HOST_DEVICE
-        Params(GM_ADDR ptr_aux_, Layout const& layout_)
-            : ptr_aux(ptr_aux_), layout(layout_) {}
-    };
+    struct Params {};
 
     template <class ProblemShape>
     CATLASS_HOST_DEVICE static constexpr Params
-    to_underlying_arguments(ProblemShape const&, Arguments const& args, void*) {
-        return Params(args.ptr_aux, args.layout);
+    to_underlying_arguments(ProblemShape const&, Arguments const&, void*) {
+        return Params();
     }
 
     template <class ProblemShape>
@@ -41,36 +28,36 @@ struct VisitorAuxLoad : VisitorImpl<> {
 
     template <class ProblemShape>
     CATLASS_HOST_DEVICE static bool
-    can_implement(ProblemShape const&, Arguments const& args) {
-        return args.ptr_aux != nullptr;
+    can_implement(ProblemShape const&, Arguments const&) {
+        return true;
     }
 
     CATLASS_HOST_DEVICE
-    VisitorAuxLoad() {}
+    VisitorAccLoad() {}
 
     CATLASS_HOST_DEVICE
-    VisitorAuxLoad(Params const& params_) : params(params_) {}
+    VisitorAccLoad(Params const&) {}
 
     struct Callbacks : EmptyCallbacks {
-        AscendC::LocalTensor<Element> ubAux;
+        AscendC::LocalTensor<Element> ubAcc;
         Params const* params_ptr;
         uint32_t compute_length;
         AscendC::GlobalTensor<Element> gmSubblockC;
         layout::RowMajor layoutSubblockC;
 
         CATLASS_DEVICE
-        Callbacks(AscendC::LocalTensor<Element> ubAux_,
+        Callbacks(AscendC::LocalTensor<Element> ubAcc_,
                  Params const* params_ptr_,
                  uint32_t compute_length_,
                  AscendC::GlobalTensor<Element> const& gmSubblockC_,
                  layout::RowMajor const& layoutSubblockC_)
-            : ubAux(ubAux_), params_ptr(params_ptr_), compute_length(compute_length_),
+            : ubAcc(ubAcc_), params_ptr(params_ptr_), compute_length(compute_length_),
               gmSubblockC(gmSubblockC_), layoutSubblockC(layoutSubblockC_) {}
 
         template <typename... Args>
         CATLASS_DEVICE AscendC::LocalTensor<Element> const& visit(
-            MatrixCoord const& globalTileOffset,
-            MatrixCoord const& localTileOffset,  // 新增参数（不使用）
+            MatrixCoord const& globalTileOffset,    // 不使用
+            MatrixCoord const& localTileOffset,     // 使用局部坐标
             MatrixCoord const& tileShape,
             uint32_t calCount,
             VisitStage stage,
@@ -81,14 +68,12 @@ struct VisitorAuxLoad : VisitorImpl<> {
                 using CopyGm2UbT = Epilogue::Tile::CopyGm2Ub<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>>;
                 CopyGm2UbT copyGm2Ub{};
 
-                // 从用户提供的 ptr_aux 加载（使用全局坐标，tile 封装处理跨距）
-                AscendC::GlobalTensor<Element> gmAux;
-                gmAux.SetGlobalBuffer((__gm__ Element*)(params_ptr->ptr_aux));
-                auto gmTile = gmAux[params_ptr->layout.GetOffset(globalTileOffset)];
-                auto layoutSrc = params_ptr->layout.GetTileLayout(tileShape);
-                copyGm2Ub(ubAux, gmTile, layoutUb, layoutSrc);
+                // 从 gmSubblockC 加载（使用局部坐标，tile 封装处理跨距）
+                auto gmTile = gmSubblockC[layoutSubblockC.GetOffset(localTileOffset)];
+                auto layoutSrc = layoutSubblockC.GetTileLayout(tileShape);
+                copyGm2Ub(ubAcc, gmTile, layoutUb, layoutSrc);
             }
-            return ubAux;
+            return ubAcc;
         }
     };
 
@@ -104,18 +89,14 @@ struct VisitorAuxLoad : VisitorImpl<> {
         AscendC::GlobalTensor<Element> const& gmSubblockC,
         layout::RowMajor const& layoutSubblockC
     ) {
-        auto ubAux = resource.ubBuf.template GetBufferByByte<Element>(ub_offset);
+        auto ubAcc = resource.ubBuf.template GetBufferByByte<Element>(ub_offset);
         ub_offset += compute_length * sizeof(Element);
-        return Callbacks(ubAux, &params, compute_length, gmSubblockC, layoutSubblockC);
+        return Callbacks(ubAcc, &params, compute_length, gmSubblockC, layoutSubblockC);
     }
 
     Params params;
 };
 
-
 } // namespace Catlass::Epilogue::Fusion
 
 #endif
-
-
-

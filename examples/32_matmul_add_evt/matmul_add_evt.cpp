@@ -125,7 +125,7 @@ static void Run(const Options &options) {
         Epilogue::Fusion::VisitorAuxStore<half, AscendC::RoundMode::CAST_NONE, LayoutC>,
         Epilogue::Fusion::TreeVisitor<
             Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half, ElementCompute, AscendC::RoundMode::CAST_NONE, 2>,
-            Epilogue::Fusion::VisitorAccLoad<half, LayoutC>,  // 加载 C (workspace)
+            Epilogue::Fusion::VisitorAccLoad<half>,  // 加载 C (workspace)
             Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>   // 加载 X
         >
     >;
@@ -141,13 +141,13 @@ static void Run(const Options &options) {
 
     // 准备 EVT Arguments
     using ArgsCompute = typename Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half, ElementCompute, AscendC::RoundMode::CAST_NONE, 2>::Arguments;
-    using ArgsAccLoad = typename Epilogue::Fusion::VisitorAccLoad<half, LayoutC>::Arguments;
+    using ArgsAccLoad = typename Epilogue::Fusion::VisitorAccLoad<half>::Arguments;
     using ArgsAuxLoad = typename Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>::Arguments;
     using ArgsStore = typename Epilogue::Fusion::VisitorAuxStore<half, AscendC::RoundMode::CAST_NONE, LayoutC>::Arguments;
     typename EVT::Arguments evt_args{
         tla::MakeTuple(
-            ArgsAccLoad{nullptr, half(0), layoutD},  // VisitorAccLoad
-            ArgsAuxLoad{deviceX, half(0), layoutD},  // VisitorAuxLoad - 从 deviceX 读取
+            ArgsAccLoad{},  // VisitorAccLoad - 无参数
+            ArgsAuxLoad{deviceX, layoutD},  // VisitorAuxLoad - 从 deviceX 读取
             ArgsCompute{}  // VisitorCompute
         ),
         ArgsStore{deviceD, layoutD}  // VisitorAuxStore

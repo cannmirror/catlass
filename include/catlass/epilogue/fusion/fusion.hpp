@@ -4,6 +4,7 @@
 #include "catlass/epilogue/fusion/operations.hpp"
 #include "catlass/epilogue/fusion/visitor_impl_base.hpp"
 #include "catlass/epilogue/fusion/visitor_impl.hpp"
+#include "catlass/epilogue/fusion/visitor_acc_load.hpp"
 #include "catlass/epilogue/fusion/visitor_aux_load.hpp"
 #include "catlass/epilogue/fusion/visitor_compute.hpp"
 #include "catlass/epilogue/fusion/visitor_aux_store.hpp"
