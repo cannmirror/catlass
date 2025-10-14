@@ -6,7 +6,7 @@
 
 namespace Catlass::Epilogue::Fusion {
 
-template<class Element, class Layout>
+template<class Element, class Layout = layout::RowMajor>
 struct VisitorAuxLoad : VisitorImpl<> {
     using VisitorImpl<>::VisitorImpl;
 

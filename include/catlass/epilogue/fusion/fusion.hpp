@@ -8,6 +8,7 @@
 #include "catlass/epilogue/fusion/visitor_aux_load.hpp"
 #include "catlass/epilogue/fusion/visitor_compute.hpp"
 #include "catlass/epilogue/fusion/visitor_aux_store.hpp"
+#include "catlass/epilogue/fusion/visitor_cast.hpp"
 #include "catlass/epilogue/fusion/tree_visitor.hpp"
 
 #endif

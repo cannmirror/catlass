@@ -13,14 +13,12 @@ namespace Catlass::Epilogue::Block {
 template <
     class CType_,
     class ComputeLength_,
-    class ElementCompute_,
     class FusionCallbacks_
 >
 class BlockEpilogue<
     EpilogueWithVisitorCallbacks,
     CType_,
     ComputeLength_,
-    ElementCompute_,
     FusionCallbacks_
 > {
 public:
@@ -32,7 +30,6 @@ public:
     using LayoutD = LayoutC;
 
     static constexpr uint32_t COMPUTE_LENGTH = ComputeLength_::value;
-    using ElementCompute = ElementCompute_;
     using FusionCallbacks = FusionCallbacks_;
 
     struct Params {

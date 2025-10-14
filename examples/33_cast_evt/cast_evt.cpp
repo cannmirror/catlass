@@ -117,17 +117,36 @@ static void Run(const Options &options) {
     using CType = Gemm::GemmType<half, LayoutC>;
     using BlockMmad = Gemm::Block::BlockMmad<MmadDispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType>;
 
-    // 定义 EVT: D = C + X
-    using ElementCompute = half;
+    // 定义混合精度 EVT: D = cast<half>(cast<float>(C) + cast<float>(X))
     constexpr uint32_t computeLength = 4096;
     
+    // 构建混合精度EVT树
+    using EVT_AccLoad = Epilogue::Fusion::VisitorAccLoad<half>;
+    using EVT_AuxLoad = Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>;
+    
+    // Cast: half -> float
+    using EVT_CastAcc = Epilogue::Fusion::VisitorCast<float, AscendC::RoundMode::CAST_NONE>;
+    using EVT_CastAux = Epilogue::Fusion::VisitorCast<float, AscendC::RoundMode::CAST_NONE>;
+    
+    // Compute: float + float -> float
+    using EVT_Compute = Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, float>;
+    
+    // Cast: float -> half
+    using EVT_CastOut = Epilogue::Fusion::VisitorCast<half, AscendC::RoundMode::CAST_NONE>;
+    
+    // Store: half
+    using EVT_Store = Epilogue::Fusion::VisitorAuxStore<half, LayoutC>;
+    
+    // 构建完整的EVT树
+    using EVT_Inner = Epilogue::Fusion::TreeVisitor<
+        EVT_Compute,
+        Epilogue::Fusion::TreeVisitor<EVT_CastAcc, EVT_AccLoad>,
+        Epilogue::Fusion::TreeVisitor<EVT_CastAux, EVT_AuxLoad>
+    >;
+    
     using EVT = Epilogue::Fusion::TreeVisitor<
-        Epilogue::Fusion::VisitorAuxStore<half, AscendC::RoundMode::CAST_NONE, LayoutC>,
-        Epilogue::Fusion::TreeVisitor<
-            Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half, ElementCompute, AscendC::RoundMode::CAST_NONE, 2>,
-            Epilogue::Fusion::VisitorAccLoad<half>,  // 加载 C (workspace)
-            Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>   // 加载 X
-        >
+        EVT_Store,
+        Epilogue::Fusion::TreeVisitor<EVT_CastOut, EVT_Inner>
     >;
 
     // Block level, define BlockEpilogue with EVT
@@ -135,26 +154,35 @@ static void Run(const Options &options) {
         Epilogue::EpilogueWithVisitorCallbacks,
         CType,
         tla::Int<computeLength>,
-        ElementCompute,
         EVT
     >;
 
-    // 准备 EVT Arguments
-    using ArgsCompute = typename Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half, ElementCompute, AscendC::RoundMode::CAST_NONE, 2>::Arguments;
-    using ArgsAccLoad = typename Epilogue::Fusion::VisitorAccLoad<half>::Arguments;
-    using ArgsAuxLoad = typename Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>::Arguments;
-    using ArgsStore = typename Epilogue::Fusion::VisitorAuxStore<half, AscendC::RoundMode::CAST_NONE, LayoutC>::Arguments;
-    // 以纯花括号形式构造 EVT::Arguments：先构造子树的 Arguments，再作为第一个元素传入
-    using InnerEVT = Epilogue::Fusion::TreeVisitor<
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half, ElementCompute, AscendC::RoundMode::CAST_NONE, 2>,
-        Epilogue::Fusion::VisitorAccLoad<half>,
-        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>
-    >;
+    // 准备混合精度 EVT Arguments
+    using ArgsAccLoad = typename EVT_AccLoad::Arguments;
+    using ArgsAuxLoad = typename EVT_AuxLoad::Arguments;
+    using ArgsCastAcc = typename EVT_CastAcc::Arguments;
+    using ArgsCastAux = typename EVT_CastAux::Arguments;
+    using ArgsCompute = typename EVT_Compute::Arguments;
+    using ArgsCastOut = typename EVT_CastOut::Arguments;
+    using ArgsStore = typename EVT_Store::Arguments;
+    
+    // 构造混合精度EVT的Arguments
+    // 注意：TreeVisitor<Parent, Child1, Child2> 的 Arguments 顺序为 (Child1::Arguments, Child2::Arguments, Parent::Arguments)
+    //       且 TreeVisitor<Cast, Load> 的 Arguments 顺序为 (Load::Arguments, Cast::Arguments)
     typename EVT::Arguments evt_args{
         {
-            ArgsAccLoad{},
-            ArgsAuxLoad{deviceX, layoutD},
-            ArgsCompute{}
+            {
+                {
+                    ArgsAccLoad{},
+                    ArgsCastAcc{}
+                },
+                {
+                    ArgsAuxLoad{deviceX, layoutD},
+                    ArgsCastAux{}
+                },
+                ArgsCompute{}
+            },
+            ArgsCastOut{}
         },
         ArgsStore{deviceD, layoutD}
     };
@@ -179,7 +207,7 @@ static void Run(const Options &options) {
     // Kernel level
     using MatmulKernel = Gemm::Kernel::MatmulEvt<BlockMmad, BlockEpilogue, BlockScheduler>;
     // Prepare params
-    typename MatmulKernel::Arguments arguments{options.problemShape, sizeof(half), deviceA, deviceB, evt_args};
+    typename MatmulKernel::Arguments arguments{options.problemShape, deviceA, deviceB, evt_args};
     using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
     MatmulAdapter matmulOp;
     size_t sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);

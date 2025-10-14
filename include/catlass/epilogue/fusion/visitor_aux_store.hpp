@@ -9,8 +9,7 @@ namespace Catlass::Epilogue::Fusion {
 
 template<
   class Element,
-  AscendC::RoundMode RoundStyle,
-  class Layout
+  class Layout = layout::RowMajor
 >
 struct VisitorAuxStore : VisitorImpl<> {
     using VisitorImpl<>::VisitorImpl;
@@ -76,14 +75,10 @@ struct VisitorAuxStore : VisitorImpl<> {
             VisitStage stage,
             AscendC::LocalTensor<ElementInput> const& input
         ) {
-            // 类型转换
-
+            static_assert(std::is_same_v<ElementInput, Element>,
+                          "VisitorAuxStore: element type mismatch. Insert VisitorCast<...> before store.");
             if (stage == VisitStage::COMPUTE || stage == VisitStage::ALL) {
-                if constexpr (!std::is_same_v<ElementInput, Element>) {
-                    NumericArrayConverter<Element, ElementInput, RoundStyle>{}(ubAux, input, calCount);
-                } else {
-                    AscendC::DataCopy(ubAux, input, calCount);
-                }
+                AscendC::DataCopy(ubAux, input, calCount);
             }
             if (stage == VisitStage::STORE || stage == VisitStage::ALL) {
                 // 写回 GM（使用全局坐标，tile 封装处理跨距）

@@ -1,16 +1,13 @@
-#ifndef CATLASS_EPILOGUE_FUSION_VISITOR_COMPUTE_HPP
-#define CATLASS_EPILOGUE_FUSION_VISITOR_COMPUTE_HPP
+#ifndef CATLASS_EPILOGUE_FUSION_VISITOR_CAST_HPP
+#define CATLASS_EPILOGUE_FUSION_VISITOR_CAST_HPP
 
 #include "catlass/epilogue/fusion/visitor_impl.hpp"
 #include "catlass/epilogue/fusion/operations.hpp"
 
 namespace Catlass::Epilogue::Fusion {
 
-template<
-  template <class> class ComputeFn,
-  class ElementCompute
->
-struct VisitorCompute : VisitorImpl<> {
+template <class ElementTo, AscendC::RoundMode RoundStyle = AscendC::RoundMode::CAST_NONE>
+struct VisitorCast : VisitorImpl<> {
     using VisitorImpl<>::VisitorImpl;
 
     struct Arguments {};
@@ -35,36 +32,30 @@ struct VisitorCompute : VisitorImpl<> {
     }
 
     CATLASS_HOST_DEVICE
-    VisitorCompute() {}
+    VisitorCast() {}
 
     CATLASS_HOST_DEVICE
-    VisitorCompute(Params const&) {}
+    VisitorCast(Params const&) {}
 
     struct Callbacks : EmptyCallbacks {
-        AscendC::LocalTensor<ElementCompute> ubOut;
+        AscendC::LocalTensor<ElementTo> ubOut;
         uint32_t compute_length;
 
         CATLASS_DEVICE
-        Callbacks(AscendC::LocalTensor<ElementCompute> ubOut_,
-                 uint32_t compute_length_)
+        Callbacks(AscendC::LocalTensor<ElementTo> ubOut_, uint32_t compute_length_)
             : ubOut(ubOut_), compute_length(compute_length_) {}
 
-        template <typename... ElementInputs>
-        CATLASS_DEVICE AscendC::LocalTensor<ElementCompute> const& visit(
-            MatrixCoord const& globalTileOffset,    // 不使用
-            MatrixCoord const& localTileOffset,     // 新增参数（不使用）
-            MatrixCoord const& tileShape,           // 不使用
+        template <typename ElementInput>
+        CATLASS_DEVICE AscendC::LocalTensor<ElementTo> const& visit(
+            MatrixCoord const& /*globalTileOffset*/,    // 不使用
+            MatrixCoord const& /*localTileOffset*/,     // 不使用
+            MatrixCoord const& /*tileShape*/,           // 不使用
             uint32_t calCount,
-            VisitStage stage = VisitStage::ALL,
-            AscendC::LocalTensor<ElementInputs> const&... inputs
+            VisitStage stage,
+            AscendC::LocalTensor<ElementInput> const& input
         ) {
             if (stage == VisitStage::COMPUTE || stage == VisitStage::ALL) {
-                constexpr bool all_inputs_match = (std::is_same_v<ElementInputs, ElementCompute> && ...);
-                static_assert(all_inputs_match,
-                              "VisitorCompute: input element types must equal ElementCompute. Insert VisitorCast if needed.");
-
-                ComputeFn<ElementCompute> compute_fn{};
-                compute_fn(ubOut, inputs..., compute_length);
+                NumericArrayConverter<ElementTo, ElementInput, RoundStyle>{}(ubOut, input, calCount);
             }
             return ubOut;
         }
@@ -82,12 +73,16 @@ struct VisitorCompute : VisitorImpl<> {
         AscendC::GlobalTensor<half> const&,
         layout::RowMajor const&
     ) {
-        auto ubOut = resource.ubBuf.template GetBufferByByte<ElementCompute>(ub_offset);
-        ub_offset += compute_length * sizeof(ElementCompute);
+        auto ubOut = resource.ubBuf.template GetBufferByByte<ElementTo>(ub_offset);
+        ub_offset += compute_length * sizeof(ElementTo);
         return Callbacks(ubOut, compute_length);
     }
+
+    Params params;
 };
 
 } // namespace Catlass::Epilogue::Fusion
 
 #endif
+
+

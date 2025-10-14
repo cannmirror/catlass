@@ -58,7 +58,6 @@ public:
 
     struct Arguments {
         GemmCoord problemShape;
-        size_t elementSize;
         GM_ADDR ptrA;
         GM_ADDR ptrB;
         typename BlockEpilogue::FusionCallbacks::Arguments evt_args;
@@ -71,7 +70,7 @@ public:
 
     static size_t GetWorkspaceSize(const Arguments& args)
     {
-        return args.elementSize * args.problemShape.m() * args.problemShape.n() +
+        return sizeof(ElementC) * args.problemShape.m() * args.problemShape.n() +
                BlockEpilogue::FusionCallbacks::get_workspace_size(args.problemShape, args.evt_args);
     }
 
@@ -88,7 +87,7 @@ public:
         typename BlockEpilogue::FusionCallbacks::Params fusion_params = 
             BlockEpilogue::FusionCallbacks::to_underlying_arguments(
                 problemShape, args.evt_args, 
-                workspace + args.elementSize * m * n  // EVT workspace 在 GEMM workspace 之后
+                workspace + sizeof(ElementC) * m * n  // EVT workspace 在 GEMM workspace 之后
             );
         
         EpilogueParams epilogueParams{fusion_params};
