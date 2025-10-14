@@ -25,14 +25,16 @@ template <
     class DType_, // half/bf16输出
     class TileElemWiseEpilogue_,
     // TileCopy的方法
-    class TileCopy_
+    class TileCopy_,
+    class L1TileShape_
 >
 class BlockEpilogue <
     EpilogueAtlasA2ElemWiseNoSource,
     CType_,
     DType_,
     TileElemWiseEpilogue_,
-    TileCopy_
+    TileCopy_,
+    L1TileShape_
 > {
 public:
     // Type aliases
@@ -51,6 +53,7 @@ public:
 
     static constexpr uint32_t COMPUTE_LENGTH = TileElemWiseEpilogue::COMPUTE_LENGTH;
     static constexpr uint32_t OPERANDS_NUM = DispatchPolicy::OPERANDS_NUM;
+    static constexpr uint32_t UB_STRIDE = L1TileShape_::N;
 
     using ElementCompute = ElementC;
     using ElementOut = ElementD;
@@ -131,10 +134,8 @@ public:
         MatrixCoord subblockOffset = subblockCoord * subblockShape;
 
         // Get the data and layout of C
-        AscendC::GlobalTensor<ElementC> gmC;
-        gmC.SetGlobalBuffer(reinterpret_cast<__gm__ ElementC *>(params.ptrC));
-        auto gmSubblockC = gmBlockC[params.layoutC.GetOffset(subblockOffset)];
-        auto layoutSubblockC = params.layoutC.GetTileLayout(actualSubblockShape);
+        auto gmSubblockC = gmBlockC[layoutBlockC.GetOffset(subblockOffset)];
+        auto layoutSubblockC = layoutBlockC.GetTileLayout(actualSubblockShape);
 
         // Get the data and layout of D
         AscendC::GlobalTensor<ElementD> gmD;
@@ -143,8 +144,9 @@ public:
         auto layoutSubblockD = params.layoutD.GetTileLayout(actualSubblockShape);
 
         // Get the layout on UB
-        auto layoutComputeInUb = LayoutComputeInUb::template MakeLayoutInUb<ElementCompute>(actualSubblockShape);
-        auto layoutComputeOutUb = LayoutComputeInUb::template MakeLayoutInUb<ElementOut>(actualSubblockShape);
+        auto ubTileStride = MakeCoord(static_cast<int64_t>(UB_STRIDE), 1L);
+        LayoutComputeInUb layoutComputeInUb{actualSubblockShape, ubTileStride}
+        LayoutComputeInUb layoutComputeOutUb{actualSubblockShape, ubTileStride}
         // Copy the data of C
         AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID0);
         copyGmToUbC(ubC, gmSubblockC, layoutComputeInUb, layoutSubblockC);

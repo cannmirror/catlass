@@ -113,8 +113,8 @@ static void Run(const Options &options) {
         CType, // CopyGmtoUbC
         DType  // CopyUbtoGmD
         >;
-    using BlockEpilogue =
-        Epilogue::Block::BlockEpilogue<EpilogueDispatchPolicy, CType, DType, TileElemWiseEpilogue, EpilogueTileCopy>;
+    using BlockEpilogue = Epilogue::Block::BlockEpilogue<
+        EpilogueDispatchPolicy, CType, DType, TileElemWiseEpilogue, EpilogueTileCopy, L1TileShape>;
     if (m > n) {
         // Define BlockScheduler
         // Swizzle offset is 3 and direction is 0.
