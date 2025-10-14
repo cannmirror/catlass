@@ -3,7 +3,7 @@ bash scripts/build.sh --clean 32_matmul_add_evt
 if [ $? -eq 0 ]; then
     # export ASCEND_SLOG_PRINT_TO_STDOUT=1
     cd output/bin
-    ./32_matmul_add_evt 256 512 1024 0
+    msprof op ./32_matmul_add_evt 256 512 1024 0
     # 随机生成一些用例
     # for m in 64 128 192 256 320; do
     #   for n in 128 256 384 512; do
