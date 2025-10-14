@@ -87,12 +87,13 @@ struct TreeVisitor : VisitorImpl<ChildOps..., NodeOp> {
         MatrixCoord const& subblockShape,
         MatrixCoord const& subblockCoord,
         AscendC::GlobalTensor<half> const& gmSubblockC,
-        layout::RowMajor const& layoutSubblockC
+        layout::RowMajor const& layoutSubblockC,
+        uint32_t eventId
     ) {
         auto base_callbacks = this->VisitorImpl<ChildOps..., NodeOp>::get_callbacks(
             resource, ub_offset, compute_length,
             blockShapeMNK, blockCoordMNK, subblockShape, subblockCoord,
-            gmSubblockC, layoutSubblockC
+            gmSubblockC, layoutSubblockC, eventId
         );
         return Callbacks<decltype(base_callbacks)>(
             static_cast<decltype(base_callbacks)&&>(base_callbacks)

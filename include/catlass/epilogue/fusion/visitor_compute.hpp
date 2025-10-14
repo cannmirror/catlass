@@ -72,13 +72,15 @@ struct VisitorCompute : VisitorImpl<> {
         AscendC::LocalTensor<ElementCompute> ubOutCompute;
         AscendC::LocalTensor<ElementCompute> ubConverted[NumInputs];
         uint32_t compute_length;
+        uint32_t eventId;
 
         CATLASS_DEVICE
         Callbacks(AscendC::LocalTensor<ElementOutput> ubOut_,
                  AscendC::LocalTensor<ElementCompute> ubOutCompute_,
                  AscendC::LocalTensor<ElementCompute> ubConverted_[NumInputs],
-                 uint32_t compute_length_)
-            : ubOut(ubOut_), ubOutCompute(ubOutCompute_), compute_length(compute_length_) {
+                 uint32_t compute_length_,
+                 uint32_t eventId_)
+            : ubOut(ubOut_), ubOutCompute(ubOutCompute_), compute_length(compute_length_), eventId(eventId_) {
             for (int i = 0; i < NumInputs; ++i) {
                 ubConverted[i] = ubConverted_[i];
             }
@@ -115,8 +117,8 @@ struct VisitorCompute : VisitorImpl<> {
             uint32_t calCount,
             AscendC::LocalTensor<ElementInputs> const&... inputs
         ) {
-            AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID0);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID0);
+            AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(eventId);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventId);
             static_assert(sizeof...(ElementInputs) == NumInputs, "Input count mismatch");
 
             auto inputs_tuple = tla::tuple<AscendC::LocalTensor<ElementInputs> const&...>(inputs...);
@@ -158,7 +160,8 @@ struct VisitorCompute : VisitorImpl<> {
         MatrixCoord const&,
         MatrixCoord const&,
         AscendC::GlobalTensor<half> const&,
-        layout::RowMajor const&
+        layout::RowMajor const&,
+        uint32_t eventId
     ) {
         auto ubOut = resource.ubBuf.template GetBufferByByte<ElementOutput>(ub_offset);
         ub_offset += compute_length * sizeof(ElementOutput);
@@ -172,7 +175,7 @@ struct VisitorCompute : VisitorImpl<> {
             ub_offset += compute_length * sizeof(ElementCompute);
         }
 
-        return Callbacks(ubOut, ubOutCompute, ubConverted, compute_length);
+        return Callbacks(ubOut, ubOutCompute, ubConverted, compute_length, eventId);
     }
 };
 

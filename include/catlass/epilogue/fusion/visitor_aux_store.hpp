@@ -60,12 +60,14 @@ struct VisitorAuxStore : VisitorImpl<> {
         AscendC::LocalTensor<Element> ubAux;
         Params const* params_ptr;
         uint32_t compute_length;
+        uint32_t eventId;
 
         CATLASS_DEVICE
         Callbacks(AscendC::LocalTensor<Element> ubAux_,
                  Params const* params_ptr_,
-                 uint32_t compute_length_)
-            : ubAux(ubAux_), params_ptr(params_ptr_), compute_length(compute_length_) {}
+                 uint32_t compute_length_,
+                 uint32_t eventId_)
+            : ubAux(ubAux_), params_ptr(params_ptr_), compute_length(compute_length_), eventId(eventId_) {}
 
         template <typename ElementInput>
         CATLASS_DEVICE void visit(
@@ -84,8 +86,8 @@ struct VisitorAuxStore : VisitorImpl<> {
             }
 
             // 同步 V->MTE3: 向量计算完成
-            AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID0);
-            AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID0);
+            AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(eventId);
+            AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(eventId);
 
             // 写回 GM（使用全局坐标，tile 封装处理跨距）
             if (params_ptr->ptr_aux != nullptr) {
@@ -115,11 +117,12 @@ struct VisitorAuxStore : VisitorImpl<> {
         MatrixCoord const&,
         MatrixCoord const&,
         AscendC::GlobalTensor<Element> const&,
-        layout::RowMajor const&
+        layout::RowMajor const&,
+        uint32_t eventId
     ) {
         auto ubAux = resource.ubBuf.template GetBufferByByte<Element>(ub_offset);
         ub_offset += compute_length * sizeof(Element);
-        return Callbacks(ubAux, &params, compute_length);
+        return Callbacks(ubAux, &params, compute_length, eventId);
     }
 
     Params params;

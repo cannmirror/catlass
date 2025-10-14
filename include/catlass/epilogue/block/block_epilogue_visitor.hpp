@@ -66,6 +66,12 @@ public:
         layout::RowMajor const& layoutBlockC
     )
     {
+        // 预热两路事件，避免首轮等待悬空
+        // AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID0);
+        // AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID0);
+        // AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID1);
+        // AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID1);
+
         MatrixCoord blockShape = blockShapeMNK.GetCoordMN();
         MatrixCoord blockCoord = blockCoordMNK.GetCoordMN();
         MatrixCoord actualBlockShape = actualBlockShapeMNK.GetCoordMN();
@@ -85,23 +91,33 @@ public:
         auto gmSubblockC = gmBlockC[layoutBlockC.GetOffset(subblockOffset)];
         auto layoutSubblockC = layoutBlockC.GetTileLayout(actualSubblockShape);
 
-        // 分配 UB 空间并获取 callbacks
-        uint32_t ub_offset = 0;
-        auto callbacks = fusion_callbacks.get_callbacks(
-            resource, ub_offset, COMPUTE_LENGTH,
+        // 分配 UB 空间并获取两套 callbacks（eid 0/1）
+        uint32_t ub_offset0 = 0;
+        auto callbacks0 = fusion_callbacks.get_callbacks(
+            resource, ub_offset0, COMPUTE_LENGTH,
             blockShapeMNK, blockCoordMNK,
             actualSubblockShape, subblockCoord,
-            gmSubblockC, layoutSubblockC
+            gmSubblockC, layoutSubblockC, EVENT_ID0
+        );
+        uint32_t ub_offset1 = ub_offset0;
+        auto callbacks1 = fusion_callbacks.get_callbacks(
+            resource, ub_offset1, COMPUTE_LENGTH,
+            blockShapeMNK, blockCoordMNK,
+            actualSubblockShape, subblockCoord,
+            gmSubblockC, layoutSubblockC, EVENT_ID1
         );
 
-        callbacks.begin_epilogue();
+        callbacks0.begin_epilogue();
+        callbacks1.begin_epilogue();
 
         uint32_t rows = actualSubblockShape.row();
         uint32_t cols = actualSubblockShape.column();
 
         // 遍历所有 tile（tile 间复用 UB）
+        uint32_t tileIdx = 0;
         for (uint32_t r = 0; r < rows; ) {
-            callbacks.begin_row(r);
+            auto& cbsRow = ((tileIdx & 1) ? callbacks1 : callbacks0);
+            cbsRow.begin_row(r);
 
             // 检查是否需要列分块
             if (cols <= COMPUTE_LENGTH) {
@@ -119,7 +135,9 @@ public:
                 uint32_t calCount = tileRows * cols;
 
                 // 访问当前 tile
-                callbacks.visit(globalTileOffset, localTileOffset, tileShape, calCount);
+                auto& cbs = ((tileIdx & 1) ? callbacks1 : callbacks0);
+                cbs.visit(globalTileOffset, localTileOffset, tileShape, calCount);
+                ++tileIdx;
                 // AscendC::PipeBarrier<PIPE_ALL>();
 
                 r += tileRows;
@@ -136,7 +154,9 @@ public:
                     uint32_t calCount = tileCols;  // 1行 * tileCols列
 
                     // 访问当前 tile
-                    callbacks.visit(globalTileOffset, localTileOffset, tileShape, calCount);
+                    auto& cbs = ((tileIdx & 1) ? callbacks1 : callbacks0);
+                    cbs.visit(globalTileOffset, localTileOffset, tileShape, calCount);
+                    ++tileIdx;
                     // AscendC::PipeBarrier<PIPE_ALL>();
 
                     c += tileCols;
@@ -145,10 +165,12 @@ public:
                 r += 1;  // 处理完一行
             }
 
-            callbacks.end_row(r);
+            auto& cbsEnd = ((tileIdx & 1) ? callbacks1 : callbacks0);
+            cbsEnd.end_row(r);
         }
 
-        callbacks.end_epilogue();
+        callbacks0.end_epilogue();
+        callbacks1.end_epilogue();
     }
 
 private:

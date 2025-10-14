@@ -59,15 +59,17 @@ struct VisitorAuxLoad : VisitorImpl<> {
         uint32_t compute_length;
         AscendC::GlobalTensor<Element> gmSubblockC;
         layout::RowMajor layoutSubblockC;
+        uint32_t eventId;
 
         CATLASS_DEVICE
         Callbacks(AscendC::LocalTensor<Element> ubAux_,
                  Params const* params_ptr_,
                  uint32_t compute_length_,
                  AscendC::GlobalTensor<Element> const& gmSubblockC_,
-                 layout::RowMajor const& layoutSubblockC_)
+                 layout::RowMajor const& layoutSubblockC_,
+                 uint32_t eventId_)
             : ubAux(ubAux_), params_ptr(params_ptr_), compute_length(compute_length_),
-              gmSubblockC(gmSubblockC_), layoutSubblockC(layoutSubblockC_) {}
+              gmSubblockC(gmSubblockC_), layoutSubblockC(layoutSubblockC_), eventId(eventId_) {}
 
         template <typename... Args>
         CATLASS_DEVICE AscendC::LocalTensor<Element> const& visit(
@@ -77,8 +79,8 @@ struct VisitorAuxLoad : VisitorImpl<> {
             uint32_t calCount,
             Args const&... /*unused*/
         ) {
-            AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID0);
-            AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID0);
+            AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventId);
+            AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventId);
             // AscendC::PipeBarrier<PIPE_ALL>();
             auto layoutUb = layout::RowMajor::MakeLayoutInUb<Element>(tileShape);
             using CopyGm2UbT = Epilogue::Tile::CopyGm2Ub<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>>;
@@ -102,8 +104,8 @@ struct VisitorAuxLoad : VisitorImpl<> {
 
             // AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(EVENT_ID0);
             // AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE3>(EVENT_ID0);
-            AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(EVENT_ID0);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(EVENT_ID0);
+            AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventId);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventId);
             return ubAux;
             // AscendC::PipeBarrier<PIPE_ALL>();
         }
@@ -119,11 +121,12 @@ struct VisitorAuxLoad : VisitorImpl<> {
         MatrixCoord const&,
         MatrixCoord const&,
         AscendC::GlobalTensor<Element> const& gmSubblockC,
-        layout::RowMajor const& layoutSubblockC
+        layout::RowMajor const& layoutSubblockC,
+        uint32_t eventId
     ) {
         auto ubAux = resource.ubBuf.template GetBufferByByte<Element>(ub_offset);
         ub_offset += compute_length * sizeof(Element);
-        return Callbacks(ubAux, &params, compute_length, gmSubblockC, layoutSubblockC);
+        return Callbacks(ubAux, &params, compute_length, gmSubblockC, layoutSubblockC, eventId);
     }
 
     Params params;

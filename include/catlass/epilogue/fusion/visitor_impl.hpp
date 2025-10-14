@@ -55,18 +55,19 @@ struct VisitorImpl : VisitorImplBase<Ops...> {
         MatrixCoord const& subblockCoord,
         AscendC::GlobalTensor<half> const& gmSubblockC,
         layout::RowMajor const& layoutSubblockC,
+        uint32_t eventId,
         tla::seq<Is...>
     ) {
         auto tuple_cbs = tla::tuple<
             decltype(tla::get<Is>(ops).get_callbacks(resource, ub_offset, compute_length,
                                                      blockShapeMNK, blockCoordMNK,
                                                      subblockShape, subblockCoord,
-                                                     gmSubblockC, layoutSubblockC))...
+                                                     gmSubblockC, layoutSubblockC, eventId))...
         >(
             tla::get<Is>(ops).get_callbacks(resource, ub_offset, compute_length,
                                            blockShapeMNK, blockCoordMNK,
                                            subblockShape, subblockCoord,
-                                           gmSubblockC, layoutSubblockC)...
+                                           gmSubblockC, layoutSubblockC, eventId)...
         );
         return Callbacks<decltype(tuple_cbs)>(static_cast<decltype(tuple_cbs)&&>(tuple_cbs));
     }
@@ -81,13 +82,14 @@ struct VisitorImpl : VisitorImplBase<Ops...> {
         MatrixCoord const& subblockShape,
         MatrixCoord const& subblockCoord,
         AscendC::GlobalTensor<half> const& gmSubblockC,
-        layout::RowMajor const& layoutSubblockC
+        layout::RowMajor const& layoutSubblockC,
+        uint32_t eventId
     ) {
         return get_callbacks_impl(
             resource, ub_offset, compute_length,
             blockShapeMNK, blockCoordMNK,
             subblockShape, subblockCoord,
-            gmSubblockC, layoutSubblockC,
+            gmSubblockC, layoutSubblockC, eventId,
             tla::make_seq<sizeof...(Ops)>{}
         );
     }
