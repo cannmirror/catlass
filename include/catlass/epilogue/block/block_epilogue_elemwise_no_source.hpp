@@ -145,8 +145,8 @@ public:
 
         // Get the layout on UB
         auto ubTileStride = MakeCoord(static_cast<int64_t>(UB_STRIDE), 1L);
-        LayoutComputeInUb layoutComputeInUb{actualSubblockShape, ubTileStride}
-        LayoutComputeInUb layoutComputeOutUb{actualSubblockShape, ubTileStride}
+        LayoutComputeInUb layoutComputeInUb{actualSubblockShape, ubTileStride};
+        LayoutComputeInUb layoutComputeOutUb{actualSubblockShape, ubTileStride};
         // Copy the data of C
         AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID0);
         copyGmToUbC(ubC, gmSubblockC, layoutComputeInUb, layoutSubblockC);
