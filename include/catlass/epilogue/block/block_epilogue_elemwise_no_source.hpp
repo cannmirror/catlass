@@ -25,16 +25,14 @@ template <
     class DType_, // half/bf16输出
     class TileElemWiseEpilogue_,
     // TileCopy的方法
-    class TileCopy_,
-    class L1TileShape_
+    class TileCopy_
 >
 class BlockEpilogue <
     EpilogueAtlasA2ElemWiseNoSource,
     CType_,
     DType_,
     TileElemWiseEpilogue_,
-    TileCopy_,
-    L1TileShape_
+    TileCopy_
 > {
 public:
     // Type aliases
@@ -53,7 +51,6 @@ public:
 
     static constexpr uint32_t COMPUTE_LENGTH = TileElemWiseEpilogue::COMPUTE_LENGTH;
     static constexpr uint32_t OPERANDS_NUM = DispatchPolicy::OPERANDS_NUM;
-    static constexpr uint32_t UB_STRIDE = L1TileShape_::N;
 
     using ElementCompute = ElementC;
     using ElementOut = ElementD;
@@ -144,7 +141,7 @@ public:
         auto layoutSubblockD = params.layoutD.GetTileLayout(actualSubblockShape);
 
         // Get the layout on UB
-        auto ubTileStride = MakeCoord(static_cast<int64_t>(UB_STRIDE), 1L);
+        auto ubTileStride = MakeCoord(static_cast<int64_t>(blockShape.column()), 1L);
         LayoutComputeInUb layoutComputeInUb{actualSubblockShape, ubTileStride};
         LayoutComputeInUb layoutComputeOutUb{actualSubblockShape, ubTileStride};
         // Copy the data of C
