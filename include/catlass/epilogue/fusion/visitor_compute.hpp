@@ -72,15 +72,13 @@ struct VisitorCompute : VisitorImpl<> {
         AscendC::LocalTensor<ElementCompute> ubOutCompute;
         AscendC::LocalTensor<ElementCompute> ubConverted[NumInputs];
         uint32_t compute_length;
-        uint32_t eventId;
 
         CATLASS_DEVICE
         Callbacks(AscendC::LocalTensor<ElementOutput> ubOut_,
                  AscendC::LocalTensor<ElementCompute> ubOutCompute_,
                  AscendC::LocalTensor<ElementCompute> ubConverted_[NumInputs],
-                 uint32_t compute_length_,
-                 uint32_t eventId_)
-            : ubOut(ubOut_), ubOutCompute(ubOutCompute_), compute_length(compute_length_), eventId(eventId_) {
+                 uint32_t compute_length_)
+            : ubOut(ubOut_), ubOutCompute(ubOutCompute_), compute_length(compute_length_) {
             for (int i = 0; i < NumInputs; ++i) {
                 ubConverted[i] = ubConverted_[i];
             }
@@ -115,28 +113,26 @@ struct VisitorCompute : VisitorImpl<> {
             MatrixCoord const& localTileOffset,     // 新增参数（不使用）
             MatrixCoord const& tileShape,           // 不使用
             uint32_t calCount,
+            VisitStage stage = VisitStage::ALL,
             AscendC::LocalTensor<ElementInputs> const&... inputs
         ) {
-            AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(eventId);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventId);
-            static_assert(sizeof...(ElementInputs) == NumInputs, "Input count mismatch");
+            if (stage == VisitStage::COMPUTE || stage == VisitStage::ALL) {
+                static_assert(sizeof...(ElementInputs) == NumInputs, "Input count mismatch");
 
-            auto inputs_tuple = tla::tuple<AscendC::LocalTensor<ElementInputs> const&...>(inputs...);
+                auto inputs_tuple = tla::tuple<AscendC::LocalTensor<ElementInputs> const&...>(inputs...);
 
-            // 类型转换：将输入转换到 ElementCompute
-            convert_inputs_from_tuple(inputs_tuple, calCount, tla::make_seq<NumInputs>{});
-            // AscendC::PipeBarrier<PIPE_ALL>();
-            // 执行计算
-            call_compute_fn(tla::make_seq<NumInputs>{});
-            // AscendC::PipeBarrier<PIPE_ALL>();
-            // 输出类型转换
-            if constexpr (!std::is_same_v<ElementOutput, ElementCompute>) {
-                NumericArrayConverter<ElementOutput, ElementCompute, RoundStyle>{}(
-                    ubOut, ubOutCompute, calCount);
-            } else {
-                AscendC::DataCopy(ubOut, ubOutCompute, calCount);
+                // 类型转换：将输入转换到 ElementCompute
+                convert_inputs_from_tuple(inputs_tuple, calCount, tla::make_seq<NumInputs>{});
+                // 执行计算
+                call_compute_fn(tla::make_seq<NumInputs>{});
+                // 输出类型转换
+                if constexpr (!std::is_same_v<ElementOutput, ElementCompute>) {
+                    NumericArrayConverter<ElementOutput, ElementCompute, RoundStyle>{}(
+                        ubOut, ubOutCompute, calCount);
+                } else {
+                    AscendC::DataCopy(ubOut, ubOutCompute, calCount);
+                }
             }
-            // AscendC::PipeBarrier<PIPE_ALL>();
             return ubOut;
         }
 
@@ -160,8 +156,7 @@ struct VisitorCompute : VisitorImpl<> {
         MatrixCoord const&,
         MatrixCoord const&,
         AscendC::GlobalTensor<half> const&,
-        layout::RowMajor const&,
-        uint32_t eventId
+        layout::RowMajor const&
     ) {
         auto ubOut = resource.ubBuf.template GetBufferByByte<ElementOutput>(ub_offset);
         ub_offset += compute_length * sizeof(ElementOutput);
@@ -175,7 +170,7 @@ struct VisitorCompute : VisitorImpl<> {
             ub_offset += compute_length * sizeof(ElementCompute);
         }
 
-        return Callbacks(ubOut, ubOutCompute, ubConverted, compute_length, eventId);
+        return Callbacks(ubOut, ubOutCompute, ubConverted, compute_length);
     }
 };
 

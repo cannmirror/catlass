@@ -7,6 +7,13 @@
 
 namespace Catlass::Epilogue::Fusion {
 
+enum class VisitStage : uint8_t {
+    LOAD = 0,      // 执行所有load节点
+    COMPUTE = 1,   // 执行所有compute节点
+    STORE = 2,     // 执行所有store节点
+    ALL = 3        // 单缓冲模式（默认，兼容旧代码）
+};
+
 template <class... Ops>
 struct VisitorImplBase {
     using Arguments = tla::tuple<typename Ops::Arguments...>;

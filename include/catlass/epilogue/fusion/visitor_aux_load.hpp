@@ -59,17 +59,15 @@ struct VisitorAuxLoad : VisitorImpl<> {
         uint32_t compute_length;
         AscendC::GlobalTensor<Element> gmSubblockC;
         layout::RowMajor layoutSubblockC;
-        uint32_t eventId;
 
         CATLASS_DEVICE
         Callbacks(AscendC::LocalTensor<Element> ubAux_,
                  Params const* params_ptr_,
                  uint32_t compute_length_,
                  AscendC::GlobalTensor<Element> const& gmSubblockC_,
-                 layout::RowMajor const& layoutSubblockC_,
-                 uint32_t eventId_)
+                 layout::RowMajor const& layoutSubblockC_)
             : ubAux(ubAux_), params_ptr(params_ptr_), compute_length(compute_length_),
-              gmSubblockC(gmSubblockC_), layoutSubblockC(layoutSubblockC_), eventId(eventId_) {}
+              gmSubblockC(gmSubblockC_), layoutSubblockC(layoutSubblockC_) {}
 
         template <typename... Args>
         CATLASS_DEVICE AscendC::LocalTensor<Element> const& visit(
@@ -77,37 +75,29 @@ struct VisitorAuxLoad : VisitorImpl<> {
             MatrixCoord const& localTileOffset,  // 新增参数
             MatrixCoord const& tileShape,
             uint32_t calCount,
+            VisitStage stage,
             Args const&... /*unused*/
         ) {
-            AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventId);
-            AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventId);
-            // AscendC::PipeBarrier<PIPE_ALL>();
-            auto layoutUb = layout::RowMajor::MakeLayoutInUb<Element>(tileShape);
-            using CopyGm2UbT = Epilogue::Tile::CopyGm2Ub<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>>;
-            CopyGm2UbT copyGm2Ub{};
+            if (stage == VisitStage::LOAD || stage == VisitStage::ALL) {
+                auto layoutUb = layout::RowMajor::MakeLayoutInUb<Element>(tileShape);
+                using CopyGm2UbT = Epilogue::Tile::CopyGm2Ub<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>>;
+                CopyGm2UbT copyGm2Ub{};
 
-            if (params_ptr->ptr_aux != nullptr) {
-                // 从用户提供的 ptr_aux 加载（使用全局坐标，tile 封装处理跨距）
-                AscendC::GlobalTensor<Element> gmAux;
-                gmAux.SetGlobalBuffer((__gm__ Element*)(params_ptr->ptr_aux));
-                auto gmTile = gmAux[params_ptr->layout.GetOffset(globalTileOffset)];
-                auto layoutSrc = params_ptr->layout.GetTileLayout(tileShape);
-                copyGm2Ub(ubAux, gmTile, layoutUb, layoutSrc);
-            } else {
-                // 从 gmSubblockC 加载（AccLoad 场景，使用局部坐标，tile 封装处理跨距）
-                auto gmTile = gmSubblockC[layoutSubblockC.GetOffset(localTileOffset)];
-                auto layoutSrc = layoutSubblockC.GetTileLayout(tileShape);
-                copyGm2Ub(ubAux, gmTile, layoutUb, layoutSrc);
+                if (params_ptr->ptr_aux != nullptr) {
+                    // 从用户提供的 ptr_aux 加载（使用全局坐标，tile 封装处理跨距）
+                    AscendC::GlobalTensor<Element> gmAux;
+                    gmAux.SetGlobalBuffer((__gm__ Element*)(params_ptr->ptr_aux));
+                    auto gmTile = gmAux[params_ptr->layout.GetOffset(globalTileOffset)];
+                    auto layoutSrc = params_ptr->layout.GetTileLayout(tileShape);
+                    copyGm2Ub(ubAux, gmTile, layoutUb, layoutSrc);
+                } else {
+                    // 从 gmSubblockC 加载（AccLoad 场景，使用局部坐标，tile 封装处理跨距）
+                    auto gmTile = gmSubblockC[layoutSubblockC.GetOffset(localTileOffset)];
+                    auto layoutSrc = layoutSubblockC.GetTileLayout(tileShape);
+                    copyGm2Ub(ubAux, gmTile, layoutUb, layoutSrc);
+                }
             }
-            // 同步 MTE2: GM->UB 完成
-            // AscendC::PipeBarrier<PIPE_ALL>();
-
-            // AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(EVENT_ID0);
-            // AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE3>(EVENT_ID0);
-            AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventId);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventId);
             return ubAux;
-            // AscendC::PipeBarrier<PIPE_ALL>();
         }
     };
 
@@ -121,12 +111,11 @@ struct VisitorAuxLoad : VisitorImpl<> {
         MatrixCoord const&,
         MatrixCoord const&,
         AscendC::GlobalTensor<Element> const& gmSubblockC,
-        layout::RowMajor const& layoutSubblockC,
-        uint32_t eventId
+        layout::RowMajor const& layoutSubblockC
     ) {
         auto ubAux = resource.ubBuf.template GetBufferByByte<Element>(ub_offset);
         ub_offset += compute_length * sizeof(Element);
-        return Callbacks(ubAux, &params, compute_length, gmSubblockC, layoutSubblockC, eventId);
+        return Callbacks(ubAux, &params, compute_length, gmSubblockC, layoutSubblockC);
     }
 
     Params params;

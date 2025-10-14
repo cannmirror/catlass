@@ -24,12 +24,13 @@ struct TreeVisitor : VisitorImpl<ChildOps..., NodeOp> {
             MatrixCoord const& localTileOffset,  // 新增
             MatrixCoord const& tileShape,
             uint32_t calCount,
+            VisitStage stage,
             tla::seq<Is...>,
             Args const&... args
         ) {
             return tla::tuple<decltype(tla::get<Is>(callbacks_tuple).visit(
-                tileOffset, localTileOffset, tileShape, calCount, args...))...>(
-                tla::get<Is>(callbacks_tuple).visit(tileOffset, localTileOffset, tileShape, calCount, args...)...
+                tileOffset, localTileOffset, tileShape, calCount, stage, args...))...>(
+                tla::get<Is>(callbacks_tuple).visit(tileOffset, localTileOffset, tileShape, calCount, stage, args...)...
             );
         }
 
@@ -40,12 +41,13 @@ struct TreeVisitor : VisitorImpl<ChildOps..., NodeOp> {
             MatrixCoord const& localTileOffset,  // 新增
             MatrixCoord const& tileShape,
             uint32_t calCount,
+            VisitStage stage,
             ChildOutputs const& child_outputs,
             tla::seq<Is...>
         ) {
             constexpr int Rm1 = sizeof...(ChildOps);
             return tla::get<Rm1>(callbacks_tuple).visit(
-                tileOffset, localTileOffset, tileShape, calCount, 
+                tileOffset, localTileOffset, tileShape, calCount, stage,
                 tla::get<Is>(child_outputs)...
             );
         }
@@ -57,20 +59,21 @@ struct TreeVisitor : VisitorImpl<ChildOps..., NodeOp> {
             MatrixCoord const& localTileOffset,  // 新增
             MatrixCoord const& tileShape,
             uint32_t calCount,
+            VisitStage stage = VisitStage::ALL,
             Args const&... args
         ) {
             constexpr int Rm1 = sizeof...(ChildOps);
             
             // 访问所有子节点，收集输出
             auto child_outputs = collect_child_outputs(
-                tileOffset, localTileOffset, tileShape, calCount,
+                tileOffset, localTileOffset, tileShape, calCount, stage,
                 tla::make_seq<Rm1>{},
                 args...
             );
             
             // 将子节点输出传给父节点
             return call_parent_with_outputs(
-                tileOffset, localTileOffset, tileShape, calCount,
+                tileOffset, localTileOffset, tileShape, calCount, stage,
                 child_outputs,
                 tla::make_seq<Rm1>{}
             );
@@ -87,13 +90,12 @@ struct TreeVisitor : VisitorImpl<ChildOps..., NodeOp> {
         MatrixCoord const& subblockShape,
         MatrixCoord const& subblockCoord,
         AscendC::GlobalTensor<half> const& gmSubblockC,
-        layout::RowMajor const& layoutSubblockC,
-        uint32_t eventId
+        layout::RowMajor const& layoutSubblockC
     ) {
         auto base_callbacks = this->VisitorImpl<ChildOps..., NodeOp>::get_callbacks(
             resource, ub_offset, compute_length,
             blockShapeMNK, blockCoordMNK, subblockShape, subblockCoord,
-            gmSubblockC, layoutSubblockC, eventId
+            gmSubblockC, layoutSubblockC
         );
         return Callbacks<decltype(base_callbacks)>(
             static_cast<decltype(base_callbacks)&&>(base_callbacks)
