@@ -46,16 +46,19 @@ TopologicalVisitor 内部定义了一个嵌套结构体 `Callbacks`，该结构�
 ### 阶段（VisitStage）与数据流
 
 - TopologicalVisitor 将 `VisitStage`（LOAD / COMPUTE / STORE / ALL）透明地传递给子节点回调；是否在当前阶段执行、执行什么操作由各子算子回调自行判断（例如 `VisitorAccLoad` 仅在 LOAD 阶段从 GM 读入；`VisitorCompute` 仅在 COMPUTE 阶段计算；`VisitorAuxStore` 仅在 STORE 阶段写回 GM）。
-- 由于 `BlockEpilogue` 在外层以双缓冲流水调度（MTE2/V/MTE3 分阶段同步），TopologicalVisitor 仅负责“算子间依赖顺序与参数传递”，不会改变既有的流水与同步语义。
+- 新增“输出阶段”语义：每个 Visitor 必须提供 `using ElementOutput = ...` 与 `static constexpr VisitStage OUTPUT_STAGE = ...`，表示该节点“最早能产生可复用输出”的阶段。
+- 结果复用与缓存：在且仅在 `stage == OUTPUT_STAGE` 时，TopologicalVisitor 会缓存该节点返回的 UB 视图，并标记 `visited_[i] = true`；随后的同阶段访问将直接命中缓存，避免对子节点的重复递归。`OUTPUT_STAGE == STORE` 的节点不缓存且不标记，确保写回副作用不会被短路。
+- 生命周期与重置：为与 BlockEpilogue 的双缓冲流水（MTE2/V/MTE3）对齐，TopologicalVisitor 在每行开始（`begin_row` 钩子）重置 `visited_[]`，保证 UB 视图缓存不跨行/子块泄露。现有硬件事件同步未被改变。
 
 ### 类型与约束
 
+- 统一输出类型与阶段：所有 Visitor 必须定义 `ElementOutput` 与 `OUTPUT_STAGE`，TopologicalVisitor 基于此做编译期推导与阶段缓存。
 - 输入/输出类型匹配：
   - `VisitorCompute<Fn, T>` 要求其所有子输入均为 `T`；如不满足，请显式插入 `VisitorCast<T, S>` 进行类型转换。
   - `VisitorAuxStore<T, ...>` 要求输入为 `T`；否则同样需要 `VisitorCast`。
 - 拓扑约束：
   - EdgeTuple 必须无环；最后一个算子（索引 R-1）是根。
-  - 若一个子节点被多个父节点复用，当前实现会对该子节点执行多次递归访问（不做结果缓存）；若出现性能瓶颈，可在后续版本扩展“结果缓存”机制。
+  - 若一个子节点被多个父节点复用：当该子节点的访问阶段等于其 `OUTPUT_STAGE` 时会命中缓存，避免重复计算/加载；在其他阶段不会缓存。
 
 ### 与 TreeVisitor 的差异
 
@@ -96,6 +99,31 @@ typename EVT::Arguments evt_args{
 - `Evt::Arguments` 的参数顺序必须与 `Ops...` 的顺序完全一致。
 - `Edges` 中的子节点索引必须落在 `[0, R-1]` 范围内，并且不得形成环。
 - 若需要跨类型组合（例如 `float + half`），请在相应路径插入 `VisitorCast` 做类型转换，TopologicalVisitor 本身不做统一精度缓冲。
+- `VisitorAuxStore` 的语义为“写回并透传返回输入 UB”，因此可继续参与上层组合，但 TopologicalVisitor 不会对其做缓存（防止副作用被跳过）。
+
+### 复用示例（扇出复用）
+
+以 `D = (C + X) + (C + X)` 为例，`Compute1` 节点被 `Compute2` 重复依赖两次，`TopologicalVisitor` 会在 `COMPUTE` 阶段命中缓存并避免重复计算：
+
+```cpp
+// 0-AccLoad, 1-AuxLoad, 2-Compute1(C+X), 3-Compute2((C+X)+(C+X)), 4-Store
+using Edges = tla::tuple<
+  tla::seq<>,      // 0
+  tla::seq<>,      // 1
+  tla::seq<0, 1>,  // 2: Compute1 依赖 AccLoad 与 AuxLoad
+  tla::seq<2, 2>,  // 3: Compute2 依赖 Compute1 与 Compute1（复用）
+  tla::seq<3>      // 4
+>;
+
+using EVT = Epilogue::Fusion::TopologicalVisitor<
+  Edges,
+  Epilogue::Fusion::VisitorAccLoad<half>,
+  Epilogue::Fusion::VisitorAuxLoad<half, layout::RowMajor>,
+  Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
+  Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
+  Epilogue::Fusion::VisitorAuxStore<half, layout::RowMajor>
+>;
+```
 
 ### 维护与文件位置
 
@@ -105,7 +133,12 @@ typename EVT::Arguments evt_args{
 
 ### 变更记录
 
-- v1.0 首次引入：
+- v1.1：
+  - 引入 `ElementOutput` 与 `OUTPUT_STAGE` 统一接口；
+  - 在 `OUTPUT_STAGE` 阶段缓存节点输出并支持复用；
+  - `STORE` 节点不缓存以保留副作用；
+  - 每行开始重置缓存标记，与 UB 生命周期对齐。
+- v1.0：
   - 基于 Edges 的拓扑递归访问；
   - 支持无子节点（空参数包）路径；
   - 与 BlockEpilogue 的三阶段流水无缝对接；

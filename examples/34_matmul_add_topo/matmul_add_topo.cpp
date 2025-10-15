@@ -117,21 +117,25 @@ static void Run(const Options &options) {
     using CType = Gemm::GemmType<half, LayoutC>;
     using BlockMmad = Gemm::Block::BlockMmad<MmadDispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType>;
 
-    // 定义 EVT: D = C + X（拓扑访问器实现）
+    // 定义 EVT: D = (C + X) + (C + X)（拓扑访问器实现，测试节点复用）
     constexpr uint32_t computeLength = 4096;
 
-    // 节点顺序：0-AccLoad, 1-AuxLoad, 2-Compute(Plus), 3-Store
+    // 节点顺序：
+    // 0-AccLoad, 1-AuxLoad, 2-Compute1(C+X), 3-Compute2((C+X)+(C+X)), 4-Store
+    // 复用体现在 3 号节点依赖两次 2 号节点
     using Edges = tla::tuple<
-        tla::seq<>,      // 0: AccLoad 无子节点
-        tla::seq<>,      // 1: AuxLoad 无子节点
-        tla::seq<0, 1>,  // 2: Compute 依赖 AccLoad 与 AuxLoad
-        tla::seq<2>      // 3: Store 依赖 Compute
+        tla::seq<>,         // 0: AccLoad 无子节点
+        tla::seq<>,         // 1: AuxLoad 无子节点
+        tla::seq<0, 1>,     // 2: Compute1 依赖 AccLoad 与 AuxLoad，计算 (C+X)
+        tla::seq<2, 2>,     // 3: Compute2 依赖 Compute1 与 Compute1，计算 (C+X)+(C+X)
+        tla::seq<3>         // 4: Store 依赖 Compute2
     >;
 
     using EVT = Epilogue::Fusion::TopologicalVisitor<
         Edges,
         Epilogue::Fusion::VisitorAccLoad<half>,
         Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>,
+        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
         Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
         Epilogue::Fusion::VisitorAuxStore<half, LayoutC>
     >;
@@ -144,17 +148,17 @@ static void Run(const Options &options) {
         EVT
     >;
 
-    // 准备 EVT Arguments
+    // 准备 EVT Arguments（与 Ops 顺序一致）
     using ArgsCompute = typename Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>::Arguments;
     using ArgsAccLoad = typename Epilogue::Fusion::VisitorAccLoad<half>::Arguments;
     using ArgsAuxLoad = typename Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>::Arguments;
     using ArgsStore = typename Epilogue::Fusion::VisitorAuxStore<half, LayoutC>::Arguments;
-    // 以拓扑顺序与 Ops... 一致的顺序构造 EVT::Arguments
     typename EVT::Arguments evt_args{
-        ArgsAccLoad{},
-        ArgsAuxLoad{deviceX, layoutD},
-        ArgsCompute{},
-        ArgsStore{deviceD, layoutD}
+        ArgsAccLoad{},               // 0
+        ArgsAuxLoad{deviceX, layoutD}, // 1
+        ArgsCompute{},               // 2: Compute1
+        ArgsCompute{},               // 3: Compute2
+        ArgsStore{deviceD, layoutD}  // 4
     };
 
     // 更复杂的嵌套 EVT 示例：D = (((C + X1) + X2) + X3)
@@ -223,9 +227,12 @@ static void Run(const Options &options) {
     // Copy the result from device to host
     ACL_CHECK(aclrtMemcpy(hostD.data(), sizeD, deviceD, sizeD, ACL_MEMCPY_DEVICE_TO_HOST));
 
-    // Compute the golden result
+    // Compute the golden result: Golden = (C + X) + (C + X) = 2*(C + X)
     std::vector<float> hostGolden(lenD);
     golden::ComputeMatmulElemWiseAdd(options.problemShape, hostA, layoutA, hostB, layoutB, hostX, hostGolden, layoutD);
+    for (size_t i = 0; i < hostGolden.size(); ++i) {
+        hostGolden[i] = hostGolden[i] + hostGolden[i];
+    }
 
 
     // Compare the result

@@ -14,6 +14,10 @@ template<
 struct VisitorAuxStore : VisitorImpl<> {
     using VisitorImpl<>::VisitorImpl;
 
+    // 输出元素类型与输出阶段元信息
+    using ElementOutput = Element;
+    static constexpr VisitStage OUTPUT_STAGE = VisitStage::STORE;
+
     struct Arguments {
         GM_ADDR ptr_aux = nullptr;
         Layout layout = {};
@@ -63,7 +67,7 @@ struct VisitorAuxStore : VisitorImpl<> {
             : params_ptr(params_ptr_) {}
 
         template <typename ElementInput>
-        CATLASS_DEVICE void visit(
+        CATLASS_DEVICE AscendC::LocalTensor<ElementInput> const& visit(
             MatrixCoord const& globalTileOffset,
             MatrixCoord const& localTileOffset,  // 新增参数（不使用）
             MatrixCoord const& tileShape,
@@ -87,6 +91,8 @@ struct VisitorAuxStore : VisitorImpl<> {
                 }
 
             }
+            // 透传返回输入以便继续参与 EVT 组合
+            return input;
         }
     };
 

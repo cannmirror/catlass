@@ -13,6 +13,10 @@ template<
 struct VisitorCompute : VisitorImpl<> {
     using VisitorImpl<>::VisitorImpl;
 
+    // 输出元素类型与输出阶段元信息
+    using ElementOutput = ElementCompute;
+    static constexpr VisitStage OUTPUT_STAGE = VisitStage::COMPUTE;
+
     struct Arguments {};
     struct Params {};
 

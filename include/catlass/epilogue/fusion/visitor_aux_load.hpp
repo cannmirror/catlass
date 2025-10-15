@@ -10,6 +10,10 @@ template<class Element, class Layout = layout::RowMajor>
 struct VisitorAuxLoad : VisitorImpl<> {
     using VisitorImpl<>::VisitorImpl;
 
+    // 输出元素类型与输出阶段元信息
+    using ElementOutput = Element;
+    static constexpr VisitStage OUTPUT_STAGE = VisitStage::LOAD;
+
     struct Arguments {
         GM_ADDR ptr_aux = nullptr;
         Layout layout = {};

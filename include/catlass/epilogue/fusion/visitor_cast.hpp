@@ -10,6 +10,10 @@ template <class ElementTo, class ElementFrom, AscendC::RoundMode RoundStyle = As
 struct VisitorCast : VisitorImpl<> {
     using VisitorImpl<>::VisitorImpl;
 
+    // 输出元素类型与输出阶段元信息
+    using ElementOutput = ElementTo;
+    static constexpr VisitStage OUTPUT_STAGE = VisitStage::COMPUTE;
+
     struct Arguments {};
     struct Params {};
 
