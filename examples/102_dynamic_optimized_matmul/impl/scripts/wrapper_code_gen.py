@@ -14,6 +14,9 @@ import os
 from utils.config import Config
 
 from templates.common_matmul_template import CommonMatmulTemplate
+from templates.small_matmul_template import SmallMatmulTemplate
+from templates.padding_matmul_template import PaddingMatmulTemplate
+from templates.padding_multi_core_splitk_matmul_template import PaddingMultiCoreSplitkMatmulTemplate
 from templates.launch_map_template import LaunchMapTemplate
 
 if __name__ == "__main__":
