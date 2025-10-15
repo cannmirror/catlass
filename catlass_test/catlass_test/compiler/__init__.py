@@ -75,7 +75,7 @@ class TemplateCompiler:
             )
             + ".so"
         )
-        logging.info(f"compiling kernel {kernel_name}")
+        logging.debug(f"compiling kernel {kernel_name}")
         kernel_full_path = os.path.join(CATLASS_TEST_KERNEL_PATH, kernel_name)
         if os.path.exists(kernel_full_path):
             return kernel_full_path
