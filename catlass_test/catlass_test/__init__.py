@@ -7,7 +7,6 @@ CATLASS_TEST_PATH = os.path.dirname(__file__)
 CATLASS_TEST_TMP_PATH = os.path.join("/tmp", "catlass_test")
 CATLASS_TEST_KERNEL_PATH = os.path.join(CATLASS_TEST_TMP_PATH, "kernel")
 CATLASS_TEST_INCLUDE_PATH = os.path.join(CATLASS_TEST_PATH, "csrc", "include")
-CATLASS_TEST_KERNEL_EXAMPLES_PATH = os.path.join(CATLASS_TEST_PATH, "csrc", "examples")
 
 CATLASS_PATH = os.path.join(CATLASS_TEST_TMP_PATH, "catlass")
 CATLASS_INCLUDE_PATH = CATLASS_TEST_INCLUDE_PATH
