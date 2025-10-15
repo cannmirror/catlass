@@ -9,7 +9,7 @@ import os
 from typing import Iterable, List, Optional, Union
 
 import torch
-from catlass_test import CATLASS_TEST_KERNEL_EXAMPLES_PATH
+from catlass_test.common import get_example_template_src_path
 from catlass_test.adapter import (
     BatchedMatmulAdapter,
     GroupedMatmulAdapter,
@@ -29,9 +29,7 @@ def basic_matmul(
     """
     output_tensors = {"C": out} if out is not None else {}
     adapter = MatmulAdapter(
-        os.path.join(
-            CATLASS_TEST_KERNEL_EXAMPLES_PATH, "00_basic_matmul", "basic_matmul.hpp"
-        ),
+        get_example_template_src_path("00_basic_matmul"),
         {"A": input, "B": mat2},
         output_tensors,
         {"out_dtype": out_dtype},
@@ -52,9 +50,7 @@ def padding_matmul(
     """
     output_tensors = {"C": out} if out is not None else {}
     adapter = MatmulAdapter(
-        os.path.join(
-            CATLASS_TEST_KERNEL_EXAMPLES_PATH, "04_padding_matmul", "padding_matmul.hpp"
-        ),
+        get_example_template_src_path("04_padding_matmul"),
         {"A": input, "B": mat2},
         output_tensors,
         {"out_dtype": out_dtype},
@@ -75,9 +71,7 @@ def splitk_matmul(
     """
     output_tensors = {"C": out} if out is not None else {}
     adapter = MatmulAdapter(
-        os.path.join(
-            CATLASS_TEST_KERNEL_EXAMPLES_PATH, "09_splitk_matmul", "splitk_matmul.hpp"
-        ),
+        get_example_template_src_path("09_splitk_matmul"),
         {"A": input, "B": mat2},
         output_tensors,
         {"out_dtype": out_dtype},

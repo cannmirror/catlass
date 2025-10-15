@@ -58,6 +58,24 @@ def is_transposed(mat: torch.Tensor) -> bool:
     return mat.stride(-2) == 1 and mat.stride(-1) == mat.shape[0]
 
 
+def get_example_template_src_path(example_name_with_id: str) -> str:
+    import os
+    import re
+    from catlass_test import CATLASS_TEST_PATH
+
+    example_name_pattern = re.compile(r"([0-9]{2})_([A-Za-z0-9_]+)")
+    match = example_name_pattern.match(example_name_with_id)
+    if match is None:
+        return ""
+    example_id, example_name = int(match.group(1)), match.group(2)
+    CATLASS_TEST_KERNEL_EXAMPLES_PATH = os.path.join(
+        CATLASS_TEST_PATH, "csrc", "examples"
+    )
+    return os.path.join(
+        CATLASS_TEST_KERNEL_EXAMPLES_PATH, example_name_with_id, f"{example_name}.hpp"
+    )
+
+
 class OpType(Enum):
     AIV_ONLY = 0
     AIC_ONLY = 1
