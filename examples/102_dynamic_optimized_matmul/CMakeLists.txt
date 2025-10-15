@@ -1,10 +1,12 @@
+# ----------------------------------------------------------------------------
+# This program is free software, you can redistribute it and/or modify.
 # Copyright (c) 2025 Huawei Technologies Co., Ltd.
 # This file is a part of the CANN Open Software.
-# Licensed under CANN Open Software License Agreement Version 1.0 (the "License").
+# Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
-# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
-# INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
+# ----------------------------------------------------------------------------
 
 option(COMPILE_DYNAMIC_OPTIMIZED_MATMUL "Generate wrapper code for generalization matmul" OFF)
 
@@ -44,14 +46,14 @@ if(COMPILE_DYNAMIC_OPTIMIZED_MATMUL)
     link_libraries(dynamic_optimized_kernel runtime)
     add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-O3>)
 
-    add_executable(32_dynamic_optimized_matmul dynamic_optimized_matmul.cpp)
-    add_dependencies(catlass_examples 32_dynamic_optimized_matmul)
-    add_dependencies(32_dynamic_optimized_matmul dynamic_optimized_kernel)
+    add_executable(102_dynamic_optimized_matmul dynamic_optimized_matmul.cpp)
+    add_dependencies(catlass_examples 102_dynamic_optimized_matmul)
+    add_dependencies(102_dynamic_optimized_matmul dynamic_optimized_kernel)
     add_dependencies(dynamic_optimized_kernel auto_gen_code)
 
-    install(TARGETS dynamic_optimized_kernel DESTINATION shared_lib/lib COMPONENT 32_dynamic_optimized_matmul)
+    install(TARGETS dynamic_optimized_kernel DESTINATION shared_lib/lib COMPONENT 102_dynamic_optimized_matmul)
     install(TARGETS dynamic_optimized_kernel DESTINATION shared_lib/lib COMPONENT catlass_examples)
-    install(TARGETS 32_dynamic_optimized_matmul DESTINATION bin COMPONENT 32_dynamic_optimized_matmul)
-    install(TARGETS 32_dynamic_optimized_matmul DESTINATION bin COMPONENT catlass_examples)
+    install(TARGETS 102_dynamic_optimized_matmul DESTINATION bin COMPONENT 102_dynamic_optimized_matmul)
+    install(TARGETS 102_dynamic_optimized_matmul DESTINATION bin COMPONENT catlass_examples)
 
 endif()
