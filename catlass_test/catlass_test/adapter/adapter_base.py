@@ -146,9 +146,9 @@ class AdapterBase(ABC):
 
     def run(self):
         """执行用例"""
-        logging.info(f"kernel template is {self.kernel_src_file}.")
+        logging.debug(f"kernel template is {self.kernel_src_file}.")
         params = self.__get_runtime_params()
-        logging.info(",".join([str(type(param).__name__) for param in params]))
+        logging.debug(",".join([str(type(param).__name__) for param in params]))
         kernel = self.get_kernel()
         torch.npu.synchronize()
         kernel.run(*params)
