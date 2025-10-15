@@ -117,16 +117,23 @@ static void Run(const Options &options) {
     using CType = Gemm::GemmType<half, LayoutC>;
     using BlockMmad = Gemm::Block::BlockMmad<MmadDispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType>;
 
-    // 定义 EVT: D = C + X
+    // 定义 EVT: D = C + X（拓扑访问器实现）
     constexpr uint32_t computeLength = 4096;
-    
-    using EVT = Epilogue::Fusion::TreeVisitor<
-        Epilogue::Fusion::VisitorAuxStore<half, LayoutC>,
-        Epilogue::Fusion::TreeVisitor<
-            Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-            Epilogue::Fusion::VisitorAccLoad<half>,  // 加载 C (workspace)
-            Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>   // 加载 X
-        >
+
+    // 节点顺序：0-AccLoad, 1-AuxLoad, 2-Compute(Plus), 3-Store
+    using Edges = tla::tuple<
+        tla::seq<>,      // 0: AccLoad 无子节点
+        tla::seq<>,      // 1: AuxLoad 无子节点
+        tla::seq<0, 1>,  // 2: Compute 依赖 AccLoad 与 AuxLoad
+        tla::seq<2>      // 3: Store 依赖 Compute
+    >;
+
+    using EVT = Epilogue::Fusion::TopologicalVisitor<
+        Edges,
+        Epilogue::Fusion::VisitorAccLoad<half>,
+        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>,
+        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
+        Epilogue::Fusion::VisitorAuxStore<half, LayoutC>
     >;
 
     // Block level, define BlockEpilogue with EVT
@@ -142,18 +149,11 @@ static void Run(const Options &options) {
     using ArgsAccLoad = typename Epilogue::Fusion::VisitorAccLoad<half>::Arguments;
     using ArgsAuxLoad = typename Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>::Arguments;
     using ArgsStore = typename Epilogue::Fusion::VisitorAuxStore<half, LayoutC>::Arguments;
-    // 以纯花括号形式构造 EVT::Arguments：先构造子树的 Arguments，再作为第一个元素传入
-    using InnerEVT = Epilogue::Fusion::TreeVisitor<
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-        Epilogue::Fusion::VisitorAccLoad<half>,
-        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>
-    >;
+    // 以拓扑顺序与 Ops... 一致的顺序构造 EVT::Arguments
     typename EVT::Arguments evt_args{
-        {
-            ArgsAccLoad{},
-            ArgsAuxLoad{deviceX, layoutD},
-            ArgsCompute{}
-        },
+        ArgsAccLoad{},
+        ArgsAuxLoad{deviceX, layoutD},
+        ArgsCompute{},
         ArgsStore{deviceD, layoutD}
     };
 

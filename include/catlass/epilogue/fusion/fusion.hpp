@@ -10,6 +10,7 @@
 #include "catlass/epilogue/fusion/visitor_aux_store.hpp"
 #include "catlass/epilogue/fusion/visitor_cast.hpp"
 #include "catlass/epilogue/fusion/tree_visitor.hpp"
+#include "catlass/epilogue/fusion/topological_visitor.hpp"
 
 #endif
 
