@@ -136,12 +136,12 @@ static void Run(const Options &options) {
                                            ? PaddingTag::NO_PADDING
                                            : PaddingTag::PADDING_BLOCK_ND;
     static const uint32_t COMPUTE_LENGTH_A = 96 * 1024 / sizeof(ElementA);
-    using PaddingBuilderA =
-        Catlass::Gemm::Kernel::PaddingBuilder<ArchTag, ElementA, LayoutA, COMPUTE_LENGTH_A, paddingTagA>;
+    using PaddingBuilderA = Catlass::Gemm::Kernel::PaddingBuilder<
+        paddingTagA, ArchTag, ElementA, LayoutA, COMPUTE_LENGTH_A>;
     using GlobalPaddingA = PaddingBuilderA::Padding;
     static const uint32_t COMPUTE_LENGTH_B = 96 * 1024 / sizeof(ElementB);
-    using PaddingBuilderB =
-        Catlass::Gemm::Kernel::PaddingBuilder<ArchTag, ElementB, LayoutB, COMPUTE_LENGTH_B, paddingTagB>;
+    using PaddingBuilderB = Catlass::Gemm::Kernel::PaddingBuilder<
+        paddingTagB, ArchTag, ElementB, LayoutB, COMPUTE_LENGTH_B>;
     using GlobalPaddingB = PaddingBuilderB::Padding;
 
     std::vector<fp16_t> hostA(lenA);
