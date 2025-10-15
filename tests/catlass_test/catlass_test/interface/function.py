@@ -41,67 +41,6 @@ def basic_matmul(
     return adapter.get_tensor("C")
 
 
-def batched_matmul(
-    input: torch.Tensor,
-    mat2: torch.Tensor,
-    out_dtype: Optional[torch.dtype] = None,
-    out: Optional[torch.Tensor] = None,
-) -> torch.Tensor:
-    """Test function for `examples/01_batched_matmul`.
-    This function is equal to `torch.bmm`.
-    """
-    output_tensors = {"C": out} if out is not None else {}
-
-    adapter = BatchedMatmulAdapter(
-        os.path.join(
-            CATLASS_TEST_KERNEL_EXAMPLES_PATH, "01_batched_matmul", "batched_matmul.hpp"
-        ),
-        {"A": input, "B": mat2},
-        output_tensors,
-        {"out_dtype": out_dtype},
-        OpType.AIC_ONLY,
-    )
-    adapter.run()
-    return adapter.get_tensor("C")
-
-
-def grouped_matmul_slice_m(
-    x: torch.Tensor,
-    weight: torch.Tensor,
-    group_list: Union[torch.Tensor, Iterable[int]],
-    out_dtype: Optional[torch.dtype] = None,
-    out: Optional[torch.Tensor] = None,
-    **kwargs,
-) -> torch.Tensor:
-    """Test function for `examples/02_grouped_matmul_slice_m`.
-    This function does not have equivalent torch function.
-    """
-    if isinstance(group_list, Iterable):
-        group_list_tensor = torch.tensor(group_list, dtype=torch.int64).npu()
-    else:
-        group_list_tensor = group_list
-    output_tensors = {"C": out} if out is not None else {}
-
-    attrs = {"out_dtype": out_dtype}
-    attrs.update(kwargs)
-
-    adapter = GroupedMatmulAdapter(
-        os.path.join(
-            CATLASS_TEST_KERNEL_EXAMPLES_PATH,
-            "02_grouped_matmul_slice_m",
-            "grouped_matmul_slice_m.hpp",
-        ),
-        {"A": x, "B": weight, "GroupList": group_list_tensor},
-        output_tensors,
-        attrs,
-        OpType.AIC_ONLY,
-        "m",
-        True,
-    )
-    adapter.run()
-    return adapter.get_tensor("C")
-
-
 def padding_matmul(
     input: torch.Tensor,
     mat2: torch.Tensor,
@@ -120,42 +59,6 @@ def padding_matmul(
         output_tensors,
         {"out_dtype": out_dtype},
         OpType.AIC_ONLY,
-    )
-    adapter.run()
-    return adapter.get_tensor("C")
-
-
-def grouped_matmul_slice_k(
-    x: torch.Tensor,
-    weight: torch.Tensor,
-    group_list: Union[torch.Tensor, Iterable[int]],
-    out_dtype: Optional[torch.dtype] = None,
-    out: Optional[torch.Tensor] = None,
-    **kwargs
-) -> torch.Tensor:
-    """Test function for `examples/05_grouped_matmul_slice_k`.
-    This function does not have equivalent torch function.
-    """
-    if isinstance(group_list, Iterable):
-        group_list_tensor = torch.tensor(group_list, dtype=torch.int64).npu()
-    else:
-        group_list_tensor = group_list
-    output_tensors = {"C": out} if out is not None else {}
-    attrs = {"out_dtype": out_dtype}
-    attrs.update(kwargs)
-
-    adapter = GroupedMatmulAdapter(
-        os.path.join(
-            CATLASS_TEST_KERNEL_EXAMPLES_PATH,
-            "05_grouped_matmul_slice_k",
-            "grouped_matmul_slice_k.hpp",
-        ),
-        {"A": x, "B": weight, "GroupList": group_list_tensor},
-        output_tensors,
-        {"out_dtype": out_dtype},
-        OpType.AIC_ONLY,
-        "k",
-        True,
     )
     adapter.run()
     return adapter.get_tensor("C")
@@ -182,15 +85,3 @@ def splitk_matmul(
     )
     adapter.run()
     return adapter.get_tensor("C")
-
-
-def conv_bias(
-    input: torch.Tensor,
-    weight: torch.Tensor,
-    bias: Optional[torch.Tensor],
-    stride: List[int],
-    padding: List[int],
-    dilations: List[int],
-    groups: int,
-) -> torch.Tensor:
-    pass
