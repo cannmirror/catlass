@@ -1,6 +1,6 @@
 [project]
 name = "catlass-test"
-version = "0.1.0+5fa24bd"
+version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.8, <=3.11"
