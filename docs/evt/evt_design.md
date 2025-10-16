@@ -1024,7 +1024,7 @@ typename EVT::Arguments evt_args{
 };
 
 using MyBlockEpilogue = BlockEpilogue<
-  EpilogueWithVisitorCallbacks,
+  EpilogueAtlasA2Visitor,
   CType,
   COMPUTE_LENGTH,
   ElementCompute,
@@ -1055,7 +1055,7 @@ template <
     class FusionCallbacks_
 >
 class BlockEpilogue <
-    EpilogueWithVisitorCallbacks,
+    EpilogueAtlasA2Visitor,
     CType_,
     ElementCompute,
     COMPUTE_LENGTH_,
@@ -1063,7 +1063,7 @@ class BlockEpilogue <
 > {
 public:
     // Type aliases
-    using DispatchPolicy = EpilogueWithVisitorCallbacks;
+    using DispatchPolicy = EpilogueAtlasA2Visitor;
     using ArchTag = typename DispatchPolicy::ArchTag;
     using ElementC = typename CType_::Element;
     using LayoutC = typename CType_::Layout;

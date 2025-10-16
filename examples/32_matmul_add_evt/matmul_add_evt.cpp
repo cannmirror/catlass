@@ -131,7 +131,7 @@ static void Run(const Options &options) {
 
     // Block level, define BlockEpilogue with EVT
     using BlockEpilogue = Epilogue::Block::BlockEpilogue<
-        Epilogue::EpilogueWithVisitorCallbacks,
+        Epilogue::EpilogueAtlasA2Visitor,
         CType,
         tla::Int<computeLength>,
         EVT

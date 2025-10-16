@@ -48,7 +48,7 @@ void for_each(T&& t, F&& f) {
 
 ---
 
-### 第二步：添加 EpilogueWithVisitorCallbacks Dispatch Policy
+### 第二步：添加 EpilogueAtlasA2Visitor Dispatch Policy
 
 **文件**: `include/catlass/epilogue/dispatch_policy.hpp`
 
@@ -56,7 +56,7 @@ void for_each(T&& t, F&& f) {
 
 ```cpp
 // For AtlasA2, Epilogue with Visitor Callbacks (EVT)
-struct EpilogueWithVisitorCallbacks {
+struct EpilogueAtlasA2Visitor {
     using ArchTag = Arch::AtlasA2;
 };
 ```
@@ -828,14 +828,14 @@ template <
     class FusionCallbacks_
 >
 class BlockEpilogue<
-    EpilogueWithVisitorCallbacks,
+    EpilogueAtlasA2Visitor,
     CType_,
     COMPUTE_LENGTH_,
     ElementCompute_,
     FusionCallbacks_
 > {
 public:
-    using DispatchPolicy = EpilogueWithVisitorCallbacks;
+    using DispatchPolicy = EpilogueAtlasA2Visitor;
     using ArchTag = typename DispatchPolicy::ArchTag;
     using ElementC = typename CType_::Element;
     using LayoutC = typename CType_::Layout;
@@ -1224,7 +1224,7 @@ using EVT = Epilogue::Fusion::TreeVisitor<
 3. **修改 BlockEpilogue 定义**（替换原有定义）：
 ```cpp
 using BlockEpilogue = Epilogue::Block::BlockEpilogue<
-    Epilogue::EpilogueWithVisitorCallbacks,
+    Epilogue::EpilogueAtlasA2Visitor,
     CType,
     computeLength,
     ElementCompute,
@@ -1285,7 +1285,7 @@ typename MatmulKernel::Arguments arguments{options.problemShape, sizeof(half), d
 ### To-dos
 
 - [ ] 扩展 tla 库：添加 for_each 和多参数 transform_apply
-- [ ] 添加 EpilogueWithVisitorCallbacks dispatch policy
+- [ ] 添加 EpilogueAtlasA2Visitor dispatch policy
 - [ ] 实现 VisitorImplBase - 参数管理和 workspace 处理
 - [ ] 实现 VisitorImpl - Callbacks 聚合和生命周期
 - [ ] 实现 TreeVisitor - 树形组合语义

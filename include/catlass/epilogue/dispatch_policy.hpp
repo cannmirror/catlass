@@ -96,8 +96,8 @@ struct EpilogueAtlasA2Gemv {
     using ArchTag = Arch::AtlasA2;
 };
 
-// For AtlasA2, Epilogue with Visitor Callbacks (EVT)
-struct EpilogueWithVisitorCallbacks {
+// For AtlasA2, Epilogue with Visitor(EVT)
+struct EpilogueAtlasA2Visitor {
     using ArchTag = Arch::AtlasA2;
 };
 ///////////////////////////

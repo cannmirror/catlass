@@ -24,19 +24,19 @@ class BlockEpilogue {
     static_assert(DEPENDENT_FALSE<DispatchPolicy>, "Could not find an epilogue specialization");
 };
 
-// 前向声明：EpilogueWithVisitorCallbacks 使用类型形式的计算长度（例如 tla::Int<N> 或 std::integral_constant）
+// 前向声明：EpilogueAtlasA2Visitor 使用类型形式的计算长度（例如 tla::Int<N> 或 std::integral_constant）
 template <
     class CType_,
     class ComputeLength_,
     class ElementCompute_,
-    class FusionCallbacks_
+    class EVT_
 >
 class BlockEpilogue<
-    EpilogueWithVisitorCallbacks,
+    EpilogueAtlasA2Visitor,
     CType_,
     ComputeLength_,
     ElementCompute_,
-    FusionCallbacks_
+    EVT_
 >;
 
 }  // namespace Catlass::Epilogue::Block

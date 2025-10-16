@@ -60,18 +60,18 @@ public:
         GemmCoord problemShape;
         GM_ADDR ptrA;
         GM_ADDR ptrB;
-        typename BlockEpilogue::FusionCallbacks::Arguments evt_args;
+        typename BlockEpilogue::EVT::Arguments evt_args;
     };
 
     static bool CanImplement(const Arguments& args)
     {
-        return BlockEpilogue::FusionCallbacks::can_implement(args.problemShape, args.evt_args);
+        return BlockEpilogue::EVT::can_implement(args.problemShape, args.evt_args);
     }
 
     static size_t GetWorkspaceSize(const Arguments& args)
     {
         return sizeof(ElementC) * args.problemShape.m() * args.problemShape.n() +
-               BlockEpilogue::FusionCallbacks::get_workspace_size(args.problemShape, args.evt_args);
+               BlockEpilogue::EVT::get_workspace_size(args.problemShape, args.evt_args);
     }
 
     static Params ToUnderlyingArguments(const Arguments& args, uint8_t* workspace)
@@ -84,8 +84,8 @@ public:
         LayoutB layoutB{k, n};
 
         // 转换 EVT Arguments 到 Params
-        typename BlockEpilogue::FusionCallbacks::Params fusion_params = 
-            BlockEpilogue::FusionCallbacks::to_underlying_arguments(
+        typename BlockEpilogue::EVT::Params fusion_params = 
+            BlockEpilogue::EVT::to_underlying_arguments(
                 problemShape, args.evt_args, 
                 workspace + sizeof(ElementC) * m * n  // EVT workspace 在 GEMM workspace 之后
             );

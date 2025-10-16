@@ -13,16 +13,16 @@ namespace Catlass::Epilogue::Block {
 template <
     class CType_,
     class ComputeLength_,
-    class FusionCallbacks_
+    class EVT_
 >
 class BlockEpilogue<
-    EpilogueWithVisitorCallbacks,
+    EpilogueAtlasA2Visitor,
     CType_,
     ComputeLength_,
-    FusionCallbacks_
+    EVT_
 > {
 public:
-    using DispatchPolicy = EpilogueWithVisitorCallbacks;
+    using DispatchPolicy = EpilogueAtlasA2Visitor;
     using ArchTag = typename DispatchPolicy::ArchTag;
     using ElementC = typename CType_::Element;
     using LayoutC = typename CType_::Layout;
@@ -30,22 +30,22 @@ public:
     using LayoutD = LayoutC;
 
     static constexpr uint32_t COMPUTE_LENGTH = ComputeLength_::value;
-    using FusionCallbacks = FusionCallbacks_;
+    using EVT = EVT_;
 
     struct Params {
-        typename FusionCallbacks::Params fusion_params;
+        typename EVT::Params evt_params;
 
         CATLASS_HOST_DEVICE
         Params() {}
 
         CATLASS_HOST_DEVICE
-        Params(typename FusionCallbacks::Params const& fusion_params_)
-            : fusion_params(fusion_params_) {}
+        Params(typename EVT::Params const& evt_params_)
+            : evt_params(evt_params_) {}
     };
 
     CATLASS_DEVICE
     BlockEpilogue(Arch::Resource<ArchTag>& resource, Params const& params)
-        : params(params), fusion_callbacks(params.fusion_params), resource_(resource)
+        : params(params), evt(params.evt_params), resource_(resource)
     {
         // 事件ID分配：四类事件分别独立编号（每类两路 buffer）
         int32_t evVMTE2 = 0;   // V_MTE2
@@ -106,14 +106,14 @@ public:
 
         // 分配 UB 空间并获取两套 callbacks（双缓冲）
         uint32_t ub_offset0 = 0;
-        auto callbacks0 = fusion_callbacks.get_callbacks(
+        auto callbacks0 = evt.get_callbacks(
             resource_, ub_offset0, COMPUTE_LENGTH,
             blockShapeMNK, blockCoordMNK,
             actualSubblockShape, subblockCoord,
             gmSubblockC, layoutSubblockC
         );
         uint32_t ub_offset1 = ub_offset0;
-        auto callbacks1 = fusion_callbacks.get_callbacks(
+        auto callbacks1 = evt.get_callbacks(
             resource_, ub_offset1, COMPUTE_LENGTH,
             blockShapeMNK, blockCoordMNK,
             actualSubblockShape, subblockCoord,
@@ -203,7 +203,7 @@ private:
     }
 
     Params params;
-    FusionCallbacks fusion_callbacks;
+    EVT evt;
     Arch::Resource<ArchTag>& resource_;  // 新增成员引用
     int32_t eventVMTE2[2];   // V_MTE2：V->MTE2，同步事件（两个buffer）
     int32_t eventMTE2V[2];   // MTE2_V：MTE2->V，同步事件（两个buffer）
