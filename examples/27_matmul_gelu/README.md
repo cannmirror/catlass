@@ -25,14 +25,14 @@ Sigmoid(x)=\frac{1}{1+e^{-x}}
 $$
 Tanh:
 $$
-\begin{align}
+\begin{aligned}
 Tanh(x) &= \frac{(e^x - e^{-x})}{(e^x + e^{-x})}\\
 &= \frac{(e^x - e^{-x})\times e^{-x}}{(e^x + e^{-x}) \times e^{-x} }\\
 &= \frac{1 - e^{-2x} }{1 + e^{-2x}}\\
 &= 1 - 2\times \frac{e^{-2x}}{1 + e^{-2x}}\\
 &= 1 - 2\times (1 - \frac{1}{1 + e^{-2x}})\\
 &= 1 - 2\times (1 - Sigmoid(2x))
-\end{align}
+\end{aligned}
 $$
 因此可化简为：
 $$
