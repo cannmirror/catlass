@@ -105,6 +105,7 @@ cd output/bin
   - ⚠️ **注意** 此功能依赖社区版`CANN`包版本为[8.2.RC1.alpha003](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha003)。
 - [printf](./docs/tools/print.md) - 在算子device代码进行打印调试
   - ⚠️ **注意** 此功能依赖社区版`CANN`包版本在CANN 8.3后（如[8.3.RC1.alpha001](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.3.RC1.alpha001)）。
+- [ascendc_dump](./docs/tools/ascendc_dump.md) - 利用AscendC原生API进行调测
 
 #### ✈️ 性能调优
 

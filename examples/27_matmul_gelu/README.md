@@ -25,14 +25,14 @@ Sigmoid(x)=\frac{1}{1+e^{-x}}
 $$
 Tanh:
 $$
-\begin{align}
+\begin{aligned}
 Tanh(x) &= \frac{(e^x - e^{-x})}{(e^x + e^{-x})}\\
 &= \frac{(e^x - e^{-x})\times e^{-x}}{(e^x + e^{-x}) \times e^{-x} }\\
 &= \frac{1 - e^{-2x} }{1 + e^{-2x}}\\
 &= 1 - 2\times \frac{e^{-2x}}{1 + e^{-2x}}\\
 &= 1 - 2\times (1 - \frac{1}{1 + e^{-2x}})\\
 &= 1 - 2\times (1 - Sigmoid(2x))
-\end{align}
+\end{aligned}
 $$
 因此可化简为：
 $$
@@ -45,7 +45,7 @@ Gelu(x) =0.5∗x∗(1+Tanh(\sqrt {2/π}∗(x+0.044715∗x^3 )))
 $$
 让$Z=\sqrt {2/π}∗(x+0.044715∗x^3)$，代入上式化简得：
 $$
-Gelu(x) =x∗Sigmod( 2Z )
+Gelu(x) =x∗Sigmoid( 2Z )
 $$
 再次展开，并取近似：$\sqrt {8/π}\approx 1.595769$，有:
 $$
