@@ -1,5 +1,5 @@
-#ifndef CATLASS_GEMM_KERNEL_MATMUL_EVT_HPP
-#define CATLASS_GEMM_KERNEL_MATMUL_EVT_HPP
+#ifndef CATLASS_GEMM_KERNEL_MATMUL_VISITOR_HPP
+#define CATLASS_GEMM_KERNEL_MATMUL_VISITOR_HPP
 
 #include "catlass/catlass.hpp"
 #include "catlass/arch/resource.hpp"
@@ -15,7 +15,7 @@ template <
     class BlockEpilogue_,
     class BlockScheduler_
 >
-class MatmulEvt {
+class MatmulVisitor {
 public:
     using BlockMmad = BlockMmad_;
     using ArchTag = typename BlockMmad::ArchTag;
@@ -96,7 +96,7 @@ public:
     }
 
     CATLASS_DEVICE
-    MatmulEvt() {}
+    MatmulVisitor() {}
 
     template <int32_t CORE_TYPE = g_coreType>
     CATLASS_DEVICE
@@ -181,7 +181,7 @@ private:
 
 } // namespace Catlass::Gemm::Kernel
 
-#endif
+#endif // CATLASS_GEMM_KERNEL_MATMUL_VISITOR_HPP
 
 
 

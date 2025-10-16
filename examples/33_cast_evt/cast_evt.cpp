@@ -26,7 +26,7 @@
 #include "catlass/gemm/dispatch_policy.hpp"
 #include "catlass/gemm/gemm_type.hpp"
 #include "catlass/gemm/kernel/matmul_epilogue.hpp"
-#include "catlass/gemm/kernel/matmul_evt.hpp"
+#include "catlass/gemm/kernel/matmul_visitor.hpp"
 #include "catlass/epilogue/fusion/fusion.hpp"
 #include "catlass/layout/layout.hpp"
 #include "catlass/status.hpp"
@@ -192,7 +192,7 @@ static void Run(const Options &options) {
     // Swizzle offset is 3 and direction is 0.
     using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
     // Kernel level
-    using MatmulKernel = Gemm::Kernel::MatmulEvt<BlockMmad, BlockEpilogue, BlockScheduler>;
+    using MatmulKernel = Gemm::Kernel::MatmulVisitor<BlockMmad, BlockEpilogue, BlockScheduler>;
     // Prepare params
     typename MatmulKernel::Arguments arguments{options.problemShape, deviceA, deviceB, evt_args};
     using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;

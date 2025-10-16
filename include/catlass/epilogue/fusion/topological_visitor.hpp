@@ -36,11 +36,7 @@ struct TopologicalVisitor : VisitorImpl<Ops...> {
             reset_flags_impl(tla::make_seq<sizeof...(Ops)>{});
         }
 
-        // 覆盖生命周期钩子：每个 tile 开始时清理缓存标记
-        CATLASS_DEVICE void begin_row(int row_idx) {
-            CallbacksImpl::begin_row(row_idx);
-            reset_flags();
-        }
+        // 在 LOAD 阶段的第一次访问前清理缓存标记
 
         // 元函数：获取第 I 个 Op 类型
         template <int I, class T0, class... Ts>
@@ -157,6 +153,12 @@ struct TopologicalVisitor : VisitorImpl<Ops...> {
             VisitStage stage,
             Args const&... args
         ) {
+            // 当进入一个 tile 的 LOAD 阶段时，重置缓存标记，避免跨 tile 干扰
+            if (stage == VisitStage::LOAD) {
+                reset_flags();
+                AscendC::SetFlag<AscendC::HardEvent::S_V>(EVENT_ID0);
+                AscendC::WaitFlag<AscendC::HardEvent::S_V>(EVENT_ID0);
+            }
             constexpr int R = sizeof...(Ops);
             using RootEdges = decltype(tla::get<R - 1>(EdgeTuple{}));
             return visit_node<R - 1>(tileOffset, localTileOffset, tileShape, calCount, stage, RootEdges{}, args...);

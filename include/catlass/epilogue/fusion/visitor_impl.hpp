@@ -11,8 +11,6 @@ namespace Catlass::Epilogue::Fusion {
 struct EmptyCallbacks {
     CATLASS_DEVICE void begin_epilogue() {}
     CATLASS_DEVICE void end_epilogue() {}
-    CATLASS_DEVICE void begin_row(int) {}
-    CATLASS_DEVICE void end_row(int) {}
 };
 
 template <class... Ops>
@@ -33,14 +31,6 @@ struct VisitorImpl : VisitorImplBase<Ops...> {
 
         CATLASS_DEVICE void end_epilogue() {
             tla::for_each(callbacks_tuple, [](auto& cb) { cb.end_epilogue(); });
-        }
-
-        CATLASS_DEVICE void begin_row(int row_idx) {
-            tla::for_each(callbacks_tuple, [&](auto& cb) { cb.begin_row(row_idx); });
-        }
-
-        CATLASS_DEVICE void end_row(int row_idx) {
-            tla::for_each(callbacks_tuple, [&](auto& cb) { cb.end_row(row_idx); });
         }
     };
 

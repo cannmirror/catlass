@@ -26,7 +26,7 @@
 #include "catlass/gemm/dispatch_policy.hpp"
 #include "catlass/gemm/gemm_type.hpp"
 #include "catlass/gemm/kernel/matmul_epilogue.hpp"
-#include "catlass/gemm/kernel/matmul_evt.hpp"
+#include "catlass/gemm/kernel/matmul_visitor.hpp"
 #include "catlass/epilogue/fusion/fusion.hpp"
 #include "catlass/layout/layout.hpp"
 #include "catlass/status.hpp"
@@ -72,12 +72,22 @@ static void Run(const Options &options) {
     std::vector<fp16_t> hostB(lenB);
     std::vector<fp16_t> hostX(lenX);
     std::srand(std::time(nullptr));
-    golden::FillRandomData<fp16_t>(hostA, -5.0f, 5.0f);
-    golden::FillRandomData<fp16_t>(hostB, -5.0f, 5.0f);
-    golden::FillRandomData<fp16_t>(hostX, -5.0f, 5.0f);
+    // golden::FillRandomData<fp16_t>(hostA, -5.0f, 5.0f);
+    // golden::FillRandomData<fp16_t>(hostB, -5.0f, 5.0f);
+    // golden::FillRandomData<fp16_t>(hostX, -5.0f, 5.0f);
     // golden::FillRandomData<fp16_t>(hostA, 1.0f, 1.0f);
     // golden::FillRandomData<fp16_t>(hostB, 1.0f, 1.0f);
     // golden::FillRandomData<fp16_t>(hostX, 1.0f, 1.0f);
+
+    auto FillRandomIntDataToFp16 = [](std::vector<fp16_t>& data, int32_t low, int32_t high) {
+        for (uint64_t i = 0; i < data.size(); ++i) {
+            data[i] = static_cast<fp16_t>(low + rand() % (high - low + 1));
+        }
+    };
+
+    FillRandomIntDataToFp16(hostA, -5, 5);
+    FillRandomIntDataToFp16(hostB, -5, 5);
+    FillRandomIntDataToFp16(hostX, -5, 5);
 
     // Allocate device memory and copy data from host to device
     uint8_t *deviceA{nullptr};
@@ -205,7 +215,7 @@ static void Run(const Options &options) {
     // Swizzle offset is 3 and direction is 0.
     using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
     // Kernel level
-    using MatmulKernel = Gemm::Kernel::MatmulEvt<BlockMmad, BlockEpilogue, BlockScheduler>;
+    using MatmulKernel = Gemm::Kernel::MatmulVisitor<BlockMmad, BlockEpilogue, BlockScheduler>;
     // Prepare params
     typename MatmulKernel::Arguments arguments{options.problemShape, deviceA, deviceB, evt_args};
     using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;

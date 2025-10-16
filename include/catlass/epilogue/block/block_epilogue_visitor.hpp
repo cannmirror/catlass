@@ -47,26 +47,33 @@ public:
     BlockEpilogue(Arch::Resource<ArchTag>& resource, Params const& params)
         : params(params), fusion_callbacks(params.fusion_params), resource_(resource)
     {
-        // 为两个buffer分配独立的event_id
-        eventV_MTE2[0] = 0;
-        eventV_MTE2[1] = 1;
-        eventMTE3_V[0] = 2;
-        eventMTE3_V[1] = 3;
-        
-        // 初始状态：允许搬入和搬出
-        AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventV_MTE2[0]);
-        AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventV_MTE2[1]);
-        AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(eventMTE3_V[0]);
-        AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(eventMTE3_V[1]);
+        // 事件ID分配：四类事件分别独立编号（每类两路 buffer）
+        int32_t evVMTE2 = 0;   // V_MTE2
+        int32_t evMTE2V = 0;   // MTE2_V
+        int32_t evMTE3V = 0;   // MTE3_V
+        int32_t evVMTE3 = 0;   // V_MTE3
+
+        for (int i = 0; i < 2; ++i) {
+            eventVMTE2[i] = evVMTE2++;
+            eventMTE2V[i] = evMTE2V++;
+            eventMTE3V[i] = evMTE3V++;
+            eventVMTE3[i] = evVMTE3++;
+        }
+
+        // 初始状态：允许搬入（V_MTE2 已完成）与允许写入（MTE3_V 已完成）
+        AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventVMTE2[0]);
+        AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventVMTE2[1]);
+        AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(eventMTE3V[0]);
+        AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(eventMTE3V[1]);
     }
 
     CATLASS_DEVICE
     ~BlockEpilogue()
     {
-        AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventV_MTE2[0]);
-        AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventV_MTE2[1]);
-        AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventMTE3_V[0]);
-        AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventMTE3_V[1]);
+        AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventVMTE2[0]);
+        AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventVMTE2[1]);
+        AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventMTE3V[0]);
+        AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventMTE3V[1]);
     }
 
     CATLASS_DEVICE
@@ -120,12 +127,10 @@ public:
         uint32_t cols = actualSubblockShape.column();
 
         // 遍历所有 tile，实现双缓冲流水
-        uint32_t tileIdx = 0;
         uint32_t ubListId = 0;  // 0或1，交替使用
         
         for (uint32_t r = 0; r < rows; ) {
-            auto& cbsRow = ((ubListId & 1) ? callbacks1 : callbacks0);
-            cbsRow.begin_row(r);
+            auto& cbs = ((ubListId & 1) ? callbacks1 : callbacks0);
 
             // 检查是否需要列分块
             if (cols <= COMPUTE_LENGTH) {
@@ -141,43 +146,9 @@ public:
                 // 计算全局绝对坐标
                 MatrixCoord globalTileOffset = blockOffset + subblockOffset + localTileOffset;
                 uint32_t calCount = tileRows * cols;
-
-                // === Load阶段：等待上一次compute完成 ===
-                AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventV_MTE2[ubListId]);
                 
-                // 调用EVT树load阶段（MTE2流水）
-                auto& cbs = ((ubListId & 1) ? callbacks1 : callbacks0);
-                cbs.visit(globalTileOffset, localTileOffset, tileShape, calCount, 
-                          Epilogue::Fusion::VisitStage::LOAD);
-                
-                // Load完成，通知compute可以开始
-                AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventV_MTE2[ubListId]);
-                
-                // === Compute阶段：等待load完成 & store空闲 ===
-                AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventV_MTE2[ubListId]);
-                AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventMTE3_V[ubListId]);
-                
-                // 调用EVT树compute阶段（V流水）
-                cbs.visit(globalTileOffset, localTileOffset, tileShape, calCount,
-                          Epilogue::Fusion::VisitStage::COMPUTE);
-                
-                // Compute完成，通知load可以覆盖 & store可以搬出
-                AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventV_MTE2[ubListId]);
-                AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(eventMTE3_V[ubListId]);
-                
-                // === Store阶段：等待compute完成 ===
-                AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(eventMTE3_V[ubListId]);
-                
-                // 调用EVT树store阶段（MTE3流水）
-                cbs.visit(globalTileOffset, localTileOffset, tileShape, calCount,
-                          Epilogue::Fusion::VisitStage::STORE);
-                
-                // Store完成，通知compute可以写入
-                AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(eventMTE3_V[ubListId]);
-                
-                // Buffer轮转
-                ubListId = 1 - ubListId;
-                ++tileIdx;
+                // 统一流水：执行一次 tile 的 Load-Compute-Store
+                run_tile(cbs, globalTileOffset, localTileOffset, tileShape, calCount, ubListId);
                 r += tileRows;
             } else { //应该暂时都用不到
                 // 列宽 > COMPUTE_LENGTH，需要列分块，每次处理1行
@@ -190,51 +161,16 @@ public:
                     // 计算全局绝对坐标
                     MatrixCoord globalTileOffset = blockOffset + subblockOffset + localTileOffset;
                     uint32_t calCount = tileCols;  // 1行 * tileCols列
-
-                    // === Load阶段：等待上一次compute完成 ===
-                    AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventV_MTE2[ubListId]);
                     
-                    // 调用EVT树load阶段（MTE2流水）
-                    auto& cbs = ((ubListId & 1) ? callbacks1 : callbacks0);
-                    cbs.visit(globalTileOffset, localTileOffset, tileShape, calCount, 
-                              Epilogue::Fusion::VisitStage::LOAD);
-                    
-                    // Load完成，通知compute可以开始
-                    AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventV_MTE2[ubListId]);
-                    
-                    // === Compute阶段：等待load完成 & store空闲 ===
-                    AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventV_MTE2[ubListId]);
-                    AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventMTE3_V[ubListId]);
-                    
-                    // 调用EVT树compute阶段（V流水）
-                    cbs.visit(globalTileOffset, localTileOffset, tileShape, calCount,
-                              Epilogue::Fusion::VisitStage::COMPUTE);
-                    
-                    // Compute完成，通知load可以覆盖 & store可以搬出
-                    AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventV_MTE2[ubListId]);
-                    AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(eventMTE3_V[ubListId]);
-                    
-                    // === Store阶段：等待compute完成 ===
-                    AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(eventMTE3_V[ubListId]);
-                    
-                    // 调用EVT树store阶段（MTE3流水）
-                    cbs.visit(globalTileOffset, localTileOffset, tileShape, calCount,
-                              Epilogue::Fusion::VisitStage::STORE);
-                    
-                    // Store完成，通知compute可以写入
-                    AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(eventMTE3_V[ubListId]);
-                    
-                    // Buffer轮转
-                    ubListId = 1 - ubListId;
-                    ++tileIdx;
+                    // 统一流水：执行一次 tile 的 Load-Compute-Store
+                    run_tile(cbs, globalTileOffset, localTileOffset, tileShape, calCount, ubListId);
                     c += tileCols;
                 }
                 
                 r += 1;  // 处理完一行
             }
 
-            auto& cbsEnd = ((ubListId & 1) ? callbacks1 : callbacks0);
-            cbsEnd.end_row(r);
+            ubListId = 1 - ubListId; // Buffer 轮转
         }
 
         callbacks0.end_epilogue();
@@ -242,11 +178,37 @@ public:
     }
 
 private:
+    template <class Callbacks>
+    CATLASS_DEVICE void run_tile(
+        Callbacks& cbs,
+        MatrixCoord const& globalTileOffset,
+        MatrixCoord const& localTileOffset,
+        MatrixCoord const& tileShape,
+        uint32_t calCount,
+        uint32_t ubListId
+    ) {
+        AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventVMTE2[ubListId]);
+        cbs.visit(globalTileOffset, localTileOffset, tileShape, calCount, Epilogue::Fusion::VisitStage::LOAD);
+        AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventMTE2V[ubListId]);
+
+        AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventMTE2V[ubListId]);
+        AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventMTE3V[ubListId]);
+        cbs.visit(globalTileOffset, localTileOffset, tileShape, calCount, Epilogue::Fusion::VisitStage::COMPUTE);
+        AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventVMTE2[ubListId]);
+        AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(eventVMTE3[ubListId]);
+
+        AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(eventVMTE3[ubListId]);
+        cbs.visit(globalTileOffset, localTileOffset, tileShape, calCount, Epilogue::Fusion::VisitStage::STORE);
+        AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(eventMTE3V[ubListId]);
+    }
+
     Params params;
     FusionCallbacks fusion_callbacks;
     Arch::Resource<ArchTag>& resource_;  // 新增成员引用
-    int32_t eventV_MTE2[2];  // MTE2→V同步事件（两个buffer）
-    int32_t eventMTE3_V[2];  // V→MTE3同步事件（两个buffer）
+    int32_t eventVMTE2[2];   // V_MTE2：V->MTE2，同步事件（两个buffer）
+    int32_t eventMTE2V[2];   // MTE2_V：MTE2->V，同步事件（两个buffer）
+    int32_t eventMTE3V[2];   // MTE3_V：MTE3->V，同步事件（两个buffer）
+    int32_t eventVMTE3[2];   // V_MTE3：V->MTE3，同步事件（两个buffer）
 };
 
 } // namespace Catlass::Epilogue::Block
