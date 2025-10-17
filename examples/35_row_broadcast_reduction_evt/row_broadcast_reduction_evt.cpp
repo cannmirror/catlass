@@ -143,10 +143,14 @@ static void Run(const Options &options) {
     using BlockMmad = Gemm::Block::BlockMmad<MmadDispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType>;
 
     // 定义 EVT: D = C + RowBroadcast(row); 同时对 (C+row) 做按行规约并加到 deviceRowOut
+    // 支持三种规约操作：
+    // - Epilogue::Fusion::Plus: 求和规约 (默认)
+    // - Epilogue::Fusion::Maximum: 最大值规约
+    // - Epilogue::Fusion::Minimum: 最小值规约
     constexpr uint32_t computeLength = 4096;
     
     using EVT = Epilogue::Fusion::TreeVisitor<
-        Epilogue::Fusion::VisitorRowReduce<float, layout::RowMajor>,
+        Epilogue::Fusion::VisitorRowReduce<Epilogue::Fusion::Plus, float, layout::RowMajor>,
         Epilogue::Fusion::TreeVisitor<
             Epilogue::Fusion::VisitorCast<float, half>,
             Epilogue::Fusion::TreeVisitor<

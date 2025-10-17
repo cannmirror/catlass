@@ -7,9 +7,9 @@
 
 namespace Catlass::Epilogue::Fusion {
 
-// Row reduction over the tile along rows: sum each column of the MxN tile into a 1xN vector,
-// then atomically add to a GM row vector. Returns input tensor to allow chaining.
-template <class ElementCompute, class Layout = layout::RowMajor>
+// Row reduction over the tile along rows: reduce each column of the MxN tile into a 1xN vector,
+// then atomically reduce to a GM row vector. Returns input tensor to allow chaining.
+template <template<class> class ReduceFn, class ElementCompute, class Layout = layout::RowMajor>
 struct VisitorRowReduce : VisitorImpl<> {
     using VisitorImpl<>::VisitorImpl;
 
@@ -97,7 +97,8 @@ struct VisitorRowReduce : VisitorImpl<> {
                 }
                 for (uint32_t r = 1; r < rows; ++r) {
                     AscendC::PipeBarrier<PIPE_V>();
-                    AscendC::Add(ubReduce, ubReduce, input[r * cols], cols);
+                    ReduceFn<ElementCompute> reduce_fn{};
+                    reduce_fn(ubReduce, ubReduce, input[r * cols], cols);
                 }
             }
 
@@ -112,9 +113,9 @@ struct VisitorRowReduce : VisitorImpl<> {
                 using CopyUb2GmT = Epilogue::Tile::CopyUb2Gm<Arch::AtlasA2, Gemm::GemmType<ElementCompute, layout::RowMajor>>;
                 CopyUb2GmT copyUb2Gm{};
                 auto layoutDst = params_ptr->layout.GetTileLayout(MatrixCoord{1u, cols});
-                AscendC::SetAtomicAdd<ElementCompute>();
+                AtomicSetter<ReduceFn, ElementCompute>::set();
                 copyUb2Gm(gmTile, ubReduce, layoutDst, layoutUbRowOut);
-                AscendC::SetAtomicNone();
+                AtomicSetter<ReduceFn, ElementCompute>::clear();
             }
             return input;
         }
