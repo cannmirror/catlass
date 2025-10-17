@@ -37,3 +37,16 @@ python3 "$SCRIPT_PATH/test_torch_lib.py"
 
 # self contained include
 bash "$BUILD_SCRIPT_PATH" --clean --tests test_self_contained_includes || exit 1
+
+# example test by catlass_test
+cd $SCRIPT_PATH/../catlass_test
+python setup.py bdist_wheel
+WHEEL_DIR="$SCRIPT_PATH/../catlass_test/dist/"
+WHEEL_FILE=$(find "$WHEEL_DIR" -type f -name "catlass_test-*.whl" 2>/dev/null | head -n 1)
+if [ -z "$WHEEL_FILE" ]; then
+    echo "Error: No .whl file found in $WHEEL_DIR"
+    exit 1
+fi
+pip install "$WHEEL_FILE"
+python3 "$SCRIPT_PATH/test_example_catlass_test.py"
+pip uninstall catlass_test -y
