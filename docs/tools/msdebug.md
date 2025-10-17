@@ -56,20 +56,20 @@ Current executable set to '/home/catlass/output/bin/00_basic_matmul' (aarch64).
 
 #### 设置断点和程序执行
 
-通过命令`b basic_matmul.cpp:81`和`b basic_matmul.cpp:128`设置两个断点，再用`breakpoint list`查看已有断点。
+通过命令`b basic_matmul.cpp:45`和`b basic_matmul.cpp:90`(在[`00_basic_matmul.cpp`](../../examples/00_basic_matmul/basic_matmul.cpp)中90~101行为类型别名定义，非运行时机器代码)设置两个断点，再用`breakpoint list`查看已有断点。
 
 ```bash
-(msdebug) b basic_matmul.cpp:81
-Breakpoint 1: where = 00_basic_matmul`Run(Options const&) + 416 at basic_matmul.cpp:81:18, address = 0x000000000019e8dc
-(msdebug) b basic_matmul.cpp:128
-Breakpoint 2: where = 00_basic_matmul`Run(Options const&) + 2816 at basic_matmul.cpp:128:39, address = 0x000000000019f23c
+(msdebug) b basic_matmul.cpp:45
+Breakpoint 1: where = 00_basic_matmul`Run(GemmOptions const&) + 460 at basic_matmul.cpp:45:18, address = 0x000000000016df8c
+(msdebug) b basic_matmul.cpp:90
+Breakpoint 2: where = 00_basic_matmul`Run(GemmOptions const&) + 2816 at basic_matmul.cpp:101:39, address = 0x000000000016e8c0
 (msdebug) breakpoint list
 Current breakpoints:
-1: file = 'basic_matmul.cpp', line = 81, exact_match = 0, locations = 1
-  1.1: where = 00_basic_matmul`Run(Options const&) + 416 at basic_matmul.cpp:81:18, address = 00_basic_matmul[0x000000000019e8dc], unresolved, hit count = 0 
+1: file = 'basic_matmul.cpp', line = 45, exact_match = 0, locations = 1
+  1.1: where = 00_basic_matmul`Run(GemmOptions const&) + 460 at basic_matmul.cpp:45:18, address = 00_basic_matmul[0x000000000016df8c], unresolved, hit count = 0 
 
-2: file = 'basic_matmul.cpp', line = 128, exact_match = 0, locations = 1
-  2.1: where = 00_basic_matmul`Run(Options const&) + 2816 at basic_matmul.cpp:138:39, address = 00_basic_matmul[0x000000000019f23c], unresolved, hit count = 0 
+2: file = 'basic_matmul.cpp', line = 90, exact_match = 0, locations = 1
+  2.1: where = 00_basic_matmul`Run(GemmOptions const&) + 2816 at basic_matmul.cpp:101:39, address = 00_basic_matmul[0x000000000016e8c0], unresolved, hit count = 0 
 
 (msdebug) 
 ```
@@ -81,26 +81,26 @@ Current breakpoints:
 Process 813993 launched: '/home/catlass/output/bin/00_basic_matmul' (aarch64)
 Process 813993 stopped
 * thread #1, name = '00_basic_matmul', stop reason = breakpoint 1.1
-    frame #0: 0x0000aaaaaac3e8dc 00_basic_matmul`Run(options=0x0000ffffffffe340) at basic_matmul.cpp:81:18
-   78       ACL_CHECK(aclrtCreateStream(&stream));
-   79  
-   80       uint32_t m = options.problemShape.m();
--> 81       uint32_t n = options.problemShape.n();
-   82       uint32_t k = options.problemShape.k();
-   83  
-   84       size_t lenA = static_cast<size_t>(m) * k;
+    frame #0: 0x0000aaaaaac0df8c 00_basic_matmul`Run(options=0x0000ffffffffe340) at basic_matmul.cpp:45:18
+   42  
+   43       uint32_t m = options.problemShape.m();
+   44       uint32_t n = options.problemShape.n();
+-> 45       uint32_t k = options.problemShape.k();
+   46  
+   47       size_t lenA = static_cast<size_t>(m) * k;
+   48       size_t lenB = static_cast<size_t>(k) * n;
 (msdebug) c
 Process 813993 resuming
 Process 813993 stopped
 * thread #1, name = '00_basic_matmul', stop reason = breakpoint 2.1
-    frame #0: 0x0000aaaaaac3f23c 00_basic_matmul`Run(options=0x0000ffffffffe340) at basic_matmul.cpp:138:39
-   135      using MatmulKernel = Gemm::Kernel::BasicMatmul<BlockMmad, BlockEpilogue, BlockScheduler>;
-   136 
-   137      using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
--> 138      MatmulKernel::Arguments arguments{options.problemShape, deviceA, deviceB, deviceC};
-   139      MatmulAdapter matmul_op;
-   140      matmul_op.CanImplement(arguments);
-   141      size_t sizeWorkspace = matmul_op.GetWorkspaceSize(arguments);
+    frame #0: 0x0000aaaaaac0e8c0 00_basic_matmul`Run(options=0x0000ffffffffe340) at basic_matmul.cpp:101:39
+   98      using MatmulKernel = Gemm::Kernel::BasicMatmul<BlockMmad, BlockEpilogue, BlockScheduler>;
+   99 
+   100      using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
+-> 101      MatmulKernel::Arguments arguments{options.problemShape, deviceA, deviceB, deviceC};
+   102      MatmulAdapter matmulOp;
+   103      matmulOp.CanImplement(arguments);
+   104      size_t sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
 (msdebug) c
 Process 813993 resuming
 [Launch of Kernel _ZN7Catlass13KernelAdapterINS_4Gemm6Kernel11BasicMatmulINS1_5Blo on Device 0]
@@ -114,19 +114,19 @@ Process 813993 exited with status = 0 (0x00000000)
 如果想查看标量，通过`p`指令，可以直接查看当前n变量的值。
 
 ```bash
-Process 814079 launched: '/home/catlass/output/bin/00_basic_matmul' (aarch64)
-Process 814079 stopped
+Process 813993 launched: '/home/catlass/output/bin/00_basic_matmul' (aarch64)
+Process 813993 stopped
 * thread #1, name = '00_basic_matmul', stop reason = breakpoint 1.1
-    frame #0: 0x0000aaaaaac3e8dc 00_basic_matmul`Run(options=0x0000ffffffffe340) at basic_matmul.cpp:81:18
-   78       ACL_CHECK(aclrtCreateStream(&stream));
-   79  
-   80       uint32_t m = options.problemShape.m();
--> 81       uint32_t n = options.problemShape.n();
-   82       uint32_t k = options.problemShape.k();
-   83  
-   84       size_t lenA = static_cast<size_t>(m) * k;
+    frame #0: 0x0000aaaaaac0df8c 00_basic_matmul`Run(options=0x0000ffffffffe340) at basic_matmul.cpp:45:18
+   42  
+   43       uint32_t m = options.problemShape.m();
+   44       uint32_t n = options.problemShape.n();
+-> 45       uint32_t k = options.problemShape.k();
+   46  
+   47       size_t lenA = static_cast<size_t>(m) * k;
+   48       size_t lenB = static_cast<size_t>(k) * n;
 (msdebug) p n
-(uint32_t) $0 = 0
+(uint32_t) $0 = 512
 ```
 
 如果想查看内存，先通过`p`指令，查看当前内存的信息。
