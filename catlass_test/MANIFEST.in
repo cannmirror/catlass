@@ -1,0 +1,2 @@
+recursive-include catlass_test/csrc/include *
+recursive-include catlass_test/csrc/include *.*

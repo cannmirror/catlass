@@ -9,9 +9,10 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # ----------------------------------------------------------------------------
 
-import os
 import logging
+import os
 import shutil
+from importlib.metadata import PackageNotFoundError, version
 
 ASCEND_HOME_PATH = os.environ["ASCEND_HOME_PATH"]
 
@@ -24,6 +25,11 @@ CATLASS_PATH = os.path.join(CATLASS_TEST_TMP_PATH, "catlass")
 CATLASS_INCLUDE_PATH = CATLASS_TEST_INCLUDE_PATH
 
 CATLASS_COMMIT_ID = ""
+
+try:
+    CATLASS_COMMIT_ID = version("catlass_test").split("+")[-1]
+except PackageNotFoundError:
+    pass
 
 __LOG_LEVEL = logging._nameToLevel.get(
     os.environ.get("CATLASS_TEST_LOG_LEVEL", "INFO").upper(), logging.INFO

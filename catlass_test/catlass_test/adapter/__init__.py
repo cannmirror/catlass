@@ -11,5 +11,5 @@
 
 from catlass_test.adapter.adapter_base import AdapterBase
 from catlass_test.adapter.grouped_matmul_adapter import GroupedMatmulAdapter
-from catlass_test.adapter.matmul_adapter import MatmulAdapter
+from catlass_test.adapter.gemm_adapter import MatmulAdapter
 from catlass_test.adapter.batched_matmul_adapter import BatchedMatmulAdapter

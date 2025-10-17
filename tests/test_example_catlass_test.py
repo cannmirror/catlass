@@ -13,16 +13,18 @@
 import random
 from typing import Union
 import unittest
+from typing import Callable
 
 import torch
 import catlass_test
 import torch_npu
 from torch_npu.testing.testcase import TestCase, run_tests
 
-class CatlassTest(TestCase):
 
+class CatlassTest(TestCase):
     def _run_case_basic(
         self,
+        interface: Callable,
         m: int,
         n: int,
         k: int,
@@ -40,7 +42,7 @@ class CatlassTest(TestCase):
         b = b if not trans_b else b.T
 
         torch.npu.synchronize()
-        result = catlass_test.basic_matmul(a, b, out_dtype=dtype)
+        result = interface(a, b, out_dtype=dtype)
         golden = torch.mm(a, b)
         torch.npu.synchronize()
         if dtype == torch.bfloat16:
@@ -48,20 +50,8 @@ class CatlassTest(TestCase):
             golden = golden.to(torch.float32)
         self.assertRtolEqual(result, golden)
 
-    def test_basic_matmul_pybind(self):
-        self._run_case_basic(2, 3, 4)
-
-    def test_basic_matmul_pybind_cr(self):
-        self._run_case_basic(2, 3, 4, trans_a=True)
-
-    def test_basic_matmul_pybind_rc(self):
-        self._run_case_basic(2, 3, 4, trans_b=True)
-
-    def test_basic_matmul_pybind_cc(self):
-        self._run_case_basic(2, 3, 4, trans_a=True, trans_b=True)
-
-    def test_basic_matmul_pybind_bf16(self):
-        self._run_case_basic(2, 3, 4, trans_a=True, trans_b=True)
+    def test_00_basic_matmul(self):
+        self._run_case_basic(catlass_test.basic_matmul, 256, 512, 1024)
 
 
 if __name__ == "__main__":
