@@ -23,9 +23,6 @@ else()
         ${ASCEND_HOME_PATH}/include/aclnn
         ${ASCEND_HOME_PATH}/include/experiment/runtime
         ${ASCEND_HOME_PATH}/include/experiment/msprof
-        ${ASCEND_HOME_PATH}/include/experiment/msprof
-        ${ASCEND_HOME_PATH}/lib64
-        ${ASCEND_HOME_PATH}/lib64/../devlib
     )
     link_directories(
         ${ASCEND_HOME_PATH}/lib64
