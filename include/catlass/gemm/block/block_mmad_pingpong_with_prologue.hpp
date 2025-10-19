@@ -112,7 +112,6 @@ public:
     struct Params {
         typename Tile::PrologueTraits<PrologueA>::Params prologueA{};
         typename Tile::PrologueTraits<PrologueB>::Params prologueB{};
-        typename CopyL0CToGm::Params copyL0CToGm{};
     };
 
     /// Construct
