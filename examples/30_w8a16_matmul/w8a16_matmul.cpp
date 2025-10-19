@@ -62,7 +62,7 @@ static void Run(const Options &options) {
     using LayoutB = layout::RowMajor;
     using LayoutC = layout::RowMajor;
     LayoutA layoutA{m, k};
-    LayoutB layoutB{k, n};
+    LayoutPrologueB layoutPrologueB{k, n};
     LayoutC layoutC{m, n};
 
     half deqScalar = 1.5;
@@ -128,7 +128,7 @@ static void Run(const Options &options) {
                 deviceB, layoutPrologueB,
                 deviceC, layoutC,
                 deqScalar, deqZeroPoint,
-                aicoreNum
+                aicCoreNum
             };
         using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
         MatmulAdapter matmulOp;
@@ -142,7 +142,7 @@ static void Run(const Options &options) {
                 deviceB, layoutPrologueB,
                 deviceC, layoutC,
                 deqScalar, deqZeroPoint,
-                aicoreNum
+                aicCoreNum
             };
         using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
         MatmulAdapter matmulOp;
@@ -158,7 +158,7 @@ static void Run(const Options &options) {
     ACL_CHECK(aclrtMemcpy(hostC.data(), sizeC, deviceC, sizeC, ACL_MEMCPY_DEVICE_TO_HOST));
 
     std::vector<float> hostGolden(lenC);
-    golden::ComputeMatmul(options.problemShape, hostA, layoutA, hostBFp16, layoutB, hostGolden, layoutC);
+    golden::ComputeMatmul(options.problemShape, hostA, layoutA, hostBFp16, layoutPrologueB, hostGolden, layoutC);
 
     std::vector<uint64_t> errorIndices = golden::CompareData(hostC, hostGolden, k);
     if (errorIndices.empty()) {
