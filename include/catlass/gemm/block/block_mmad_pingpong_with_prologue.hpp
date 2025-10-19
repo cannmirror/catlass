@@ -68,8 +68,7 @@ public:
 
     using ElementAccumulator =
         typename Gemm::helper::ElementAccumulatorSelector<ElementA, ElementB>::ElementAccumulator;
-    using CopyL0CToGm = Gemm::Tile::CopyL0CToGm<
-        ArchTag, ElementAccumulator, CType_, Tile::ScaleGranularity::PER_TENSOR>;
+    using CopyL0CToGm = typename TileCopy_::CopyL0CToGm;
     using LayoutAInL1 = typename CopyL1ToL0A::LayoutSrc;
     using LayoutBInL1 = typename CopyL1ToL0B::LayoutSrc;
     using LayoutAInL0 = typename CopyL1ToL0A::LayoutDst;
@@ -119,8 +118,7 @@ public:
     /// Construct
     CATLASS_DEVICE
     BlockMmad(Arch::Resource<ArchTag> const &resource, Params const &params_ = {}) :
-        params(params_), prologueA(resource, params_.prologueA), prologueB(resource, params_.prologueB),
-        copyL0CToGm(params_.copyL0CToGm)
+        params(params_), prologueA(resource, params_.prologueA), prologueB(resource, params_.prologueB)
     {
         Arch::FlagID flagId = 0;
         for (uint32_t i = 0; i < STAGES; ++i) {
