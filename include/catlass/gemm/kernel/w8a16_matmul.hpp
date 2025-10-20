@@ -112,7 +112,7 @@ public:
             args.deviceA, args.layoutA,
             args.devicePrologueB, args.layoutPrologueB,
             args.deviceC, args.layoutC,
-            {{}, {args.deqScalar, args.deqZeroPoint}},
+            {{}, {args.deqScalar, args.deqZeroPoint}, {}},
             workspace
         };
         return params;

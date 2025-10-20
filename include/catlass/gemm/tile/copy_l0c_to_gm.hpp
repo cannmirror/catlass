@@ -126,6 +126,12 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
         ScaleGranularity::NO_QUANT>::VALUE;
     static constexpr auto reluEn = ReluEnable_;
 
+    struct Params {};
+    Params params;
+
+    CATLASS_DEVICE
+    CopyL0CToGm(Params const &params_) : params(params_) {};
+
     CATLASS_DEVICE
     void operator()(AscendC::GlobalTensor<ElementDst> const &dst, AscendC::LocalTensor<ElementSrc> const &src,
         LayoutDst const &dstLayout, LayoutSrc const &srcLayout, uint8_t unitFlag = 0)
@@ -167,6 +173,12 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
     static constexpr auto quantPre = CopyL0CToGmQuantMode<ArchTag, ElementSrc, ElementDst,
         ScaleGranularity::NO_QUANT>::VALUE;
     static constexpr auto reluEn = ReluEnable_;
+
+    struct Params {};
+    Params params;
+
+    CATLASS_DEVICE
+    CopyL0CToGm(Params const &params_) : params(params_) {};
 
     CATLASS_DEVICE
     void operator()(AscendC::GlobalTensor<ElementDst> const &dst, AscendC::LocalTensor<ElementSrc> const &src,
@@ -213,6 +225,12 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
     static constexpr auto quantPre = CopyL0CToGmQuantMode<ArchTag, ElementSrc, ElementDst,
         ScaleGranularity::NO_QUANT>::VALUE;
     static constexpr auto reluEn = ReluEnable_;
+
+    struct Params {};
+    Params params;
+
+    CATLASS_DEVICE
+    CopyL0CToGm(Params const &params_) : params(params_) {};
 
     CATLASS_DEVICE
     void operator()(AscendC::GlobalTensor<ElementDst> const &dst, AscendC::LocalTensor<ElementSrc> const &src,
@@ -274,6 +292,12 @@ struct CopyL0CToGmTla<Catlass::Arch::AtlasA2,
     static constexpr auto quantPre = CopyL0CToGmQuantMode<ArchTag, ElementSrc, ElementDst,
         ScaleGranularity::NO_QUANT>::VALUE;
     static constexpr auto reluEn = ReluEnable_;
+
+    struct Params {};
+    Params params;
+
+    CATLASS_DEVICE
+    CopyL0CToGmTla(Params const &params_) : params(params_) {};
 
     template <class TensorDst, class TensorSrc>
     CATLASS_DEVICE
