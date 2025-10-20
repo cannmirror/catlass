@@ -112,12 +112,14 @@ public:
     struct Params {
         typename Tile::PrologueTraits<PrologueA>::Params prologueA{};
         typename Tile::PrologueTraits<PrologueB>::Params prologueB{};
+        typename CopyL0CToGm::Params copyL0CToGm{};
     };
 
     /// Construct
     CATLASS_DEVICE
     BlockMmad(Arch::Resource<ArchTag> const &resource, Params const &params_ = {}) :
-        params(params_), prologueA(resource, params_.prologueA), prologueB(resource, params_.prologueB)
+        params(params_), prologueA(resource, params_.prologueA), prologueB(resource, params_.prologueB),
+        copyL0CToGm(params_.copyL0CToGm)
     {
         Arch::FlagID flagId = 0;
         for (uint32_t i = 0; i < STAGES; ++i) {
