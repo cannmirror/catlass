@@ -130,6 +130,9 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
     Params params;
 
     CATLASS_DEVICE
+    CopyL0CToGm() = default;
+
+    CATLASS_DEVICE
     CopyL0CToGm(Params const &params_) : params(params_) {};
 
     CATLASS_DEVICE
@@ -178,6 +181,9 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
     Params params;
 
     CATLASS_DEVICE
+    CopyL0CToGm() = default;
+
+    CATLASS_DEVICE
     CopyL0CToGm(Params const &params_) : params(params_) {};
 
     CATLASS_DEVICE
@@ -224,6 +230,9 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
 
     struct Params {};
     Params params;
+
+    CATLASS_DEVICE
+    CopyL0CToGm() = default;
 
     CATLASS_DEVICE
     CopyL0CToGm(Params const &params_) : params(params_) {};
@@ -290,10 +299,6 @@ struct CopyL0CToGmTla<Catlass::Arch::AtlasA2,
     static constexpr auto reluEn = ReluEnable_;
 
     struct Params {};
-    Params params;
-
-    CATLASS_DEVICE
-    CopyL0CToGmTla(Params const &params_) : params(params_) {};
 
     template <class TensorDst, class TensorSrc>
     CATLASS_DEVICE
