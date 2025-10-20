@@ -1,0 +1,2 @@
+# 将catlass接入ops-*算子仓
+算子仓（如[ops-math](https://gitcode.com/cann/ops-math), [ops-cv](https://gitcode.com/cann/ops-cv), [ops-nn](https://gitcode.com/cann/ops-nn), [ops-transformer](https://gitcode.com/cann/ops-transformer))是CANN的算子源码仓，现已开源。为避免依赖问题，这些仓库没有引入catlass依赖。本文档将说明如何将catlass算子接入上述代码仓。

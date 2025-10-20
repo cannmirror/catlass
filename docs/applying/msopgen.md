@@ -1,0 +1,3 @@
+# 将catlass算子接入msopgen工程
+msopgen是xxx
+catlass工程提供的算子编译执行不依赖CANN的各种组件，但也因此无法快速使能CANN的各种特性。
