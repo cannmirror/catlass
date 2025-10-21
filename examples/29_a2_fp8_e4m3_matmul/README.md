@@ -27,7 +27,7 @@ bash scripts/build.sh 29_a2_fp8_e4m3_matmul
 ```
 - 第二步，首先执行`gen_data.py`，生成测试样例，测试用例需要从命令行输入
 ```
-python gen_data.py 256 512 1024 0 0
+cd examples/29_a2_fp8_e4m3_matmul && python gen_data.py 256 512 1024 0 0 && cd ../..
 # 输入参数分别对应 m, n, k, trans_a, trans_b
 # trans_a表示A矩阵是否转置，0是不转置，1是转置
 # trans_b表示B矩阵是否转置，0是不转置，1是转置
@@ -43,10 +43,9 @@ python gen_data.py 256 512 1024 0 0
 
 - 第三步，执行算子，这里要注意执行算子的输入shape和上面第二步生成数据的shape一致
 ```
-cd output/bin
 # 可执行文件名 |矩阵m轴|n轴|k轴|Device ID
 # Device ID可选，默认为0
-./29_a2_fp8_e4m3_matmul 256 512 1024 0
+./output/bin/29_a2_fp8_e4m3_matmul 256 512 1024 0
 ```
 执行结果如下，说明精度比对成功。
 ```
