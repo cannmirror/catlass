@@ -78,14 +78,14 @@ struct TileCastFp8ToFp16Dequant {
         bufferOffset += 256;
         AscendC::Duplicate<int16_t>(value_vector1, value_uint, 128);
         AscendC::PipeBarrier<PIPE_V>();
-        // pipe_barrier(PIPE_V);
+        // AscendC::PipeBarrier<PIPE_V>();
         value_uint = 0x3FFF;
         value_vector2 = (resource.ubBuf.template GetBufferByByte<ElementIn>(bufferOffset * sizeof(ElementIn)))
                             .template ReinterpretCast<int16_t>();
         bufferOffset += 256;
         AscendC::Duplicate<int16_t>(value_vector2, value_uint, 128);
         AscendC::PipeBarrier<PIPE_V>();
-        // pipe_barrier(PIPE_V);
+        // AscendC::PipeBarrier<PIPE_V>();
     }
 
     CATLASS_DEVICE
@@ -185,7 +185,59 @@ struct TileCastFp8ToFp16Dequant {
             AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(EventIdBuffer[bufferIndex]);
             AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(EventIdBuffer[bufferIndex]);
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EventIdBuffer[bufferIndex]);
+            
+            auto inBuf = inputBuffer[bufferIndex];
+            AscendC::PipeBarrier<PIPE_V>();
+            // AscendC::PipeBarrier<PIPE_V>();
+            uint32_t num = (COMPUTE_LENGTH + 128 - 1) / 128 * 128;
+            AscendC::Cast<half, uint8_t>(gmSrc.template ReinterpretCast<half>(),
+                gmSrc.template ReinterpretCast<uint8_t>(),
+                AscendC::RoundMode::CAST_NONE,
+                num);
+            AscendC::PipeBarrier<PIPE_V>();
 
+            AscendC::Adds<half>(gmDst, gmDst, 1024, num);
+            AscendC::PipeBarrier<PIPE_V>();
+
+            AscendC::ShiftLeft<uint16_t>(
+                gmDst.template ReinterpretCast<uint16_t>(), gmDst.template ReinterpretCast<uint16_t>(), 7, num);
+            AscendC::PipeBarrier<PIPE_V>();
+
+            uint64_t mask = 128;
+            AscendC::And<int16_t>(workspace.template ReinterpretCast<int16_t>(),
+                gmDst.template ReinterpretCast<int16_t>(),
+                value_vector1,
+                mask,
+                num / 128,
+                {1, 1, 1, 8, 8, 0});
+            AscendC::PipeBarrier<PIPE_V>();
+
+            AscendC::ShiftLeft<uint16_t>(
+                workspace.template ReinterpretCast<uint16_t>(), workspace.template ReinterpretCast<uint16_t>(), 1, num);
+            AscendC::PipeBarrier<PIPE_V>();
+
+            AscendC::And<int16_t>(dst.template ReinterpretCast<int16_t>(),
+                dst.template ReinterpretCast<int16_t>(),
+                value_vector2,
+                mask,
+                num / 128,
+                {1, 1, 1, 8, 8, 0});
+            AscendC::PipeBarrier<PIPE_V>();
+
+            AscendC::Or<int16_t>(dst.template ReinterpretCast<int16_t>(),
+                dst.template ReinterpretCast<int16_t>(),
+                workspace.template ReinterpretCast<int16_t>(),
+                num);
+            AscendC::PipeBarrier<PIPE_V>();
+
+            AscendC::Muls<half>(dst.template ReinterpretCast<half>(), dst.template ReinterpretCast<half>(), 1 << 8, num);
+            AscendC::PipeBarrier<PIPE_V>();
+
+            AscendC::Adds(dst, dst, zeroPoint, num);
+            AscendC::PipeBarrier<PIPE_V>();
+
+            AscendC::Muls(dst, dst, scalar, num);
+            AscendC::PipeBarrier<PIPE_V>();
 
             AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EventIdBuffer[bufferIndex]);
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EventIdBuffer[bufferIndex]);
