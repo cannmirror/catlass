@@ -138,23 +138,13 @@ static void Run(const Options &options) {
     >;
 
     // 准备 EVT Arguments
-    using ArgsCompute = typename Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>::Arguments;
-    using ArgsAccLoad = typename Epilogue::Fusion::VisitorAccLoad<half>::Arguments;
-    using ArgsAuxLoad = typename Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>::Arguments;
-    using ArgsStore = typename Epilogue::Fusion::VisitorAuxStore<half, LayoutC>::Arguments;
-    // 以纯花括号形式构造 EVT::Arguments：先构造子树的 Arguments，再作为第一个元素传入
-    using InnerEVT = Epilogue::Fusion::TreeVisitor<
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-        Epilogue::Fusion::VisitorAccLoad<half>,
-        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>
-    >;
     typename EVT::Arguments evt_args{
         {
-            ArgsAccLoad{},
-            ArgsAuxLoad{deviceX, layoutD},
-            ArgsCompute{}
+            {},
+            {deviceX, layoutD},
+            {}
         },
-        ArgsStore{deviceD, layoutD}
+        {deviceD, layoutD}
     };
 
     // 更复杂的嵌套 EVT 示例：D = (((C + X1) + X2) + X3)
@@ -182,17 +172,17 @@ static void Run(const Options &options) {
         {
             {
                 {
-                    ArgsAccLoad{},
-                    ArgsAuxLoad{deviceX, layoutD},
-                    ArgsCompute{}
+                    {},
+                    {deviceX, layoutD},
+                    {}
                 },
-                ArgsAuxLoad{deviceX, layoutD},
-                ArgsCompute{}
+                {deviceX, layoutD},
+                {}
             },
-            ArgsAuxLoad{deviceX, layoutD},
-            ArgsCompute{}
+            {deviceX, layoutD},
+            {}
         },
-        ArgsStore{deviceD, layoutD}
+        {deviceD, layoutD}
     };
     (void)evt_args_complex; // 仅用于示例，不参与执行
 

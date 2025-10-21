@@ -159,56 +159,13 @@ static void Run(const Options &options) {
     >;
 
     // 准备 EVT Arguments（与 Ops 顺序一致）
-    using ArgsCompute = typename Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>::Arguments;
-    using ArgsAccLoad = typename Epilogue::Fusion::VisitorAccLoad<half>::Arguments;
-    using ArgsAuxLoad = typename Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>::Arguments;
-    using ArgsStore = typename Epilogue::Fusion::VisitorAuxStore<half, LayoutC>::Arguments;
     typename EVT::Arguments evt_args{
-        ArgsAccLoad{},               // 0
-        ArgsAuxLoad{deviceX, layoutD}, // 1
-        ArgsCompute{},               // 2: Compute1
-        ArgsCompute{},               // 3: Compute2
-        ArgsStore{deviceD, layoutD}  // 4
+        {},               // 0
+        {deviceX, layoutD}, // 1
+        {},               // 2: Compute1
+        {},               // 3: Compute2
+        {deviceD, layoutD}  // 4
     };
-
-    // 更复杂的嵌套 EVT 示例：D = (((C + X1) + X2) + X3)
-    using EVT_Compute1 = Epilogue::Fusion::TreeVisitor<
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-        Epilogue::Fusion::VisitorAccLoad<half>,
-        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>
-    >;
-    using EVT_Compute2 = Epilogue::Fusion::TreeVisitor<
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-        EVT_Compute1,
-        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>
-    >;
-    using EVT_Compute3 = Epilogue::Fusion::TreeVisitor<
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-        EVT_Compute2,
-        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>
-    >;
-    using EVT_Complex = Epilogue::Fusion::TreeVisitor<
-        Epilogue::Fusion::VisitorAuxStore<half, LayoutC>,
-        EVT_Compute3
-    >;
-
-    typename EVT_Complex::Arguments evt_args_complex{
-        {
-            {
-                {
-                    ArgsAccLoad{},
-                    ArgsAuxLoad{deviceX, layoutD},
-                    ArgsCompute{}
-                },
-                ArgsAuxLoad{deviceX, layoutD},
-                ArgsCompute{}
-            },
-            ArgsAuxLoad{deviceX, layoutD},
-            ArgsCompute{}
-        },
-        ArgsStore{deviceD, layoutD}
-    };
-    (void)evt_args_complex; // 仅用于示例，不参与执行
 
     std::vector<fp16_t> hostD(lenD);
     // Define BlockScheduler

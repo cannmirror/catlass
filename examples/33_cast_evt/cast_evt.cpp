@@ -125,14 +125,13 @@ static void Run(const Options &options) {
     using EVT_AuxLoad = Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>;
     
     // Cast: half -> float
-    using EVT_CastAcc = Epilogue::Fusion::VisitorCast<float, half, AscendC::RoundMode::CAST_NONE>;
-    using EVT_CastAux = Epilogue::Fusion::VisitorCast<float, half, AscendC::RoundMode::CAST_NONE>;
+    using EVT_CastHalf2Float = Epilogue::Fusion::VisitorCast<float, half, AscendC::RoundMode::CAST_NONE>;
     
     // Compute: float + float -> float
     using EVT_Compute = Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, float>;
     
     // Cast: float -> half
-    using EVT_CastOut = Epilogue::Fusion::VisitorCast<half, float, AscendC::RoundMode::CAST_NONE>;
+    using EVT_CastFloat2Half = Epilogue::Fusion::VisitorCast<half, float, AscendC::RoundMode::CAST_NONE>;
     
     // Store: half
     using EVT_Store = Epilogue::Fusion::VisitorAuxStore<half, LayoutC>;
@@ -140,13 +139,13 @@ static void Run(const Options &options) {
     // 构建完整的EVT树
     using EVT_Inner = Epilogue::Fusion::TreeVisitor<
         EVT_Compute,
-        Epilogue::Fusion::TreeVisitor<EVT_CastAcc, EVT_AccLoad>,
-        Epilogue::Fusion::TreeVisitor<EVT_CastAux, EVT_AuxLoad>
+        Epilogue::Fusion::TreeVisitor<EVT_CastHalf2Float, EVT_AccLoad>,
+        Epilogue::Fusion::TreeVisitor<EVT_CastHalf2Float, EVT_AuxLoad>
     >;
     
     using EVT = Epilogue::Fusion::TreeVisitor<
         EVT_Store,
-        Epilogue::Fusion::TreeVisitor<EVT_CastOut, EVT_Inner>
+        Epilogue::Fusion::TreeVisitor<EVT_CastFloat2Half, EVT_Inner>
     >;
 
     // Block level, define BlockEpilogue with EVT
@@ -156,15 +155,6 @@ static void Run(const Options &options) {
         tla::Int<computeLength>,
         EVT
     >;
-
-    // 准备混合精度 EVT Arguments
-    using ArgsAccLoad = typename EVT_AccLoad::Arguments;
-    using ArgsAuxLoad = typename EVT_AuxLoad::Arguments;
-    using ArgsCastAcc = typename EVT_CastAcc::Arguments;
-    using ArgsCastAux = typename EVT_CastAux::Arguments;
-    using ArgsCompute = typename EVT_Compute::Arguments;
-    using ArgsCastOut = typename EVT_CastOut::Arguments;
-    using ArgsStore = typename EVT_Store::Arguments;
     
     // 构造混合精度EVT的Arguments
     // 注意：TreeVisitor<Parent, Child1, Child2> 的 Arguments 顺序为 (Child1::Arguments, Child2::Arguments, Parent::Arguments)
@@ -173,18 +163,18 @@ static void Run(const Options &options) {
         {
             {
                 {
-                    ArgsAccLoad{},
-                    ArgsCastAcc{}
+                    {},
+                    {}
                 },
                 {
-                    ArgsAuxLoad{deviceX, layoutD},
-                    ArgsCastAux{}
+                    {deviceX, layoutD},
+                    {}
                 },
-                ArgsCompute{}
+                {}
             },
-            ArgsCastOut{}
+            {}
         },
-        ArgsStore{deviceD, layoutD}
+        {deviceD, layoutD}
     };
 
     std::vector<fp16_t> hostD(lenD);
