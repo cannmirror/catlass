@@ -86,6 +86,10 @@ foreach(EXAMPLE
     29_a2_fp8_e4m3_matmul
     30_w8a16_matmul
     31_small_matmul
+    32_matmul_add_evt
+    33_cast_evt
+    34_matmul_add_topo
+    35_row_broadcast_reduction_evt
 )
     add_subdirectory(${EXAMPLE})
 endforeach()
