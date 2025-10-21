@@ -65,35 +65,37 @@ static void Run(const Options &options) {
 
     size_t sizeWorkspace;
 
+    using ElementA = half;
+    using ElementPrologueA = int8_t;
+    using ElementB = half;
+    using ElementPrologueB = int8_t;
+    using ElementC = float;
+
     using LayoutA = layout::RowMajor;
+    using LayoutPrologueA = layout::RowMajor;
     using LayoutB = layout::RowMajor;
+    using LayoutPrologueB = layout::RowMajor;
     using LayoutC = layout::RowMajor;
     LayoutA layoutA{m, k};
+    LayoutPrologueA layoutPrologueA{m, k};
     LayoutB layoutB{k, n};
+    LayoutPrologueB layoutPrologueB{k, n};
     LayoutC layoutC{m, n};
 
     // input init
     half scalar = 1.0;
     half zeroPoint = 0;
 
+    // Tile shape
+    using L1TileShape = GemmShape<128, 256, 256>;
+    using L0TileShape = GemmShape<128, 256, 64>;
+
     std::vector<int8_t> hostA(lenA);
     std::vector<int8_t> hostB(lenB);
-    std::string inFileAName = "../../examples/29_a2_fp8_e4m3_matmul/input/a_8.bin";
-    std::ifstream inFileA(inFileAName, std::ios::binary);
-    if (!inFileA.is_open()) {
-        std::cerr << "Failed to open inFileA: " << inFileAName << std::endl;
-    } else {
-        inFileA.read(reinterpret_cast<char *>(hostA.data()), sizeA);
-        inFileA.close();
-    }
-    std::string inFileBName = "../../examples/29_a2_fp8_e4m3_matmul/input/b_8.bin";
-    std::ifstream inFileB(inFileBName, std::ios::binary);
-    if (!inFileB.is_open()) {
-        std::cerr << "Failed to open inFileB: " << inFileBName << std::endl;
-    } else {
-        inFileB.read(reinterpret_cast<char *>(hostB.data()), sizeB);
-        inFileB.close();
-    }
+    std::string inFileAName = "./examples/29_a2_fp8_e4m3_matmul/input/a_8.bin";
+    ReadFile(inFileAName, hostA.data(), sizeA);
+    std::string inFileBName = "./examples/29_a2_fp8_e4m3_matmul/input/b_8.bin";
+    ReadFile(inFileBName, hostB.data(), sizeB);
 
     uint8_t *deviceA{nullptr};
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceA), sizeA, ACL_MEM_MALLOC_HUGE_FIRST));
@@ -120,59 +122,52 @@ static void Run(const Options &options) {
     uint64_t fftsAddr{0};
     uint32_t fftsLen{0};
     RT_CHECK(rtGetC2cCtrlAddr(&fftsAddr, &fftsLen));
+
     using ArchTag = Arch::AtlasA2;
-    using DispatchPolicy = Gemm::MmadAtlasA2PingpongSliceK<true>;
-    using L1TileShape = GemmShape<128, 256, 256>;
-    using L0TileShape = GemmShape<128, 256, 64>;
+    using DispatchPolicy = Gemm::MmadAtlasA2PingpongSliceKWithPrologue<true>;
 
-    using AType = Gemm::GemmType<half, LayoutA>;
-    using BType = Gemm::GemmType<half, LayoutB>;
-    using CType = Gemm::GemmType<float, LayoutC>; // 原子加以float类型进行累加
+    using PrologueSrcTypeA = Gemm::GemmType<ElementPrologueA, LayoutPrologueA>;
+    using PrologueDstTypeA = Gemm::GemmType<ElementA, LayoutA>;
+    using PrologueSrcTypeB = Gemm::GemmType<ElementPrologueB, LayoutPrologueB>;
+    using PrologueDstTypeB = Gemm::GemmType<ElementB, LayoutB>; 
 
-    using BlockMmad = Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType>;
+    using AType = Gemm::GemmType<ElementA, LayoutA>;
+    using BType = Gemm::GemmType<ElementB, LayoutB>;
+    using CType = Gemm::GemmType<ElementC, LayoutC>; // 原子加以float类型进行累加
+
+    constexpr uint32_t COMPUTE_LENGTH_A = 16 * 1024 / sizeof(int8_t);
+    constexpr uint32_t COMPUTE_LENGTH_B = 16 * 1024 / sizeof(int8_t);
+    using PrologueA = Gemm::Tile::TileCastFp8ToFp16Dequant<ArchTag, PrologueSrcTypeA, PrologueDstTypeA, COMPUTE_LENGTH_A>;
+    using PrologueB = Gemm::Tile::TileCastFp8ToFp16Dequant<ArchTag, PrologueSrcTypeB, PrologueDstTypeB, COMPUTE_LENGTH_B>;
+    using TileCopy = Gemm::Tile::TileCopyWithProligue<ArchTag, AType, BType, CType, PrologueA, PrologueB>;
+    using BlockMmadOpt = 
+        Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType, void, TileCopy>;
     using BlockEpilogue = void;
 
+
+    using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
     if (options.problemShape.m() > options.problemShape.n()) {
         // Swizzle offset is 3 and direction is 0.
         using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
-
-        // kernel level
-        using MatmulKernel =
-            Gemm::Kernel::FP8Matmul<BlockMmad, BlockEpilogue, BlockScheduler, mScalar, nScalar, splitkLength>;
-
-        using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
-        MatmulKernel::Arguments arguments{
-            options.problemShape, deviceA, deviceB, deviceC, deviceWA, deviceWB, deviceWC, scalar, zeroPoint};
-        MatmulAdapter matmulOp;
-        matmulOp.CanImplement(arguments);
-        sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
-        if (sizeWorkspace > 0) {
-            ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST)
-            );
-        }
-        matmulOp.Initialize(arguments, deviceWorkspace);
-        matmulOp(stream, aicCoreNum, fftsAddr);
-    } else {
-        // Swizzle offset is 3 and direction is 1.
-        using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
-
-        // kernel level
-        using MatmulKernel =
-            Gemm::Kernel::FP8Matmul<BlockMmad, BlockEpilogue, BlockScheduler, mScalar, nScalar, splitkLength>;
-
-        using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
-        MatmulKernel::Arguments arguments{
-            options.problemShape, deviceA, deviceB, deviceC, deviceWA, deviceWB, deviceWC, scalar, zeroPoint};
-        MatmulAdapter matmulOp;
-        matmulOp.CanImplement(arguments);
-        sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
-        if (sizeWorkspace > 0) {
-            ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST)
-            );
-        }
-        matmulOp.Initialize(arguments, deviceWorkspace);
-        matmulOp(stream, aicCoreNum, fftsAddr);
     }
+
+    // kernel level
+    using MatmulKernel =
+        Gemm::Kernel::FP8Matmul<BlockMmadOpt, BlockEpilogue, BlockScheduler, mScalar, nScalar, splitkLength>;
+
+    using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
+    MatmulKernel::Arguments arguments{
+        options.problemShape, deviceA, deviceB, deviceC, deviceWA, deviceWB, deviceWC, scalar, zeroPoint};
+    MatmulAdapter matmulOp;
+    matmulOp.CanImplement(arguments);
+    sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
+    if (sizeWorkspace > 0) {
+        ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST)
+        );
+    }
+    matmulOp.Initialize(arguments, deviceWorkspace);
+    matmulOp(stream, aicCoreNum, fftsAddr);
+
     ACL_CHECK(aclrtSynchronizeStream(stream));
 
     std::vector<half> hostC(lenC);
@@ -185,10 +180,9 @@ static void Run(const Options &options) {
     ACL_CHECK(aclrtMemcpy(hostWB.data(), sizeWB, deviceWB, sizeWB, ACL_MEMCPY_DEVICE_TO_HOST));
 
     std::vector<float> hostGolden(m * n);
-    std::string outputFileName = "../../examples/29_a2_fp8_e4m3_matmul/output/expected_data.bin";
+    std::string outputFileName = "./examples/29_a2_fp8_e4m3_matmul/output/expected_data.bin";
     ReadFile(outputFileName, hostGolden.data(), sizeof(float) * hostGolden.size());
 
-    std::vector<float> hostCFP32(hostC.begin(), hostC.end());
     std::vector<uint64_t> errorIndices = golden::CompareData(hostC, hostGolden, k);
     if (errorIndices.empty()) {
         std::cout << "Compare success." << std::endl;
