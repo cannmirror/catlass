@@ -17,6 +17,7 @@
 #include <fstream>
 #include <cstdlib>
 #include <cmath>
+#include <string>
 
 #include <tiling/platform/platform_ascendc.h>
 #include <acl/acl.h>
@@ -36,6 +37,15 @@
 #include "helper.hpp"
 
 using namespace Catlass;
+
+std::string GetCurrentCppDirectory() {
+    std::string current_file = __FILE__;
+    size_t last_sep = current_file.find_last_of("/\\");
+    if (last_sep == std::string::npos) {
+        return "./";
+    }
+    return current_file.substr(0, last_sep + 1);
+}
 
 template<typename RET_TYPE, typename REF_TYPE>
 void CompareResults(RET_TYPE *result, REF_TYPE *except, uint32_t M, uint32_t K, uint32_t N) {
@@ -141,9 +151,15 @@ void Run(Options const &options)
         ACL_CHECK(aclrtMallocHost((void **)(&hostB), sizeB));
         ACL_CHECK(aclrtMallocHost((void **)(&hostC), sizeC));
         ACL_CHECK(aclrtMallocHost((void **)(&hExpected), sizeExpected));
-        ReadFile("./data/inputA.dat", hostA, sizeA);
-        ReadFile("./data/inputB.dat", hostB, sizeB);
-        ReadFile("./data/expected.dat", hExpected, sizeExpected);
+
+        std::string cpp_dir = GetCurrentCppDirectory();
+        std::string inputA_path = cpp_dir + "data/inputA.dat";
+        std::string inputB_path = cpp_dir + "data/inputB.dat";
+        std::string expected_path = cpp_dir + "data/expected.dat";
+
+        ReadFile(inputA_path.c_str(), hostA, sizeA);
+        ReadFile(inputB_path.c_str(), hostB, sizeB);
+        ReadFile(expected_path.c_str(), hExpected, sizeExpected);
     }
 
     using ElementA = int8_t;
