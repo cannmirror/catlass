@@ -8,33 +8,17 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # ============================================================================
 
-set -o errexit
-set -o nounset
-set -o pipefail
-
 SCRIPT_PATH=$(dirname "$(realpath "$0")")
 BUILD_SCRIPT_PATH=$(realpath "$SCRIPT_PATH"/../scripts/build.sh)
 
-bash "$SCRIPT_PATH/test_compile.sh"
+# self contained include
+bash "$BUILD_SCRIPT_PATH" --clean --tests test_self_contained_includes || exit 1
+
+# msSanitizer
+bash "$BUILD_SCRIPT_PATH" --clean --enable_mssanitizer catlass_examples || exit 1
+
+# ascendc_dump
+bash "$BUILD_SCRIPT_PATH" --clean --enable_ascendc_dump catlass_examples || exit 1
 
 # example test
-python3 "$SCRIPT_PATH/test_example.py"
-
-# python extension
-bash "$BUILD_SCRIPT_PATH" --clean python_extension || exit 1
-WHEEL_DIR="$SCRIPT_PATH/../output/python_extension/"
-WHEEL_FILE=$(find "$WHEEL_DIR" -type f -name "torch_catlass-*.whl" 2>/dev/null | head -n 1)
-if [ -z "$WHEEL_FILE" ]; then
-    echo "Error: No .whl file found in $WHEEL_DIR"
-    exit 1
-fi
-pip install "$WHEEL_FILE"
-python3 "$SCRIPT_PATH/test_python_extension.py"
-pip uninstall torch_catlass -y
-
-# torch lib
-bash "$BUILD_SCRIPT_PATH" --clean torch_library || exit 1
-python3 "$SCRIPT_PATH/test_torch_lib.py"
-
-# mstuner_catlass
-python3 "$SCRIPT_PATH/test_mstuner.py"
+bash "$BUILD_SCRIPT_PATH" --clean catlass_examples || exit 1
