@@ -1,0 +1,16 @@
+[project]
+name = "catlassbasicmatmul"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "attr>=0.3.2",
+    "attrs>=25.4.0",
+    "decorator>=5.2.1",
+    "numpy==1.26.4",
+    "protobuf>=6.33.0",
+    "psutil>=7.1.1",
+    "scipy>=1.16.2",
+    "sympy>=1.14.0",
+]
