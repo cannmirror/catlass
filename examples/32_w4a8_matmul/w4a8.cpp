@@ -32,6 +32,9 @@
 #include "catlass/gemm/gemm_type.hpp"
 #include "catlass/gemm/device/device_gemm.hpp"
 
+#include "golden.hpp"
+#include "helper.hpp"
+
 using namespace Catlass;
 
 template<typename RET_TYPE, typename REF_TYPE>
@@ -49,7 +52,7 @@ void CompareResults(RET_TYPE *result, REF_TYPE *except, uint32_t M, uint32_t K, 
             errorCount++;
         }
     }
-    // 修改输出格式
+
     if (errorCount > 0) {
         std::cout << "Compare failed. Error count: " << errorCount << std::endl;
     } else {
@@ -262,7 +265,7 @@ void Run(Options const &options)
     }
 
     if (verifyLevel) {
-        WriteFile("./data/outputC.dat", hostC, sizeC);
+        // WriteFile("./data/outputC.dat", hostC, sizeC);
         CompareResults<__fp16, float>((__fp16*)hostC, (float*)hExpected, m, k, n);
         ACL_CHECK(aclrtFreeHost(hostA));
         ACL_CHECK(aclrtFreeHost(hostB));

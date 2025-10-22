@@ -137,4 +137,4 @@ if __name__ == "__main__":
     data_dir = os.path.join(current_dir, "data")
 
     os.makedirs(data_dir, exist_ok=True)
-    gen_testcase(current_dir, param)
+    gen_testcase(data_dir, param)
