@@ -37,7 +37,7 @@ function gen_data() {
 function run_kernel {
     echo 'Case: batch=' $batch ' m=' $m ' k=' $k ' n=' $n ' transA=' $transA ' transB=' $transB
     cd output/bin/
-    ./32_w4a8_matmul $batch $m $k $n $transA $transB --device $device
+    ./32_w4a8_matmul $device $batch $m $k $n $transA $transB
 }
 
 build
