@@ -32,10 +32,30 @@
 #include "catlass/gemm/gemm_type.hpp"
 #include "catlass/gemm/device/device_gemm.hpp"
 
-#include "csv.h"
-#include "helper.h"
-
 using namespace Catlass;
+
+template<typename RET_TYPE, typename REF_TYPE>
+void CompareResults(RET_TYPE *result, REF_TYPE *except, uint32_t M, uint32_t K, uint32_t N) {
+    size_t errorCount = 0;
+    REF_TYPE err = pow(2, -8);
+    if (K > 2048) {
+        err = pow(2, -7);
+    }
+    for (size_t i = 0; i < M * N; ++i) {
+        REF_TYPE a = static_cast<REF_TYPE>(result[i]);
+        REF_TYPE e = except[i];
+        REF_TYPE diff = std::fabs(a - e);
+        if (std::isnan(diff) || diff > err * std::max(1.0f, std::fabs(e))) {
+            errorCount++;
+        }
+    }
+    // 修改输出格式
+    if (errorCount > 0) {
+        std::cout << "Compare failed. Error count: " << errorCount << std::endl;
+    } else {
+        std::cout << "Compare success." << std::endl;
+    }
+}
 
 struct Options {
     const std::string HELPER = "32_w4a8_matmul [device_id] m n k transA transB ";
@@ -118,9 +138,9 @@ void Run(Options const &options)
         ACL_CHECK(aclrtMallocHost((void **)(&hostB), sizeB));
         ACL_CHECK(aclrtMallocHost((void **)(&hostC), sizeC));
         ACL_CHECK(aclrtMallocHost((void **)(&hExpected), sizeExpected));
-        ReadFile("../../../examples/32_w4a8_matmul/build/data/inputA.dat", hostA, sizeA);
-        ReadFile("../../../examples/32_w4a8_matmul/build/data/inputB.dat", hostB, sizeB);
-        ReadFile("../../../examples/32_w4a8_matmul/build/data/expected.dat", hExpected, sizeExpected);
+        ReadFile("./data/inputA.dat", hostA, sizeA);
+        ReadFile("./data/inputB.dat", hostB, sizeB);
+        ReadFile("./data/expected.dat", hExpected, sizeExpected);
     }
 
     using ElementA = int8_t;
@@ -242,7 +262,7 @@ void Run(Options const &options)
     }
 
     if (verifyLevel) {
-        WriteFile("../../../examples/32_w4a8_matmul/build/data/outputC.dat", hostC, sizeC);
+        WriteFile("./data/outputC.dat", hostC, sizeC);
         CompareResults<__fp16, float>((__fp16*)hostC, (float*)hExpected, m, k, n);
         ACL_CHECK(aclrtFreeHost(hostA));
         ACL_CHECK(aclrtFreeHost(hostB));
