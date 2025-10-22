@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(optimized_matmul.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(06_optimized_matmul dav-c220 optimized_matmul.cpp)
+catlass_example_add_executable(06_optimized_matmul mix optimized_matmul.cpp)

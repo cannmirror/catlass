@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(grouped_matmul.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(08_grouped_matmul dav-c220-cube grouped_matmul.cpp)
+catlass_example_add_executable(08_grouped_matmul cube grouped_matmul.cpp)

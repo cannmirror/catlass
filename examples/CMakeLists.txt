@@ -12,7 +12,31 @@ set(CATLASS_EXAMPLES_COMMON_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/common)
 
 add_custom_target(catlass_examples)
 
-macro(catlass_example_add_executable NAME AICORE_ARCH)
+# Arch specific compile options
+if(CATLASS_BISHENG_ARCH STREQUAL "a2" OR CATLASS_BISHENG_ARCH STREQUAL "a3")
+    set(CCE_AICORE_ARCH_BASE dav-c220)
+    add_compile_options(
+        "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-stack-size=0x8000>"
+        "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-function-stack-size=0x8000>"
+        "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-record-overflow=true>"
+        "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-dcci-insert-for-scalar=false>"
+    )
+endif()
+
+# Common compile options
+add_compile_options(
+    $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-macro-redefined>
+    $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-ignored-attributes>
+
+    "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-addr-transform>"
+)
+
+# Compile options for debug features
+if(DEFINED ENABLE_PRINT AND ENABLE_PRINT)
+    add_compile_options($<$<COMPILE_LANGUAGE:ASCEND>:--cce-enable-print>)
+endif()
+
+macro(catlass_example_add_executable NAME OPTYPE)
     set(EXAMPLE_DESTINATION bin)
 
     if(DEFINED ENABLE_SIMULATOR AND ENABLE_SIMULATOR)
@@ -20,24 +44,24 @@ macro(catlass_example_add_executable NAME AICORE_ARCH)
     endif()
 
     add_executable(${NAME} ${ARGN})
+    if(${OPTYPE} STREQUAL "cube" OR ${OPTYPE} STREQUAL "vec")
+        set(CCE_AICORE_ARCH "${CCE_AICORE_ARCH_BASE}-${OPTYPE}")
+    elseif(${OPTYPE} STREQUAL "mix")
+        set(CCE_AICORE_ARCH "${CCE_AICORE_ARCH_BASE}")
+    else()
+        message("Unsupported op type: ${OPTYPE}")
+    endif()
+    target_compile_options(${NAME} PRIVATE $<$<COMPILE_LANGUAGE:ASCEND>:--cce-aicore-arch=${CCE_AICORE_ARCH}>)
+    if(DEFINED ENABLE_MSSANITIZER AND ENABLE_MSSANITIZER)
+        target_compile_options(${NAME} PRIVATE "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-g --cce-enable-sanitizer>")
+        target_link_options(${NAME} PRIVATE "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:--cce-enable-sanitizer --cce-aicore-arch=${CCE_AICORE_ARCH}>")
+    endif()
     target_compile_definitions(${NAME} PRIVATE CATLASS_EXAMPLE_NAME=${NAME})
     target_include_directories(${NAME} PRIVATE ${ASCEND_HOME_PATH}/include/aclnn)
-    target_compile_options(${NAME} PRIVATE $<$<COMPILE_LANGUAGE:ASCEND>:--cce-aicore-arch=${AICORE_ARCH}>)
     add_dependencies(catlass_examples ${NAME})
     install(TARGETS ${NAME} DESTINATION ${EXAMPLE_DESTINATION} COMPONENT ${NAME})
     install(TARGETS ${NAME} DESTINATION ${EXAMPLE_DESTINATION} COMPONENT catlass_examples)
 endmacro()
-
-add_compile_options(
-    $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-macro-redefined>
-    $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-ignored-attributes>
-
-    "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-stack-size=0x8000>"
-    "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-function-stack-size=0x8000>"
-    "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-record-overflow=true>"
-    "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-addr-transform>"
-    "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-dcci-insert-for-scalar=false>"
-)
 
 include_directories(
     ${CATLASS_EXAMPLES_COMMON_SOURCE_DIR}
@@ -80,9 +104,9 @@ foreach(EXAMPLE
     23_flash_attention_infer
     24_conv_bias
     25_matmul_full_loadA
-	26_matmul_relu
+    26_matmul_relu
     27_matmul_gelu
-	28_matmul_swish
+    28_matmul_swish
     29_a2_fp8_e4m3_matmul
     30_w8a16_matmul
     31_small_matmul

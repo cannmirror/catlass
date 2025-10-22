@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(padding_matmul.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(04_padding_matmul dav-c220 padding_matmul.cpp)
+catlass_example_add_executable(04_padding_matmul mix padding_matmul.cpp)

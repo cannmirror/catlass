@@ -59,6 +59,7 @@ function show_help() {
     echo "  --enable_print  Enable built-in compiler print feature"
     echo "  --enable_ascendc_dump   Enable AscendC dump API"
     echo "  --tests         Enable building targets in tests"
+    echo "  -DCATLASS_BISHENG_ARCH  NPU arch. Only supports a2/a3."
     echo "  -D<option>      Additional CMake options"
     echo -e "\n${BLUE}Targets:${NC}"
     echo "  catlass_examples  Build Catlass examples"
@@ -115,6 +116,9 @@ while [[ $# -gt 0 ]]; do
             ;;
         --enable_print)
             CMAKE_OPTIONS+=("-DENABLE_PRINT=True")
+            ;;
+        --enable_mssanitizer)
+            CMAKE_OPTIONS+=("-DENABLE_MSSANITIZER=True")
             ;;
         -D*)
             CMAKE_OPTIONS+=("$1")

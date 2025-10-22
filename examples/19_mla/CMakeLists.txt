@@ -12,6 +12,6 @@ set(MLA_SOURCES
     mla.cpp
     mla_tiling.cpp)
 set_source_files_properties(mla.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(19_mla dav-c220 ${MLA_SOURCES})
+catlass_example_add_executable(19_mla mix ${MLA_SOURCES})
 target_include_directories(19_mla PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(19_mla PRIVATE m)

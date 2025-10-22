@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(matmul_bias.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(20_matmul_bias dav-c220-cube matmul_bias.cpp)
+catlass_example_add_executable(20_matmul_bias cube matmul_bias.cpp)
