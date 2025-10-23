@@ -24,7 +24,9 @@ template <
     class ArchTag,
     class SrcType_,
     class DstType_,
-    uint32_t STAGES = 2
+    // Length of the compute elements
+    uint32_t COMPUTE_LEN_,
+    uint32_t STAGES = 2,
 >
 struct TileCastInt8ToFp16Dequant {
     using ElementSrc = typename SrcType_::Element;
@@ -32,11 +34,16 @@ struct TileCastInt8ToFp16Dequant {
     using LayoutSrc = typename SrcType_::Layout;
     using LayoutDst = typename DstType_::Layout;
 
+    static_assert(std::is_same_v<LayoutSrc, layout::RowMajor> || std::is_same_v<LayoutSrc, layout::ColumnMajor>,
+        "Unsupported layout, only can be RowMajor and ColumnMajor");
+    static_assert(std::is_same_v<LayoutDst, LayoutSrc>, "layoutDst and layoutSrc must be the same");
+
     static constexpr uint32_t ELE_NUM_PER_BLK_INT8 = BYTE_PER_BLK / sizeof(ElementSrc);
     static constexpr uint32_t ELE_NUM_PER_BLK_HALF = BYTE_PER_BLK / sizeof(ElementDst);
 
-    static constexpr uint32_t COMPUTE_LEN = 32 * 1024;
-    static constexpr uint32_t TILES_PER_LOOP = 32;
+    static constexpr uint32_t COMPUTE_LEN = COMPUTE_LEN_;
+
+    static_assert(COMPUTE_LEN <= 32 * 1024, "COMPUTE_LEN cannot exceed 32 * 1024");
 
     struct Params {
         half deqScalar;
@@ -114,14 +121,15 @@ struct TileCastInt8ToFp16Dequant {
             taskOffsetSrc += (tilesNum % AscendC::GetSubBlockNum()) * tileStrideSrc;
             taskOffsetDst += (tilesNum % AscendC::GetSubBlockNum()) * tileStrideDst;
         }
-        uint32_t loops = CeilDiv(tilesPerAiv, TILES_PER_LOOP);
+        uint32_t tilesPerLoop = COMPUTE_LEN / tileLenRoundInt8;
+        uint32_t loops = CeilDiv(tilesPerAiv, tilesPerLoop);
         uint32_t pingpong = 0;
         for (uint32_t loopIdx = 0; loopIdx < loops; loopIdx++) {
-            uint32_t actualTiles = TILES_PER_LOOP;
+            uint32_t actualTiles = tilesPerLoop;
             if (loopIdx == loops - 1) {
-                actualTiles = tilesPerAiv - loopIdx * TILES_PER_LOOP;
+                actualTiles = tilesPerAiv - loopIdx * tilesPerLoop;
             }
-            uint64_t tileOffsetSrc = loopIdx * TILES_PER_LOOP * tileStrideSrc;
+            uint64_t tileOffsetSrc = loopIdx * tilesPerLoop * tileStrideSrc;
             AscendC::DataCopyExtParams dataCopyParamsIn(
                 actualTiles, tileLen * sizeof(ElementSrc),
                 (tileStrideSrc - tileLen) * sizeof(ElementSrc),
@@ -154,7 +162,7 @@ struct TileCastInt8ToFp16Dequant {
             AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(ubEventList[pingpong]);
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(ubEventList[pingpong]);
 
-            uint64_t tileOffsetDst = loopIdx * TILES_PER_LOOP * tileStrideDst;
+            uint64_t tileOffsetDst = loopIdx * tilesPerLoop * tileStrideDst;
             AscendC::DataCopyExtParams dataCopyParamsOut(
                 actualTiles, tileLen * sizeof(ElementDst),
                 (tileLenRoundInt8 - tileLen) / ELE_NUM_PER_BLK_HALF,

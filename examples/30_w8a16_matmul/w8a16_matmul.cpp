@@ -112,7 +112,8 @@ static void Run(const Options &options) {
     using DispatchPolicy = Gemm::MmadAtlasA2PingPongWithPrologue<ENABLE_UNIT_FLAG>;
 
     using PrologueA = void;
-    using PrologueB = Gemm::Tile::TileCastInt8ToFp16Dequant<ArchTag, PrologueSrcType, PrologueDstType>;
+    constexpr uint32_t computeLen = 32 * 1024;
+    using PrologueB = Gemm::Tile::TileCastInt8ToFp16Dequant<ArchTag, PrologueSrcType, PrologueDstType, computeLen>;
 
     using TileCopy = Gemm::Tile::TileCopyWithProligue<ArchTag, AType, BType, CType, PrologueA, PrologueB>;
     using BlockMmadOpt =
