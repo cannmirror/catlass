@@ -1,4 +1,4 @@
-# ----------------------------------------------------------------------------
+#!/bin/bash
 # This program is free software, you can redistribute it and/or modify.
 # Copyright (c) 2025 Huawei Technologies Co., Ltd.
 # This file is a part of the CANN Open Software.
@@ -6,8 +6,19 @@
 # Please refer to the License for details. You may not use this file except in compliance with the License.
 # THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
-# ----------------------------------------------------------------------------
+# ============================================================================
 
-set_source_files_properties(grouped_matmul_slice_m.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(02_grouped_matmul_slice_m cube grouped_matmul_slice_m.cpp)
-target_compile_definitions(02_grouped_matmul_slice_m PRIVATE L2_CACHE_HINT)
+SCRIPT_PATH=$(dirname "$(realpath "$0")")
+BUILD_SCRIPT_PATH=$(realpath "$SCRIPT_PATH"/../scripts/build.sh)
+
+# self contained include
+bash "$BUILD_SCRIPT_PATH" --clean --tests test_self_contained_includes || exit 1
+
+# msSanitizer
+bash "$BUILD_SCRIPT_PATH" --clean --enable_mssanitizer catlass_examples || exit 1
+
+# ascendc_dump
+bash "$BUILD_SCRIPT_PATH" --clean --enable_ascendc_dump catlass_examples || exit 1
+
+# example test
+bash "$BUILD_SCRIPT_PATH" --clean catlass_examples || exit 1

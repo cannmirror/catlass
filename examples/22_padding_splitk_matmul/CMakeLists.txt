@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(padding_splitk_matmul.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(22_padding_splitk_matmul dav-c220 padding_splitk_matmul.cpp)
+catlass_example_add_executable(22_padding_splitk_matmul mix padding_splitk_matmul.cpp)

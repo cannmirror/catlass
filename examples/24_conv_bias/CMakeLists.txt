@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(conv_bias.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(24_conv_bias dav-c220 conv_bias.cpp)
+catlass_example_add_executable(24_conv_bias mix conv_bias.cpp)

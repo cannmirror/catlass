@@ -81,13 +81,15 @@ BasicMatmul<<<BLOCK_NUM, nullptr, stream>>>(
 ### 算子编译
 - 设置源代码对应的编译语言，可以混合使用纯C++代码和算子代码。对于算子文件，需要设定语言为ASCEND。
 - 调用`catlass_example_add_executable`函数指定target名称和编译文件。
-- 如下所示，`00_basic_matmul`为target名称，`basic_matmul.cpp`为需要编译的文件，`dav-c220`为NPU核心代号，一般填写`dav-c220`即可。
+    - `00_basic_matmul`为target名称
+    - `basic_matmul.cpp`为需要编译的文件
+    - `cube`为算子类型，可填写`cube`/`vec`/`mix`
 ```
 # CMakeLists.txt
 set_source_files_properties(basic_matmul.cpp PROPERTIES LANGUAGE ASCEND)
 catlass_example_add_executable(
     00_basic_matmul
-    dav-c220
+    cube
     basic_matmul.cpp
 )
 ```

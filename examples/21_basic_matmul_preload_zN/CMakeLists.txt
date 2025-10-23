@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(basic_matmul_preload_zN.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(21_basic_matmul_preload_zN dav-c220-cube basic_matmul_preload_zN.cpp)
+catlass_example_add_executable(21_basic_matmul_preload_zN cube basic_matmul_preload_zN.cpp)

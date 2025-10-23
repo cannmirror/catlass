@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(matmul_add.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(03_matmul_add dav-c220 matmul_add.cpp)
+catlass_example_add_executable(03_matmul_add mix matmul_add.cpp)

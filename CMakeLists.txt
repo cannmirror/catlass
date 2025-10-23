@@ -27,6 +27,11 @@ if(NOT DEFINED CMAKE_BUILD_TYPE OR NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
+if(NOT DEFINED CATLASS_BISHENG_ARCH OR NOT CATLASS_BISHENG_ARCH)
+    message(WARNING "CATLASS_BISHENG_ARCH is not defined, use default value \"a2\"")
+    set(CATLASS_BISHENG_ARCH a2)
+endif()
+
 # Compile options for secure compile
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_SKIP_RPATH TRUE)

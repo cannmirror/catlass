@@ -4,8 +4,9 @@
  * This file is a part of the CANN Open Software.
  * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING
+ * BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE. See LICENSE in the root of
+ * the software repository for the full text of the License.
  */
 
 // By setting the K_MAX_SHAPE_DIM macro, the dimension of the AscendC Tensor's ShapeInfo is configured to 0,
@@ -49,7 +50,8 @@ struct Options {
     Options() = default;
 
     // Define function to parse the command-line arguments.
-    int Parse(int argc, const char **argv) {
+    int Parse(int argc, const char **argv)
+    {
         // The number of arguments must >= 7.
         if (argc < MIN_ARGS) {
             printf(HELPER);
@@ -81,19 +83,22 @@ struct Options {
     }
 };
 
-static void AllocMem(uint8_t **host, uint8_t **device, size_t size) {
+static void AllocMem(uint8_t **host, uint8_t **device, size_t size)
+{
     ACL_CHECK(aclrtMallocHost(reinterpret_cast<void **>(host), size));
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(device), size, ACL_MEM_MALLOC_HUGE_FIRST));
 }
 
-static void FreeMem(uint8_t *host, uint8_t *device) {
+static void FreeMem(uint8_t *host, uint8_t *device)
+{
     ACL_CHECK(aclrtFreeHost(host));
     ACL_CHECK(aclrtFree(device));
 }
 
 // Allocate several matrices in NPU device memory and call a
 // CATLASS MLA kernel.
-static void Run(const Options &options) {
+static void Run(const Options &options)
+{
     aclrtStream stream{nullptr};
     ACL_CHECK(aclInit(nullptr));
     ACL_CHECK(aclrtSetDevice(options.deviceId));
@@ -263,33 +268,26 @@ static void Run(const Options &options) {
     RT_CHECK(rtGetC2cCtrlAddr(&fftsAddr, &fftsLen));
 
     // use Tp1Spec kernel to get better performance when numHeads = 128
-    switch (tilingKey) {
-    case 0:
+    if (tilingKey == 0) {
         MLAFp16<<<blockDim, nullptr, stream>>>(
             fftsAddr, qDevice, qRopeDevice, kDevice, kRopeDevice, blockTableDevice, oDevice, sDevice, pDevice,
             oTmpDevice, globaloDevice, oCoreTmpDevice, lDevice, tilingDevice
         );
-        break;
-    case 1:
+    } else if (tilingKey == 1) {
         MLABf16<<<blockDim, nullptr, stream>>>(
             fftsAddr, qDevice, qRopeDevice, kDevice, kRopeDevice, blockTableDevice, oDevice, sDevice, pDevice,
             oTmpDevice, globaloDevice, oCoreTmpDevice, lDevice, tilingDevice
         );
-        break;
-    case 4:
+    } else if (tilingKey == 4) {
         MLATp1SpecFp16<<<blockDim, nullptr, stream>>>(
             fftsAddr, qDevice, qRopeDevice, kDevice, kRopeDevice, blockTableDevice, oDevice, sDevice, pDevice,
             oTmpDevice, globaloDevice, oCoreTmpDevice, lDevice, tilingDevice
         );
-        break;
-    case 5:
+    } else if (tilingKey == 5) {
         MLATp1SpecBf16<<<blockDim, nullptr, stream>>>(
             fftsAddr, qDevice, qRopeDevice, kDevice, kRopeDevice, blockTableDevice, oDevice, sDevice, pDevice,
             oTmpDevice, globaloDevice, oCoreTmpDevice, lDevice, tilingDevice
         );
-        break;
-    default:
-        break;
     }
     ACL_CHECK(aclrtSynchronizeStream(stream));
     // Copy the result from device to host
@@ -342,7 +340,8 @@ static void Run(const Options &options) {
 
 /// Entry point to mla example.
 
-int main(int argc, const char **argv) {
+int main(int argc, const char **argv)
+{
     Options options;
     if (options.Parse(argc, argv) != 0) {
         return -1;
