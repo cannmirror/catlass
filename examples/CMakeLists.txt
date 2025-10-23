@@ -77,6 +77,7 @@ if(DEFINED ENABLE_ASCENDC_DUMP AND ENABLE_ASCENDC_DUMP)
     link_libraries(ascend_dump)
 endif()
 
+# Regular examples
 foreach(EXAMPLE
     00_basic_matmul
     01_batched_matmul
