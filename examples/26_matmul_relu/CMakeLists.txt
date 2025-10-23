@@ -9,5 +9,5 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(matmul_relu.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(26_matmul_relu dav-c220 matmul_relu.cpp)
+catlass_example_add_executable(26_matmul_relu mix matmul_relu.cpp)
 target_link_libraries(26_matmul_relu PRIVATE m)

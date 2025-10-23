@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(grouped_matmul_slice_k.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(05_grouped_matmul_slice_k dav-c220 grouped_matmul_slice_k.cpp)
+catlass_example_add_executable(05_grouped_matmul_slice_k mix grouped_matmul_slice_k.cpp)

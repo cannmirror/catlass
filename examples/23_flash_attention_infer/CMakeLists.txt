@@ -12,6 +12,6 @@ set(FAI_SOURCES
     fai.cpp)
 
 set_source_files_properties(fai.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(23_flash_attention_infer dav-c220 ${FAI_SOURCES})
+catlass_example_add_executable(23_flash_attention_infer mix ${FAI_SOURCES})
 target_include_directories(23_flash_attention_infer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(23_flash_attention_infer PRIVATE m)

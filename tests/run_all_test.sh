@@ -15,8 +15,9 @@ set -o pipefail
 SCRIPT_PATH=$(dirname "$(realpath "$0")")
 BUILD_SCRIPT_PATH=$(realpath "$SCRIPT_PATH"/../scripts/build.sh)
 
+bash "$SCRIPT_PATH/test_compile.sh"
+
 # example test
-bash "$BUILD_SCRIPT_PATH" --clean catlass_examples || exit 1
 python3 "$SCRIPT_PATH/test_example.py"
 
 # python extension
@@ -34,9 +35,6 @@ pip uninstall torch_catlass -y
 # torch lib
 bash "$BUILD_SCRIPT_PATH" --clean torch_library || exit 1
 python3 "$SCRIPT_PATH/test_torch_lib.py"
-
-# self contained include
-bash "$BUILD_SCRIPT_PATH" --clean --tests test_self_contained_includes || exit 1
 
 # mstuner_catlass
 python3 "$SCRIPT_PATH/test_mstuner.py"
