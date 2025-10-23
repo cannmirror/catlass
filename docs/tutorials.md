@@ -266,7 +266,7 @@ int main(int argc, const char **argv)
 set_source_files_properties(basic_matmul.cpp PROPERTIES LANGUAGE ASCEND)
 catlass_example_add_executable(
     basic_matmul
-    dav-c220
+    cube
     basic_matmul.cpp
 )
 ```
@@ -586,7 +586,7 @@ int main(int argc, const char **argv)
 set_source_files_properties(splitk_matmul.cpp PROPERTIES LANGUAGE ASCEND)
 catlass_example_add_executable(
     splitk_matmul # 可执行程序名称
-    dav-c220
+    mix
     splitk_matmul.cpp
 )
 ```
@@ -901,13 +901,13 @@ int main(int argc, const char **argv)
 
 ### 编译运行
 
-在`catlass/examples/grouped_matmul/splitk_matmul.cpp`同级文件夹下创建`CMakeLists.txt`文件，填入以下内容：
+在`catlass/examples/grouped_matmul/grouped_matmul.cpp`同级文件夹下创建`CMakeLists.txt`文件，填入以下内容：
 
 ```cmake
 set_source_files_properties(grouped_matmul.cpp PROPERTIES LANGUAGE ASCEND)
 catlass_example_add_executable(
     grouped_matmul # 可执行程序名称
-    dav-c220
+    cube
     grouped_matmul.cpp
 )
 ```

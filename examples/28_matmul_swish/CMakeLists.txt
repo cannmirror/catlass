@@ -9,5 +9,5 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(matmul_swish.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(28_matmul_swish dav-c220 matmul_swish.cpp)
+catlass_example_add_executable(28_matmul_swish mix matmul_swish.cpp)
 target_link_libraries(28_matmul_swish PRIVATE m)

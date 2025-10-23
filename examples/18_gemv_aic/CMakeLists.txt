@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(gemv_aic.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(18_gemv_aic dav-c220 gemv_aic.cpp)
+catlass_example_add_executable(18_gemv_aic mix gemv_aic.cpp)

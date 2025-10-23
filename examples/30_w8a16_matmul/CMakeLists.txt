@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(w8a16_matmul.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(30_w8a16_matmul dav-c220 w8a16_matmul.cpp)
+catlass_example_add_executable(30_w8a16_matmul mix w8a16_matmul.cpp)

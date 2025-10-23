@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(small_matmul.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(31_small_matmul dav-c220-cube small_matmul.cpp)
+catlass_example_add_executable(31_small_matmul cube small_matmul.cpp)

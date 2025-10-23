@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(matmul_full_loadA.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(25_matmul_full_loadA dav-c220-cube matmul_full_loadA.cpp)
+catlass_example_add_executable(25_matmul_full_loadA cube matmul_full_loadA.cpp)
