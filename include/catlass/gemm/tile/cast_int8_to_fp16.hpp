@@ -26,7 +26,7 @@ template <
     class DstType_,
     // Length of the compute elements
     uint32_t COMPUTE_LEN_,
-    uint32_t STAGES = 2,
+    uint32_t STAGES = 2
 >
 struct TileCastInt8ToFp16Dequant {
     using ElementSrc = typename SrcType_::Element;
