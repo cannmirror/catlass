@@ -33,13 +33,17 @@ public:
     using BlockMmad = BlockMmad_;
     using ArchTag = typename BlockMmad::ArchTag;
     using ElementA = typename BlockMmad::ElementA;
+    using ElementPrologueB = typename BlockMmad::PrologueB::ElementSrc;
     using ElementB = typename BlockMmad::ElementB;
     using LayoutA = typename BlockMmad::LayoutA;
+    using LayoutPrologueB = typename BlockMmad::PrologueB::LayoutSrc;
     using LayoutB = typename BlockMmad::LayoutB;
 
     using L1TileShape = typename BlockMmad::L1TileShape;
     using ElementC = typename BlockMmad::ElementC;
     using LayoutC = typename BlockMmad::LayoutC;
+
+    using MmadParams = typename BlockMmad::Params;
 
     using BlockScheduler = BlockScheduler_;
 
@@ -49,35 +53,46 @@ public:
         GemmCoord problemShape;
         GM_ADDR ptrA;
         LayoutA layoutA;
-        GM_ADDR ptrB;
-        LayoutB layoutB;
+        GM_ADDR ptrPrologueB;
+        LayoutPrologueB layoutPrologueB;
         GM_ADDR ptrC;
         LayoutC layoutC;
-        GM_ADDR ptrWksp;
-        half deqScalar;
-        half deqZeroPoint;
+
+        MmadParams mmadParams;
+
+        GM_ADDR ptrWorkspace;
 
         // Methods
         CATLASS_HOST_DEVICE
         Params() {}
 
         CATLASS_HOST_DEVICE
-        Params(GemmCoord const &problemShape_,
-               GM_ADDR ptrA_, LayoutA layoutA_, GM_ADDR ptrB_, LayoutB layoutB_, GM_ADDR ptrC_, LayoutC layoutC_,
-               GM_ADDR ptrWksp_, half deqScalar_, half deqZeroPoint_)
-            : problemShape(problemShape_), ptrA(ptrA_), layoutA(layoutA_), ptrB(ptrB_), layoutB(layoutB_),
-              ptrC(ptrC_), layoutC(layoutC_), ptrWksp(ptrWksp_), deqScalar(deqScalar_), deqZeroPoint(deqZeroPoint_) {}
+        Params(
+            GemmCoord const &problemShape_,
+            GM_ADDR ptrA_, LayoutA const &layoutA_,
+            GM_ADDR ptrPrologueB_, LayoutPrologueB const &layoutPrologueB_,
+            GM_ADDR ptrC_, LayoutC const &layoutC_,
+            MmadParams const &mmadParams_,
+            GM_ADDR ptrWorkspace_
+        ):  problemShape(problemShape_),
+            ptrA(ptrA_), layoutA(layoutA_),
+            ptrPrologueB(ptrPrologueB_), layoutPrologueB(layoutPrologueB_),
+            ptrC(ptrC_), layoutC(layoutC_),
+            mmadParams(mmadParams_),
+            ptrWorkspace(ptrWorkspace_) {}
     };
 
     struct Arguments {
         GemmCoord problemShape;
-        uint32_t aicCoreNum;
-        size_t elementSize;
-        GM_ADDR ptrA;
-        GM_ADDR ptrB;
-        GM_ADDR ptrC;
+        GM_ADDR deviceA;
+        LayoutA layoutA;
+        GM_ADDR devicePrologueB;
+        LayoutPrologueB layoutPrologueB;
+        GM_ADDR deviceC;
+        LayoutC layoutC;
         half deqScalar;
         half deqZeroPoint;
+        uint32_t aicoreNum;
     };
 
     static bool CanImplement(const Arguments &args)
@@ -85,31 +100,21 @@ public:
         return true;
     }
 
-    static size_t GetWorkspaceSize(const Arguments &args)
+    static size_t GetWorkspaceSize(Arguments const &args)
     {
-        // Calculate workspace size, using double buffer
-        size_t lenWorkspace = static_cast<size_t>(L1TileShape::N) * L1TileShape::K *
-            args.aicCoreNum * BUFFER_NUM;
-        size_t sizeWorkspace = lenWorkspace * args.elementSize;
-        return sizeWorkspace;
+        return BlockMmad::STAGES * L1TileShape::K * L1TileShape::N * sizeof(ElementB) * args.aicoreNum;
     }
 
     static Params ToUnderlyingArguments(const Arguments &args, uint8_t *workspace)
     {
-        LayoutA layoutA{args.problemShape.m(), args.problemShape.k()};
-        LayoutB layoutB{args.problemShape.k(), args.problemShape.n()};
-        LayoutC layoutC{args.problemShape.m(), args.problemShape.n()};
-
-        Params params{args.problemShape,
-            args.ptrA,
-            layoutA,
-            args.ptrB,
-            layoutB,
-            args.ptrC,
-            layoutC,
-            workspace,
-            args.deqScalar,
-            args.deqZeroPoint};
+        Params params{
+            args.problemShape,
+            args.deviceA, args.layoutA,
+            args.devicePrologueB, args.layoutPrologueB,
+            args.deviceC, args.layoutC,
+            {{}, {args.deqScalar, args.deqZeroPoint}, {}},
+            workspace
+        };
         return params;
     }
 
@@ -121,124 +126,89 @@ public:
     CATLASS_DEVICE
     void operator()(Params const &params);
 
-    template <>
-    CATLASS_DEVICE
-    void operator()<AscendC::AIV>(Params const &params)
-    {
-        BlockScheduler matmulBlockScheduler(params.problemShape, MakeCoord(L1TileShape::M, L1TileShape::N));
-        uint32_t coreLoops = matmulBlockScheduler.GetCoreLoops();
-
-        // Represent the full gm
-        AscendC::GlobalTensor<int8_t> gmB;
-        gmB.SetGlobalBuffer((__gm__ int8_t *)params.ptrB);
-        AscendC::GlobalTensor<ElementB> gmBWksp;
-        gmBWksp.SetGlobalBuffer((__gm__ ElementB *)params.ptrWksp);
-
-        BlockMmad blockMmad(resource);
-        
-        GemmCoord blockIdxCoord;
-        GemmCoord actualBlockShape;
-        GemmCoord nextBlockIdCoord;
-        GemmCoord nextActualBlockShape;
-
-        for (uint32_t loopIdx = AscendC::GetBlockIdx() / 2; loopIdx < coreLoops; loopIdx += AscendC::GetBlockNum()) {
-            bool isFirstBlock = (loopIdx == AscendC::GetBlockIdx() / 2);
-            bool hasNextBlock = false;
-
-            // Compute block location
-            if (isFirstBlock) {
-                blockIdxCoord = matmulBlockScheduler.GetBlockCoord(loopIdx);
-                actualBlockShape = matmulBlockScheduler.GetActualBlockShape(blockIdxCoord);
-            } else {
-                blockIdxCoord = nextBlockIdCoord;
-                actualBlockShape = nextActualBlockShape;
-            }
-            if (loopIdx + AscendC::GetBlockNum() < coreLoops) {
-                hasNextBlock = true;
-                nextBlockIdCoord = matmulBlockScheduler.GetBlockCoord(loopIdx + AscendC::GetBlockNum());
-                nextActualBlockShape = matmulBlockScheduler.GetActualBlockShape(nextBlockIdCoord);
-            }
-
-            // Compute initial location in logical coordinates
-            MatrixCoord offsetB{blockIdxCoord.k() * L1TileShape::K, blockIdxCoord.n() * L1TileShape::N};
-            int64_t gmOffsetB = params.layoutB.GetOffset(offsetB);
-            MatrixCoord offsetNextB{nextBlockIdCoord.k() * L1TileShape::K, nextBlockIdCoord.n() * L1TileShape::N};
-            int64_t gmOffsetNextB = params.layoutB.GetOffset(offsetNextB);
-            int64_t gmOffsetBWksp = (AscendC::GetBlockIdx() / 2) * L1TileShape::K * L1TileShape::N * 2;
-
-            // Compute block-scoped matrix multiply-add
-            blockMmad(
-                gmB[gmOffsetB], params.layoutB, gmB[gmOffsetNextB], gmBWksp[gmOffsetBWksp],
-                actualBlockShape, nextActualBlockShape, isFirstBlock, hasNextBlock,
-                params.deqScalar, params.deqZeroPoint);
-        }
-
-        AscendC::PipeBarrier<PIPE_ALL>();
-    }
-
     /// Executes matmul
     template <>
     CATLASS_DEVICE
     void operator()<AscendC::AIC>(Params const &params)
     {
-        BlockScheduler matmulBlockScheduler(params.problemShape, MakeCoord(L1TileShape::M, L1TileShape::N));
+        auto aicoreNum = AscendC::GetBlockNum();
+        auto aicoreIdx = AscendC::GetBlockIdx();
+
+        BlockMmad blockMmad(resource, params.mmadParams);
+
+        GemmCoord blockShape = L1TileShape::ToCoord();
+        BlockScheduler matmulBlockScheduler(params.problemShape, blockShape.GetCoordMN());
         uint32_t coreLoops = matmulBlockScheduler.GetCoreLoops();
 
-        // Represent the full gm
+        // Load A from workspace
         AscendC::GlobalTensor<ElementA> gmA;
-        gmA.SetGlobalBuffer((__gm__ ElementA *)params.ptrA);
-        AscendC::GlobalTensor<ElementB> gmB;
-        gmB.SetGlobalBuffer((__gm__ ElementB *)params.ptrWksp);
-        AscendC::GlobalTensor<ElementC> gmC;
-        gmC.SetGlobalBuffer((__gm__ ElementC *)params.ptrC);
+        gmA.SetGlobalBuffer(reinterpret_cast<__gm__ ElementA *>(params.ptrA));
 
-        BlockMmad blockMmad(resource);
-        
-        GemmCoord blockIdxCoord;
-        GemmCoord actualBlockShape;
-        GemmCoord nextBlockIdCoord;
-        GemmCoord nextActualBlockShape;
+        LayoutB layoutBlockB{L1TileShape::K, L1TileShape::N};
+        auto gmOffsetB = aicoreIdx * layoutBlockB.Capacity() * BlockMmad::STAGES;
+        AscendC::GlobalTensor<ElementB> gmBlockB;
+        gmBlockB.SetGlobalBuffer(reinterpret_cast<__gm__ ElementB *>(params.ptrWorkspace) + gmOffsetB);
+
+        AscendC::GlobalTensor<ElementC> gmC;
+        gmC.SetGlobalBuffer(reinterpret_cast<__gm__ ElementC *>(params.ptrC));
 
         for (uint32_t loopIdx = AscendC::GetBlockIdx(); loopIdx < coreLoops; loopIdx += AscendC::GetBlockNum()) {
-            bool isFirstBlock = (loopIdx == AscendC::GetBlockIdx());
-            bool hasNextBlock = false;
+            auto blockIdxCoord = matmulBlockScheduler.GetBlockCoord(loopIdx);
+            auto actualBlockShape = matmulBlockScheduler.GetActualBlockShape(blockIdxCoord);
+            GemmCoord offsetCoord = blockIdxCoord * blockShape;
 
-            // Compute block location
-            if (isFirstBlock) {
-                blockIdxCoord = matmulBlockScheduler.GetBlockCoord(loopIdx);
-                actualBlockShape = matmulBlockScheduler.GetActualBlockShape(blockIdxCoord);
-            } else {
-                blockIdxCoord = nextBlockIdCoord;
-                actualBlockShape = nextActualBlockShape;
-            }
-            if (loopIdx + AscendC::GetBlockNum() < coreLoops) {
-                hasNextBlock = true;
-                nextBlockIdCoord = matmulBlockScheduler.GetBlockCoord(loopIdx + AscendC::GetBlockNum());
-                nextActualBlockShape = matmulBlockScheduler.GetActualBlockShape(nextBlockIdCoord);
-            }
+            auto gmBlockA = gmA[params.layoutA.GetOffset(offsetCoord.GetCoordMK())];
+            auto layoutBlockA = params.layoutA.GetTileLayout(actualBlockShape.GetCoordMK());
+            auto gmBlockC = gmC[params.layoutC.GetOffset(offsetCoord.GetCoordMN())];
+            auto layoutBlockC = params.layoutC.GetTileLayout(actualBlockShape.GetCoordMN());
 
-            // Compute initial location in logical coordinates
-            MatrixCoord offsetA{blockIdxCoord.m() * L1TileShape::M, blockIdxCoord.k() * L1TileShape::K};
-            MatrixCoord offsetC{blockIdxCoord.m() * L1TileShape::M, blockIdxCoord.n() * L1TileShape::N};
-            int64_t gmOffsetA = params.layoutA.GetOffset(offsetA);
-            int64_t gmOffsetB = AscendC::GetBlockIdx() * L1TileShape::K * L1TileShape::N * 2;
-            int64_t gmOffsetC = params.layoutC.GetOffset(offsetC);
-
-            MatrixCoord offsetNextA{nextBlockIdCoord.m() * L1TileShape::M, nextBlockIdCoord.k() * L1TileShape::K};
-            int64_t gmOffsetNextA = params.layoutA.GetOffset(offsetNextA);
-            // Compute block-scoped matrix multiply-add
             blockMmad(
-                gmA[gmOffsetA], params.layoutA, gmB[gmOffsetB], gmC[gmOffsetC], params.layoutC, gmA[gmOffsetNextA],
-                actualBlockShape, nextActualBlockShape, isFirstBlock, hasNextBlock);
+                gmBlockA, layoutBlockA,
+                gmBlockB, layoutBlockB,
+                gmBlockC, layoutBlockC,
+                actualBlockShape
+            );
         }
+    }
 
-        AscendC::PipeBarrier<PIPE_ALL>();
+    template <>
+    CATLASS_DEVICE
+    void operator()<AscendC::AIV>(Params const &params)
+    {
+        auto aicoreNum = AscendC::GetBlockNum();
+        auto aicoreIdx = AscendC::GetBlockIdx() / AscendC::GetSubBlockNum();
+
+        BlockMmad blockMmad(resource, params.mmadParams);
+        BlockScheduler matmulBlockScheduler(params.problemShape, L1TileShape::ToCoordMN());
+
+        AscendC::GlobalTensor<ElementPrologueB> gmPrologueB;
+        gmPrologueB.SetGlobalBuffer(reinterpret_cast<__gm__ ElementPrologueB *>(params.ptrPrologueB));
+
+        LayoutB layoutBlockB{L1TileShape::K, L1TileShape::N};
+        auto gmOffsetB = aicoreIdx * layoutBlockB.Capacity() * BlockMmad::STAGES;
+        AscendC::GlobalTensor<ElementB> gmBlockB;
+        gmBlockB.SetGlobalBuffer(reinterpret_cast<__gm__ ElementB *>(params.ptrWorkspace) + gmOffsetB);
+
+        uint32_t coreLoops = matmulBlockScheduler.GetCoreLoops();
+        for (uint32_t loopIdx = aicoreIdx; loopIdx < coreLoops; loopIdx += aicoreNum) {
+            // Compute block location
+            auto blockIdxCoord = matmulBlockScheduler.GetBlockCoord(loopIdx);
+            auto actualBlockShape = matmulBlockScheduler.GetActualBlockShape(blockIdxCoord);
+
+            auto offsetCoordB = blockIdxCoord.GetCoordKN() * L1TileShape::ToCoordKN();
+            auto gmBlockPrologueB = gmPrologueB[params.layoutPrologueB.GetOffset(offsetCoordB)];
+            auto layoutBlockPrologueB = params.layoutPrologueB.GetTileLayout(actualBlockShape.GetCoordKN());
+
+            // Compute block-scoped matrix multiply-add
+            blockMmad.Prologue(
+                gmBlockPrologueB, layoutBlockPrologueB,
+                gmBlockB, layoutBlockB,
+                actualBlockShape
+            );
+        }
     }
 
 private:
-    static constexpr Arch::FlagID FLAG_AIV_FINISH_STORE = 0;
-    static const uint32_t BUFFER_NUM = 2;
-    Arch::CrossCoreFlag flagAivFinishPadding{FLAG_AIV_FINISH_STORE};
     Arch::Resource<ArchTag> resource;
 };
 
