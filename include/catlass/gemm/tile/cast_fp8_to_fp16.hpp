@@ -89,6 +89,64 @@ struct TileCastFp8ToFp16Dequant {
     }
 
     CATLASS_DEVICE
+    void Dequant(AscendC::LocalTensor<int8_t> &src, AscendC::LocalTensor<half> &dst,
+        AscendC::LocalTensor<int16_t> &value_vector1, AscendC::LocalTensor<int16_t> &value_vector2,
+        AscendC::LocalTensor<half> &workspace, half scalar, half zeroPoint)
+    {
+        pipe_barrier(PIPE_V);
+        uint32_t num = COMPUTE_LENGTH;
+        num = (num + 128 - 1) / 128 * 128;
+        AscendC::Cast<half, uint8_t>(dst.template ReinterpretCast<half>(),
+            src.template ReinterpretCast<uint8_t>(),
+            AscendC::RoundMode::CAST_NONE,
+            num);
+        pipe_barrier(PIPE_V);
+
+        AscendC::Adds<half>(dst, dst, 1024, num);
+        pipe_barrier(PIPE_V);
+
+        AscendC::ShiftLeft<uint16_t>(
+            dst.template ReinterpretCast<uint16_t>(), dst.template ReinterpretCast<uint16_t>(), 7, num);
+        pipe_barrier(PIPE_V);
+
+        uint64_t mask = 128;
+        AscendC::And<int16_t>(workspace.template ReinterpretCast<int16_t>(),
+            dst.template ReinterpretCast<int16_t>(),
+            value_vector1,
+            mask,
+            num / 128,
+            {1, 1, 1, 8, 8, 0});
+        pipe_barrier(PIPE_V);
+
+        AscendC::ShiftLeft<uint16_t>(
+            workspace.template ReinterpretCast<uint16_t>(), workspace.template ReinterpretCast<uint16_t>(), 1, num);
+        pipe_barrier(PIPE_V);
+
+        AscendC::And<int16_t>(dst.template ReinterpretCast<int16_t>(),
+            dst.template ReinterpretCast<int16_t>(),
+            value_vector2,
+            mask,
+            num / 128,
+            {1, 1, 1, 8, 8, 0});
+        pipe_barrier(PIPE_V);
+
+        AscendC::Or<int16_t>(dst.template ReinterpretCast<int16_t>(),
+            dst.template ReinterpretCast<int16_t>(),
+            workspace.template ReinterpretCast<int16_t>(),
+            num);
+        pipe_barrier(PIPE_V);
+
+        AscendC::Muls<half>(dst.template ReinterpretCast<half>(), dst.template ReinterpretCast<half>(), 1 << 8, num);
+        pipe_barrier(PIPE_V);
+
+        AscendC::Adds(dst, dst, params.zeroPoint, num);
+        pipe_barrier(PIPE_V);
+
+        AscendC::Muls(dst, dst, params.scalar, num);
+        pipe_barrier(PIPE_V);
+    }
+
+    CATLASS_DEVICE
     void operator() (
         AscendC::GlobalTensor<ElementDst> gmDst, LayoutDst const &layoutDst,
         AscendC::GlobalTensor<ElementSrc> gmSrc, LayoutSrc const &layoutSrc,
@@ -186,59 +244,11 @@ struct TileCastFp8ToFp16Dequant {
             AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(EventIdBuffer[bufferIndex]);
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EventIdBuffer[bufferIndex]);
             
-            auto inBuf = inputBuffer[bufferIndex];
-            AscendC::PipeBarrier<PIPE_V>();
-            // AscendC::PipeBarrier<PIPE_V>();
-            uint32_t num = (COMPUTE_LENGTH + 128 - 1) / 128 * 128;
-            AscendC::Cast<half, uint8_t>(gmSrc.template ReinterpretCast<half>(),
-                gmSrc.template ReinterpretCast<uint8_t>(),
-                AscendC::RoundMode::CAST_NONE,
-                num);
-            AscendC::PipeBarrier<PIPE_V>();
-
-            AscendC::Adds<half>(gmDst, gmDst, 1024, num);
-            AscendC::PipeBarrier<PIPE_V>();
-
-            AscendC::ShiftLeft<uint16_t>(
-                gmDst.template ReinterpretCast<uint16_t>(), gmDst.template ReinterpretCast<uint16_t>(), 7, num);
-            AscendC::PipeBarrier<PIPE_V>();
-
-            uint64_t mask = 128;
-            AscendC::And<int16_t>(workspace.template ReinterpretCast<int16_t>(),
-                gmDst.template ReinterpretCast<int16_t>(),
+            Dequant(inputBuffer[bufferIndex],
+                outputBuffer[bufferIndex],
                 value_vector1,
-                mask,
-                num / 128,
-                {1, 1, 1, 8, 8, 0});
-            AscendC::PipeBarrier<PIPE_V>();
-
-            AscendC::ShiftLeft<uint16_t>(
-                workspace.template ReinterpretCast<uint16_t>(), workspace.template ReinterpretCast<uint16_t>(), 1, num);
-            AscendC::PipeBarrier<PIPE_V>();
-
-            AscendC::And<int16_t>(dst.template ReinterpretCast<int16_t>(),
-                dst.template ReinterpretCast<int16_t>(),
                 value_vector2,
-                mask,
-                num / 128,
-                {1, 1, 1, 8, 8, 0});
-            AscendC::PipeBarrier<PIPE_V>();
-
-            AscendC::Or<int16_t>(dst.template ReinterpretCast<int16_t>(),
-                dst.template ReinterpretCast<int16_t>(),
-                workspace.template ReinterpretCast<int16_t>(),
-                num);
-            AscendC::PipeBarrier<PIPE_V>();
-
-            AscendC::Muls<half>(dst.template ReinterpretCast<half>(), dst.template ReinterpretCast<half>(), 1 << 8, num);
-            AscendC::PipeBarrier<PIPE_V>();
-
-            AscendC::Adds(dst, dst, zeroPoint, num);
-            AscendC::PipeBarrier<PIPE_V>();
-
-            AscendC::Muls(dst, dst, scalar, num);
-            AscendC::PipeBarrier<PIPE_V>();
-
+                workspace[bufferIndex]);
             AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EventIdBuffer[bufferIndex]);
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EventIdBuffer[bufferIndex]);
             AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(EventIdBuffer[bufferIndex]);
@@ -251,13 +261,8 @@ struct TileCastFp8ToFp16Dequant {
                 0
             );
             AscendC::DataCopyPad(gmDst[dstProcessOffset], outputBuffer[bufferIndex], dataCopyParams);
-
-
         }
 
-
-        
-        
         uint32_t tilesNum = layoutSrc.shape(0);
         uint32_t tiles
     }

@@ -39,9 +39,18 @@ public:
     using BlockScheduler = BlockScheduler_;
 
     static const uint32_t COMPUTE_LENGTH_A = 16 * 1024 / sizeof(int8_t);
-    using PrologueA = Block::DequantFP8toFP16<ArchTag, int8_t, LayoutA, COMPUTE_LENGTH_A>;
+    // using PrologueA = Block::DequantFP8toFP16<ArchTag, int8_t, LayoutA, COMPUTE_LENGTH_A>;
     static const uint32_t COMPUTE_LENGTH_B = 16 * 1024 / sizeof(int8_t);
-    using PrologueB = Block::DequantFP8toFP16<ArchTag, int8_t, LayoutB, COMPUTE_LENGTH_B>;
+    // using PrologueB = Block::DequantFP8toFP16<ArchTag, int8_t, LayoutB, COMPUTE_LENGTH_B>;
+    
+    // ONLY FOR TEST
+    // 单独拦截 PrologueA / B
+    // 在Kernel级， 在ToUnderlyingArguments中形成Params
+    using PrologueA = Tile::TileCastFp8ToFp16Dequant<ArchTag, int8_t, int16_t, COMPUTE_LENGTH_A>;
+    using PrologueB = Tile::TileCastFp8ToFp16Dequant<ArchTag, int8_t, int16_t, COMPUTE_LENGTH_B>;
+    using PrologueAParams = Tile::PrologueTraits<PrologueA>::Params;
+    using PrologueBParams = Tile::PrologueTraits<PrologueB>::Params;
+    // ONLY FOR TEST
 
     using Cast = Block::DequantFP8toFP16<ArchTag, int8_t, LayoutB, COMPUTE_LENGTH_B>;
 
@@ -60,6 +69,8 @@ public:
         GM_ADDR ptrWC;
         half scalar;
         half zeroPoint;
+        typename Tile::PrologueTraits<PrologueA>::Params prologueAParams{};
+        typename Tile::PrologueTraits<PrologueB>::Params prologueBParams{};
 
         // Methods
         CATLASS_HOST_DEVICE
@@ -71,7 +82,8 @@ public:
             GM_ADDR ptrC_, LayoutC layoutC_, GM_ADDR ptrWA_, GM_ADDR ptrWB_, GM_ADDR ptrWC_, half scalar_,
             half zeroPoint_)
             : problemShape(problemShape_), ptrA(ptrA_), layoutA(layoutA_), ptrB(ptrB_), layoutB(layoutB_), ptrC(ptrC_),
-              layoutC(layoutC_), ptrWA(ptrWA_), ptrWB(ptrWB_), ptrWC(ptrWC_), scalar(scalar_), zeroPoint(zeroPoint_)
+              layoutC(layoutC_), ptrWA(ptrWA_), ptrWB(ptrWB_), ptrWC(ptrWC_), scalar(scalar_), zeroPoint(zeroPoint_),
+              prologueAParams(scalar_, zeroPoint_), prologueBParams(scalar_, zeroPoint_)
         {}
     };
 
@@ -220,172 +232,82 @@ public:
                                        : splitkLength;
                 uint32_t kActualAligned = (kActual + 256 - 1) / 256 * 256;
 
-                LayoutA layoutWA(actualBlockShape.m(), kActual, kActualAligned);
-                LayoutB layoutWB(kActual, actualBlockShape.n(), actualBlockShape.n());
-
-                if (ldk == 0 && isFirstBlock) {  // 第一个任务块的第一个K切块
+                // LayoutA layoutWA(actualBlockShape.m(), kActual, kActualAligned);
+                // LayoutB layoutWB(kActual, actualBlockShape.n(), actualBlockShape.n());
+                
+                LayoutA layoutWA;
+                LayoutB layoutWB;
+                uint8_t notEndTask = 0;
+                uint32_t kActualAligned_ = kActualAligned;
+                if (ldk == 0 && isFirstBlock) {
+                    notEndTask = 1U;
                     Catlass::Arch::CrossCoreWaitFlag(flag0[crossCoreBufferIndexAIV]);
-                    if (std::is_same_v<LayoutA, Catlass::layout::RowMajor>) {  // A行优先
-                        PrologueA prologueA(resource);
-                        prologueA(gmA[gmOffsetA],
-                            gmWA[gmOffsetWA],
-                            layoutWA,
-                            srcAStride,
-                            kActualAligned,
-                            params.scalar,
-                            params.zeroPoint,
-                            bufferIndex);
-                    } else {  // A列优先
-                        srcAStride = params.problemShape.m();
-                        PrologueA prologueA(resource);
-                        prologueA(gmA[gmOffsetA],
-                            gmWA[gmOffsetWA],
-                            layoutWA,
-                            srcAStride,
-                            actualBlockShape.m(),
-                            params.scalar,
-                            params.zeroPoint,
-                            bufferIndex);
-                    }
-                    if (std::is_same_v<LayoutB, Catlass::layout::RowMajor>) {  // B行优先
-                        PrologueB prologueB(resource);
-                        prologueB(gmB[gmOffsetB],
-                            gmWB[gmOffsetWB],
-                            layoutWB,
-                            srcBStride,
-                            actualBlockShape.n(),
-                            params.scalar,
-                            params.zeroPoint,
-                            bufferIndex);
-                    } else {  // B列优先
-                        srcBStride = params.problemShape.k();
-                        PrologueB prologueB(resource);
-                        prologueB(gmB[gmOffsetB],
-                            gmWB[gmOffsetWB],
-                            layoutWB,
-                            srcBStride,
-                            kActualAligned,
-                            params.scalar,
-                            params.zeroPoint,
-                            bufferIndex);
-                    }
-                }
-                if (ldk < kLoop - 1) {  // 后续块
+
+                    layoutWA = LayoutA(actualBlockShape.m(), kActual, kActualAligned);
+                    layoutWB = LayoutB(kActual, actualBlockShape.n(), actualBlockShape.n());
+                } 
+                if (ldk < kLoop - 1) {
+                    notEndTask = 1U;
                     uint32_t kActualNext = (params.problemShape.k() < (ldk + 2) * splitkLength)
                                                ? params.problemShape.k() % splitkLength
                                                : splitkLength;
-                    uint32_t kActualNextAligned = (kActualNext + 256 - 1) / 256 * 256;
+                    kActualAligned_ = (kActualNext + 256 - 1) / 256 * 256;
 
-                    LayoutA layoutNextWA(actualBlockShape.m(), kActualNext, kActualNextAligned);
-                    LayoutB layoutNextWB(kActualNext, actualBlockShape.n(), actualBlockShape.n());
+                    layoutWA = layoutNextWA(actualBlockShape.m(), kActualNext, kActualNextAligned);
+                    layoutWB = layoutNextWB(kActualNext, actualBlockShape.n(), actualBlockShape.n());
 
                     Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(flag1[crossCoreBufferIndexAIV]);
                     Catlass::Arch::CrossCoreWaitFlag(flag0[1 - crossCoreBufferIndexAIV]);
-                    if (std::is_same_v<LayoutA, Catlass::layout::RowMajor>) {  // A行优先
-                        PrologueA prologueA(resource);
-                        gmOffsetA += kActual;
-                        prologueA(gmA[gmOffsetA],
-                            gmWA[gmOffsetNextWA],
-                            layoutNextWA,
-                            srcAStride,
-                            kActualNextAligned,
-                            params.scalar,
-                            params.zeroPoint,
-                            bufferIndex);
-                    } else {  // A列优先
-                        srcAStride = params.problemShape.m();
-                        PrologueA prologueA(resource);
-                        gmOffsetA += kActual * params.problemShape.m();
-                        prologueA(gmA[gmOffsetA],
-                            gmWA[gmOffsetNextWA],
-                            layoutNextWA,
-                            srcAStride,
-                            actualBlockShape.m(),
-                            params.scalar,
-                            params.zeroPoint,
-                            bufferIndex);
-                    }
-                    if (std::is_same_v<LayoutB, Catlass::layout::RowMajor>) {  // B行优先
-                        PrologueB prologueB(resource);
-                        gmOffsetB += kActual * params.problemShape.n();
-                        prologueB(gmB[gmOffsetB],
-                            gmWB[gmOffsetNextWB],
-                            layoutNextWB,
-                            srcBStride,
-                            actualBlockShape.n(),
-                            params.scalar,
-                            params.zeroPoint,
-                            bufferIndex);
-                    } else {  // B列优先
-                        srcBStride = params.problemShape.k();
-                        PrologueB prologueB(resource);
-                        gmOffsetB += kActual;
-                        prologueB(gmB[gmOffsetB],
-                            gmWB[gmOffsetNextWB],
-                            layoutNextWB,
-                            srcBStride,
-                            kActualNextAligned,
-                            params.scalar,
-                            params.zeroPoint,
-                            bufferIndex);
-                    }
+
+                    gmOffsetA += isLayoutARowMajor ? kActual: kActual * params.problemShape.m();
+                    gmOffsetB += kActual * params.problemShape.n(): kActual;
                 }
-                if ((ldk == kLoop - 1) && hasNextBlock) {  // 当前切块为K方向最后一个切块且有下一个任务块
+
+                if ((ldk == kLoop - 1) && hasNextBlock) {
+                    notEndTask = 1U;
                     uint32_t kActualNext = (params.problemShape.k() < splitkLength)
                                                ? params.problemShape.k() % splitkLength
                                                : splitkLength;
-                    uint32_t kActualNextAligned = (kActualNext + 256 - 1) / 256 * 256;
+                    kActualAligned_ = (kActualNext + 256 - 1) / 256 * 256;
 
-                    LayoutA layoutNextWA(nextActualBlockShape.m(), kActualNext, kActualNext);
-                    LayoutB layoutNextWB(kActualNext, nextActualBlockShape.n(), nextActualBlockShape.n());
+                    layoutWA = layoutNextWA(nextActualBlockShape.m(), kActualNext, kActualNext);
+                    layoutWB = layoutNextWB(kActualNext, nextActualBlockShape.n(), nextActualBlockShape.n());
 
                     Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(flag1[crossCoreBufferIndexAIV]);
                     Catlass::Arch::CrossCoreWaitFlag(flag0[1 - crossCoreBufferIndexAIV]);
-                    if (std::is_same_v<LayoutA, Catlass::layout::RowMajor>) {  // A行优先
-                        PrologueA prologueA(resource);
-                        prologueA(gmA[gmOffsetNextA],
-                            gmWA[gmOffsetNextWA],
-                            layoutNextWA,
-                            srcAStride,
-                            kActualNextAligned,
-                            params.scalar,
-                            params.zeroPoint,
-                            bufferIndex);
-                    } else {  // A列优先
-                        srcAStride = params.problemShape.m();
-                        PrologueA prologueA(resource);
-                        prologueA(gmA[gmOffsetNextA],
-                            gmWA[gmOffsetNextWA],
-                            layoutNextWA,
-                            srcAStride,
-                            nextActualBlockShape.m(),
-                            params.scalar,
-                            params.zeroPoint,
-                            bufferIndex);
-                    }
-                    if (std::is_same_v<LayoutB, Catlass::layout::RowMajor>) {  // B行优先
-                        PrologueB prologueB(resource);
-                        prologueB(gmB[gmOffsetNextB],
-                            gmWB[gmOffsetNextWB],
-                            layoutNextWB,
-                            srcBStride,
-                            nextActualBlockShape.n(),
-                            params.scalar,
-                            params.zeroPoint,
-                            bufferIndex);
-                    } else {  // B列优先
-                        srcBStride = params.problemShape.k();
-                        PrologueB prologueB(resource);
-                        prologueB(gmB[gmOffsetNextB],
-                            gmWB[gmOffsetNextWB],
-                            layoutNextWB,
-                            srcBStride,
-                            kActualNextAligned,
-                            params.scalar,
-                            params.zeroPoint,
-                            bufferIndex);
-                    }
+                }
 
+                if (notEndTask) {
+                    int64_t gmOffsetA_ = (hasNextBlock && ldk == kLoop - 1) ? gmOffsetNextA: gmOffsetA;
+                    int64_t gmOffsetB_ = (hasNextBlock && ldk == kLoop - 1) ? gmOffsetNextB: gmOffsetB;
+                    int64_t gmOffsetWA_ = (isFirstBlock && ldk == 0) ? gmOffsetWA: gmOffsetNextWA;
+                    int64_t gmOffsetWB_ = (isFirstBlock && ldk == 0) ? gmOffsetWB: gmOffsetNextWB;
+
+                    uint32_t dstAStride = isLayoutARowMajor ? kActualAligned_ ? layoutWA.shape(0);
+                    uint32_t dstBStride = isLayoutBRowMajor ? layoutWB.shape(1): kActualAligned_;
+
+                    PrologueA prologueA(resource, 
+                        PrologueAParams(params.scalar, params.zeroPoint));
+                    prologueA(gmA[gmOffsetA_],
+                        gmWA[gmOffsetWA_],
+                        layoutWA,
+                        srcAStride,
+                        dstAStride,
+                        bufferIndex);
+                    PrologueB prologueB(resource, 
+                        PrologueBParams(params.scalar, params.zeroPoint));
+                    prologueB(gmB[gmOffsetB_],
+                        gmWB[gmOffsetWB_],
+                        layoutWB,
+                        srcBStride,
+                        dstBStride,
+                        bufferIndex);
+                }
+
+                if (ldk == kLoop - 1) {
+                    if (!hasNextBlock) {
+                        Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(flag1[crossCoreBufferIndexAIV]);
+                    }
                     Catlass::Arch::CrossCoreWaitFlag(flag4);
                     Catlass::layout::RowMajor layoutBlockC(
                         actualBlockShape.m(), actualBlockShape.n(), params.problemShape.n());
@@ -398,20 +320,7 @@ public:
                         nScalar * L1TileShape::N,
                         params.problemShape.n());
                 }
-                if ((ldk == kLoop - 1) && (!hasNextBlock)) {  // 切块为K方向最后一个切块且没有下一个任务块
-                    Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(flag1[crossCoreBufferIndexAIV]);
-                    Catlass::Arch::CrossCoreWaitFlag(flag4);
-                    Catlass::layout::RowMajor layoutBlockC(
-                        actualBlockShape.m(), actualBlockShape.n(), params.problemShape.n());
-                    int64_t gmOffsetWC =
-                        (AscendC::GetBlockIdx() / AIVPERCORE) * (mScalar * L1TileShape::M) * (nScalar * L1TileShape::N);
-                    Cast cast;
-                    cast.castFP32toFP16(gmWC[gmOffsetWC],
-                        gmC[gmOffsetC],
-                        layoutBlockC,
-                        nScalar * L1TileShape::N,
-                        params.problemShape.n());
-                }
+
                 crossCoreBufferIndexAIV = 1 - crossCoreBufferIndexAIV;
             }
         }
