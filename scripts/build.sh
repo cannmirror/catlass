@@ -59,6 +59,7 @@ function show_help() {
     echo "  --enable_print  Enable built-in compiler print feature"
     echo "  --enable_ascendc_dump   Enable AscendC dump API"
     echo "  --tests         Enable building targets in tests"
+    echo "  -DCATLASS_BISHENG_ARCH  NPU arch. Only supports a2/a3."
     echo "  -D<option>      Additional CMake options"
     echo -e "\n${BLUE}Targets:${NC}"
     echo "  catlass_examples  Build Catlass examples"
@@ -115,6 +116,9 @@ while [[ $# -gt 0 ]]; do
             ;;
         --enable_print)
             CMAKE_OPTIONS+=("-DENABLE_PRINT=True")
+            ;;
+        --enable_mssanitizer)
+            CMAKE_OPTIONS+=("-DENABLE_MSSANITIZER=True")
             ;;
         -D*)
             CMAKE_OPTIONS+=("$1")
@@ -190,10 +194,18 @@ case "$TARGET" in
     *)
         echo -e "${INFO}Building target: $TARGET...${NC}"
         if [[ -d ${BUILD_DIR} ]]; then
-            cmake -S "$CMAKE_SOURCE_DIR" -B "$BUILD_DIR" \
-                -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
-                -DCMAKE_INSTALL_PREFIX="$OUTPUT_DIR" \
-                "${CMAKE_OPTIONS[@]}"
+            if [[ "$TARGET" == "102_dynamic_optimized_matmul" ]] || [[ "$TARGET" == "catlass_examples" ]]; then
+                cmake -S "$CMAKE_SOURCE_DIR" -B "$BUILD_DIR" \
+                    -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
+                    -DCMAKE_INSTALL_PREFIX="$OUTPUT_DIR" \
+                    -DCOMPILE_DYNAMIC_OPTIMIZED_MATMUL=ON \
+                    "${CMAKE_OPTIONS[@]}"
+            else
+                cmake -S "$CMAKE_SOURCE_DIR" -B "$BUILD_DIR" \
+                    -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
+                    -DCMAKE_INSTALL_PREFIX="$OUTPUT_DIR" \
+                    "${CMAKE_OPTIONS[@]}"
+            fi
         fi
         cmake --build "$BUILD_DIR" --target "$TARGET" -j
         cmake --install "$BUILD_DIR" --component "$TARGET"

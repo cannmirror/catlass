@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(group_gemm.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(16_group_gemm dav-c220 group_gemm.cpp)
+catlass_example_add_executable(16_group_gemm mix group_gemm.cpp)

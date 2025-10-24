@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(splitk_matmul.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(09_splitk_matmul dav-c220 splitk_matmul.cpp)
+catlass_example_add_executable(09_splitk_matmul mix splitk_matmul.cpp)

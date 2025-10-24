@@ -31,42 +31,6 @@
 
 using namespace Catlass;
 
-template <
-    /// Tag indicating architecture
-    class ArchTag,
-    /// GemmType for A matrix operand
-    class AType,
-    /// GemmType type for B matrix operand
-    class BType,
-    /// GemmType type for C matrix operand
-    class CType,
-    /// GemmType type for Bias operand
-    class BiasType = void>
-struct TileCopyOpt : public Catlass::Gemm::Tile::TileCopy<ArchTag, AType, BType, CType, BiasType> {
-    using Base = Catlass::Gemm::Tile::TileCopy<ArchTag, AType, BType, CType, BiasType>;
-    using ElementA = typename Base::ElementA;
-    using ElementB = typename Base::ElementB;
-    using ElementAccumulator = typename Base::ElementAccumulator;
-
-    // When matrix A is row-major, if the number of rows in matrix A is less than 16,
-    // using the CopyGmToL1IntervalDataCopy method can improve the transfer efficiency.
-    // The situation is similar for matrix B. If the above conditions are met,
-    // please uncomment the following and comment out the original matrix A transfer method
-
-    // using CopyGmToL1A = Gemm::Tile::CopyGmToL1IntervalDataCopy<ArchTag, AType>;
-
-    using CopyGmToL1A = typename Base::CopyGmToL1A;
-    using CopyGmToL1B = typename Base::CopyGmToL1B;
-
-    using CopyL1ToL0A = typename Base::CopyL1ToL0A;
-    using CopyL1ToL0B = typename Base::CopyL1ToL0B;
-
-    using CopyL0CToGm = typename Base::CopyL0CToGm;
-    using BiasTypeSelector = typename Base::BiasTypeSelector;
-    using CopyGmToL1Bias = typename Base::CopyGmToL1Bias;
-    using CopyL1ToBT = typename Base::CopyL1ToBT;
-};
-
 using Options = GemmOptions;
 
 static void Run(const Options &options) {
@@ -88,11 +52,17 @@ static void Run(const Options &options) {
     size_t sizeB = lenB * sizeof(int8_t);
     size_t sizeC = lenC * sizeof(half);
 
+    using ElementA = half;
+    using ElementPrologueB = int8_t;
+    using ElementB = half;
+    using ElementC = half;
+
     using LayoutA = layout::RowMajor;
+    using LayoutPrologueB = layout::RowMajor;
     using LayoutB = layout::RowMajor;
     using LayoutC = layout::RowMajor;
     LayoutA layoutA{m, k};
-    LayoutB layoutB{k, n};
+    LayoutPrologueB layoutPrologueB{k, n};
     LayoutC layoutC{m, n};
 
     half deqScalar = 1.5;
@@ -133,14 +103,19 @@ static void Run(const Options &options) {
 
     using ArchTag = Arch::AtlasA2;
     constexpr bool ENABLE_UNIT_FLAG = true;
-    constexpr bool ENABLE_SHUFFLE_K = true;
 
+    using PrologueSrcType = Gemm::GemmType<ElementPrologueB, LayoutPrologueB>;
+    using PrologueDstType = Gemm::GemmType<ElementB, LayoutB>;
     using AType = Gemm::GemmType<half, LayoutA>;
-    using BType = Gemm::GemmType<half, LayoutB>;
+    using BType = PrologueDstType;
     using CType = Gemm::GemmType<half, LayoutC>;
-    using DispatchPolicy = Gemm::MmadAtlasA2W8A16<ENABLE_UNIT_FLAG, ENABLE_SHUFFLE_K>;
+    using DispatchPolicy = Gemm::MmadAtlasA2PingPongWithPrologue<ENABLE_UNIT_FLAG>;
 
-    using TileCopy = TileCopyOpt<ArchTag, AType, BType, CType>;
+    using PrologueA = void;
+    constexpr uint32_t computeLen = 32 * 1024;
+    using PrologueB = Gemm::Tile::TileCastInt8ToFp16Dequant<ArchTag, PrologueSrcType, PrologueDstType, computeLen>;
+
+    using TileCopy = Gemm::Tile::TileCopyWithProligue<ArchTag, AType, BType, CType, PrologueA, PrologueB>;
     using BlockMmadOpt =
         Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType, void, TileCopy>;
     using BlockEpilogue = void;
@@ -148,16 +123,28 @@ static void Run(const Options &options) {
     if (m > n) {
         using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
         using MatmulKernel = Gemm::Kernel::W8A16Matmul<BlockMmadOpt, BlockEpilogue, BlockScheduler>;
-        MatmulKernel::Arguments arguments{
-            options.problemShape, aicCoreNum, sizeof(half), deviceA, deviceB, deviceC, deqScalar, deqZeroPoint};
+        typename MatmulKernel::Arguments arguments{
+                options.problemShape,
+                deviceA, layoutA,
+                deviceB, layoutPrologueB,
+                deviceC, layoutC,
+                deqScalar, deqZeroPoint,
+                aicCoreNum
+            };
         using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
         MatmulAdapter matmulOp;
         RunAdapter(matmulOp, arguments, stream, aicCoreNum, fftsAddr);
     } else {
         using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
         using MatmulKernel = Gemm::Kernel::W8A16Matmul<BlockMmadOpt, BlockEpilogue, BlockScheduler>;
-        MatmulKernel::Arguments arguments{
-            options.problemShape, aicCoreNum, sizeof(half), deviceA, deviceB, deviceC, deqScalar, deqZeroPoint};
+        typename MatmulKernel::Arguments arguments{
+                options.problemShape,
+                deviceA, layoutA,
+                deviceB, layoutPrologueB,
+                deviceC, layoutC,
+                deqScalar, deqZeroPoint,
+                aicCoreNum
+            };
         using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
         MatmulAdapter matmulOp;
         RunAdapter(matmulOp, arguments, stream, aicCoreNum, fftsAddr);
@@ -172,7 +159,7 @@ static void Run(const Options &options) {
     ACL_CHECK(aclrtMemcpy(hostC.data(), sizeC, deviceC, sizeC, ACL_MEMCPY_DEVICE_TO_HOST));
 
     std::vector<float> hostGolden(lenC);
-    golden::ComputeMatmul(options.problemShape, hostA, layoutA, hostBFp16, layoutB, hostGolden, layoutC);
+    golden::ComputeMatmul(options.problemShape, hostA, layoutA, hostBFp16, layoutPrologueB, hostGolden, layoutC);
 
     std::vector<uint64_t> errorIndices = golden::CompareData(hostC, hostGolden, k);
     if (errorIndices.empty()) {
