@@ -68,8 +68,7 @@ public:
 
     using ElementAccumulator =
         typename Gemm::helper::ElementAccumulatorSelector<ElementA, ElementB>::ElementAccumulator;
-    using CopyL0CToGm = Gemm::Tile::CopyL0CToGm<
-        ArchTag, ElementAccumulator, CType_, Tile::ScaleGranularity::PER_TENSOR>;
+    using CopyL0CToGm = typename TileCopy_::CopyL0CToGm;
     using LayoutAInL1 = typename CopyL1ToL0A::LayoutSrc;
     using LayoutBInL1 = typename CopyL1ToL0B::LayoutSrc;
     using LayoutAInL0 = typename CopyL1ToL0A::LayoutDst;
