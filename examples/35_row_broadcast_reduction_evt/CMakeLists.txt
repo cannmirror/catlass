@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(row_broadcast_reduction_evt.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(35_row_broadcast_reduction_evt dav-c220 row_broadcast_reduction_evt.cpp)
+catlass_example_add_executable(35_row_broadcast_reduction_evt mix row_broadcast_reduction_evt.cpp)

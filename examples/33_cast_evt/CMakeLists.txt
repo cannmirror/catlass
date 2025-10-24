@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(cast_evt.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(33_cast_evt dav-c220 cast_evt.cpp)
+catlass_example_add_executable(33_cast_evt mix cast_evt.cpp)

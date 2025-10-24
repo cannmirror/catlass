@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(matmul_add_topo.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(34_matmul_add_topo dav-c220 matmul_add_topo.cpp)
+catlass_example_add_executable(34_matmul_add_topo mix matmul_add_topo.cpp)
