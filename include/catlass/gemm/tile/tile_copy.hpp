@@ -76,7 +76,7 @@ template <
     class PrologueB_,
     class BiasType = void
 >
-struct TileCopyWithProligueW4A8 {
+struct TileCopyWithPrologueDeqPerTensor {
     using ElementA = typename AType::Element;
     using ElementB = typename BType::Element;
 
