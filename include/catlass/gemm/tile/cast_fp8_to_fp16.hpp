@@ -32,6 +32,10 @@ struct TileCastFp8ToFp16Dequant {
     using LayoutSrc = typename SrcType_::Layout;
     using LayoutDst = typename DstType_::Layout;
 
+    static_assert(std::is_same_v<LayoutSrc, layout::RowMajor> || std::is_same_v<LayoutSrc, layout::ColumnMajor>,
+        "Unsupported layout, only can be Row/Column Major.");
+    static_assert(std::is_same_v<LayoutDst, LayoutSrc>, "layout src and dst must be the same.");
+
     static const uint32_t Alignment = 256;
     static constexpr uint32_t ELE_NUM_PER_BLK = BYTE_PER_BLK / sizeof(int8_t);
 
@@ -48,7 +52,7 @@ struct TileCastFp8ToFp16Dequant {
             scalar = scalar_;
             zeroPoint = zeroPoint_;
         }
-    }
+    };
 
     CATLASS_DEVICE
     TileCastFp8ToFp16Dequant()
@@ -59,28 +63,28 @@ struct TileCastFp8ToFp16Dequant {
     {
         int64_t bufferOffset = 0;
         for (uint32_t i = 0; i < BUFFER_NUM; i++) {
-            inputBuffer[i] = resource.ubBuf.template GetBufferByByte<ElementIn>(bufferOffset * sizeof(ElementIn));
+            inputBuffer[i] = resource.ubBuf.template GetBufferByByte<ElementSrc>(bufferOffset * sizeof(ElementSrc));
             bufferOffset += COMPUTE_LENGTH;
         }
         for (uint32_t i = 0; i < BUFFER_NUM; i++) {
-            outputBuffer[i] = (resource.ubBuf.template GetBufferByByte<ElementIn>(bufferOffset * sizeof(ElementIn)))
+            outputBuffer[i] = (resource.ubBuf.template GetBufferByByte<ElementSrc>(bufferOffset * sizeof(ElementSrc)))
                                   .template ReinterpretCast<half>();
             bufferOffset += COMPUTE_LENGTH * 2;
         }
         for (uint32_t i = 0; i < BUFFER_NUM; i++) {
-            workspace[i] = (resource.ubBuf.template GetBufferByByte<ElementIn>(bufferOffset * sizeof(ElementIn)))
+            workspace[i] = (resource.ubBuf.template GetBufferByByte<ElementSrc>(bufferOffset * sizeof(ElementSrc)))
                                .template ReinterpretCast<half>();
             bufferOffset += COMPUTE_LENGTH * 2;
         }
         int16_t value_uint = 0x4000;
-        value_vector1 = (resource.ubBuf.template GetBufferByByte<ElementIn>(bufferOffset * sizeof(ElementIn)))
+        value_vector1 = (resource.ubBuf.template GetBufferByByte<ElementSrc>(bufferOffset * sizeof(ElementSrc)))
                             .template ReinterpretCast<int16_t>();
         bufferOffset += 256;
         AscendC::Duplicate<int16_t>(value_vector1, value_uint, 128);
         AscendC::PipeBarrier<PIPE_V>();
         // AscendC::PipeBarrier<PIPE_V>();
         value_uint = 0x3FFF;
-        value_vector2 = (resource.ubBuf.template GetBufferByByte<ElementIn>(bufferOffset * sizeof(ElementIn)))
+        value_vector2 = (resource.ubBuf.template GetBufferByByte<ElementSrc>(bufferOffset * sizeof(ElementSrc)))
                             .template ReinterpretCast<int16_t>();
         bufferOffset += 256;
         AscendC::Duplicate<int16_t>(value_vector2, value_uint, 128);
@@ -91,7 +95,7 @@ struct TileCastFp8ToFp16Dequant {
     CATLASS_DEVICE
     void Dequant(AscendC::LocalTensor<int8_t> &src, AscendC::LocalTensor<half> &dst,
         AscendC::LocalTensor<int16_t> &value_vector1, AscendC::LocalTensor<int16_t> &value_vector2,
-        AscendC::LocalTensor<half> &workspace, half scalar, half zeroPoint)
+        AscendC::LocalTensor<half> &workspace)
     {
         pipe_barrier(PIPE_V);
         uint32_t num = COMPUTE_LENGTH;
@@ -153,14 +157,11 @@ struct TileCastFp8ToFp16Dequant {
         uint32_t srcStride, uint32_t dstStride, uint32_t &bufferIndex
     )
     {
-        static_assert(std::is_same_v(LayoutSrc, layout::ColumnMajor) || 
-                    std::is_same_v(LayoutSrc, layout::RowMajor), 
-                    "The Layout must be Row/Column major given to `TileCastFp8ToFp16Dequant`");
         uint32_t tilesNum, tileLen;
-        if constexpr (std::is_same_v(LayoutSrc, layout::RowMajor)) {
+        if constexpr (std::is_same_v<LayoutSrc, layout::RowMajor>) {
             tilesNum = layoutSrc.shape(0);
             tileLen = layoutSrc.shape(1);
-        } else if constexpr (std::is_same_v(LayoutSrc, layout::ColumnMajor)) {
+        } else if constexpr (std::is_same_v<LayoutSrc, layout::ColumnMajor>) {
             tilesNum = layoutSrc.shape(1);
             tileLen = layoutSrc.shape(0);
         }
@@ -184,11 +185,11 @@ struct TileCastFp8ToFp16Dequant {
         if (tileLenRoundFp8 > COMPUTE_LENGTH / 2) { 
             // One signle tile length is bigger than COMPUTE_LENGTH, which should be clipped.
             loopsPerTile = CeilDiv(tileLen, COMPUTE_LENGTH);
-            totalLoops = taskPerAiv * loopsPerTile;
+            totalLoops = tilesPerAiv * loopsPerTile;
         }else if (tileLenRoundFp8 != 0) { 
             // COMPUTE_LENGTH is bigger than tile length, such that more than one tiles can be arranged together.
             tilesInALoop = COMPUTE_LENGTH / tileLenRoundFp8;
-            totalLoops = CeilDiv(taskPerAiv, tilesInALoop);
+            totalLoops = CeilDiv(tilesPerAiv, tilesInALoop);
         } // tileLenRoundFp8 == 0 --> totalLoops = 0
         
         uint32_t tileTailLen = tileLen % COMPUTE_LENGTH;
@@ -218,8 +219,8 @@ struct TileCastFp8ToFp16Dequant {
                 loadRepeat = tilesInALoop;
                 storeRepeat = tilesInALoop;
 
-                if ((ldx == totalLoops - 1) && (taskPerAiv % tilesInALoop != 0)) {
-                    loadRepeat = taskPerAiv % tilesInALoop;
+                if ((ldx == totalLoops - 1) && (tilesPerAiv % tilesInALoop != 0)) {
+                    loadRepeat = tilesPerAiv % tilesInALoop;
                     storeRepeat = loadRepeat;
                 }
             }
@@ -232,7 +233,8 @@ struct TileCastFp8ToFp16Dequant {
                 loadRepeat,
                 loadLen * sizeof(ElementSrc),
                 (srcStride - loadLen) * sizeof(ElementSrc), // 
-                (tileLenRoundFp8 - loadLen) * sizeof(ElementSrc) / BYTE_PER_BLK
+                (tileLenRoundFp8 - loadLen) * sizeof(ElementSrc) / BYTE_PER_BLK,
+                0
             );
             AscendC::DataCopyPadExtParams<ElementSrc> padParams(false, 0, 0, 0);
 
@@ -261,10 +263,9 @@ struct TileCastFp8ToFp16Dequant {
                 0
             );
             AscendC::DataCopyPad(gmDst[dstProcessOffset], outputBuffer[bufferIndex], dataCopyParams);
+            AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EventIdBuffer[bufferIndex]);
+            bufferIndex += (bufferIndex + 1) % BUFFER_NUM;
         }
-
-        uint32_t tilesNum = layoutSrc.shape(0);
-        uint32_t tiles
     }
 
 private:

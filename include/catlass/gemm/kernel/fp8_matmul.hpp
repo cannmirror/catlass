@@ -19,6 +19,10 @@
 #include "catlass/matrix_coord.hpp"
 #include "catlass/gemm/block/block_dequant.hpp"
 
+#include "catlass/gemm/tile/tile_copy.hpp"
+#include "catlass/gemm/tile/tile_traits.hpp" // should move to BLOCK
+
+
 namespace Catlass::Gemm::Kernel {
 
 template <class BlockMmad_, class BlockEpilogue_, class BlockScheduler_, uint32_t mScalar, uint32_t nScalar,
@@ -46,10 +50,20 @@ public:
     // ONLY FOR TEST
     // 单独拦截 PrologueA / B
     // 在Kernel级， 在ToUnderlyingArguments中形成Params
-    using PrologueA = Tile::TileCastFp8ToFp16Dequant<ArchTag, int8_t, int16_t, COMPUTE_LENGTH_A>;
-    using PrologueB = Tile::TileCastFp8ToFp16Dequant<ArchTag, int8_t, int16_t, COMPUTE_LENGTH_B>;
-    using PrologueAParams = Tile::PrologueTraits<PrologueA>::Params;
-    using PrologueBParams = Tile::PrologueTraits<PrologueB>::Params;
+    using ElementPrologueA = int8_t;
+    using LayoutPrologueA = layout::RowMajor;
+    using ElementPrologueB = int8_t;
+    using LayoutPrologueB = layout::RowMajor;
+    
+    using PrologueSrcTypeA = typename Gemm::GemmType<ElementPrologueA, LayoutPrologueA>;
+    using PrologueDstTypeA = typename Gemm::GemmType<ElementA, LayoutA>;
+    using PrologueSrcTypeB = typename Gemm::GemmType<ElementPrologueB, LayoutPrologueB>;
+    using PrologueDstTypeB = typename Gemm::GemmType<ElementB, LayoutB>; 
+
+    using PrologueA = typename ::TileCastFp8ToFp16Dequant<ArchTag, PrologueSrcTypeA, PrologueDstTypeA, COMPUTE_LENGTH_A>;
+    using PrologueB = typename ::TileCastFp8ToFp16Dequant<ArchTag, PrologueSrcTypeB, PrologueDstTypeB, COMPUTE_LENGTH_B>;
+    using PrologueAParams = typename ::PrologueTraits<PrologueA>::Params;
+    using PrologueBParams = typename Tile::PrologueTraits<PrologueB>::Params;
     // ONLY FOR TEST
 
     using Cast = Block::DequantFP8toFP16<ArchTag, int8_t, LayoutB, COMPUTE_LENGTH_B>;
@@ -69,8 +83,6 @@ public:
         GM_ADDR ptrWC;
         half scalar;
         half zeroPoint;
-        typename Tile::PrologueTraits<PrologueA>::Params prologueAParams{};
-        typename Tile::PrologueTraits<PrologueB>::Params prologueBParams{};
 
         // Methods
         CATLASS_HOST_DEVICE
@@ -82,8 +94,7 @@ public:
             GM_ADDR ptrC_, LayoutC layoutC_, GM_ADDR ptrWA_, GM_ADDR ptrWB_, GM_ADDR ptrWC_, half scalar_,
             half zeroPoint_)
             : problemShape(problemShape_), ptrA(ptrA_), layoutA(layoutA_), ptrB(ptrB_), layoutB(layoutB_), ptrC(ptrC_),
-              layoutC(layoutC_), ptrWA(ptrWA_), ptrWB(ptrWB_), ptrWC(ptrWC_), scalar(scalar_), zeroPoint(zeroPoint_),
-              prologueAParams(scalar_, zeroPoint_), prologueBParams(scalar_, zeroPoint_)
+              layoutC(layoutC_), ptrWA(ptrWA_), ptrWB(ptrWB_), ptrWC(ptrWC_), scalar(scalar_), zeroPoint(zeroPoint_)
         {}
     };
 
@@ -167,8 +178,10 @@ public:
         AscendC::GlobalTensor<float> gmWC;
         gmWC.SetGlobalBuffer((__gm__ float *)params.ptrWC);
 
-        uint32_t srcAStride = params.problemShape.k();
-        uint32_t srcBStride = params.problemShape.n();
+        constexpr bool isLayoutARowMajor = std::is_same_v<LayoutA, Catlass::layout::RowMajor>;
+        constexpr bool isLayoutBRowMajor = std::is_same_v<LayoutB, Catlass::layout::RowMajor>;
+        uint32_t srcAStride = isLayoutARowMajor ? params.problemShape.k(): params.problemShape.m();
+        uint32_t srcBStride = isLayoutBRowMajor ? params.problemShape.n(): params:problemShape.k();
 
         AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID0);
         AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID1);
@@ -253,14 +266,14 @@ public:
                                                : splitkLength;
                     kActualAligned_ = (kActualNext + 256 - 1) / 256 * 256;
 
-                    layoutWA = layoutNextWA(actualBlockShape.m(), kActualNext, kActualNextAligned);
-                    layoutWB = layoutNextWB(kActualNext, actualBlockShape.n(), actualBlockShape.n());
+                    layoutWA = LayoutA(actualBlockShape.m(), kActualNext, kActualNextAligned);
+                    layoutWB = LayoutB(kActualNext, actualBlockShape.n(), actualBlockShape.n());
 
                     Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(flag1[crossCoreBufferIndexAIV]);
                     Catlass::Arch::CrossCoreWaitFlag(flag0[1 - crossCoreBufferIndexAIV]);
 
                     gmOffsetA += isLayoutARowMajor ? kActual: kActual * params.problemShape.m();
-                    gmOffsetB += kActual * params.problemShape.n(): kActual;
+                    gmOffsetB += isLayoutBRowMajor ? kActual * params.problemShape.n(): kActual;
                 }
 
                 if ((ldk == kLoop - 1) && hasNextBlock) {
@@ -283,25 +296,32 @@ public:
                     int64_t gmOffsetWA_ = (isFirstBlock && ldk == 0) ? gmOffsetWA: gmOffsetNextWA;
                     int64_t gmOffsetWB_ = (isFirstBlock && ldk == 0) ? gmOffsetWB: gmOffsetNextWB;
 
-                    uint32_t dstAStride = isLayoutARowMajor ? kActualAligned_ ? layoutWA.shape(0);
+                    uint32_t dstAStride = isLayoutARowMajor ? kActualAligned_ : layoutWA.shape(0);
                     uint32_t dstBStride = isLayoutBRowMajor ? layoutWB.shape(1): kActualAligned_;
 
                     PrologueA prologueA(resource, 
                         PrologueAParams(params.scalar, params.zeroPoint));
-                    prologueA(gmA[gmOffsetA_],
+                    prologueA(
                         gmWA[gmOffsetWA_],
+                        layoutWA,
+                        gmA[gmOffsetA_],
                         layoutWA,
                         srcAStride,
                         dstAStride,
-                        bufferIndex);
+                        bufferIndex
+                    );
+                    
                     PrologueB prologueB(resource, 
                         PrologueBParams(params.scalar, params.zeroPoint));
-                    prologueB(gmB[gmOffsetB_],
+                    prologueA(
                         gmWB[gmOffsetWB_],
+                        layoutWB,
+                        gmB[gmOffsetB_],
                         layoutWB,
                         srcBStride,
                         dstBStride,
-                        bufferIndex);
+                        bufferIndex
+                    );
                 }
 
                 if (ldk == kLoop - 1) {
