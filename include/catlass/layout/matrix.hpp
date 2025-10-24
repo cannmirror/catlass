@@ -139,12 +139,12 @@ public:
 
     /// Returns the length of the layout
     CATLASS_HOST_DEVICE
-    size_t Capacity() const
+    LongIndex Capacity() const
     {
-        return static_cast<size_t>(shape_[0]) * stride_[0];
+        return static_cast<LongIndex>(shape_[0]) * stride_[0];
     }
 
-private:
+protected:
     //
     // Data members
     //
@@ -324,12 +324,12 @@ public:
 
     /// Returns the length of the layout
     CATLASS_HOST_DEVICE
-    size_t Capacity() const
+    LongIndex Capacity() const
     {
-        return static_cast<size_t>(shape_[1]) * stride_[1];
+        return static_cast<LongIndex>(shape_[1]) * stride_[1];
     }
 
-private:
+protected:
     //
     // Data members
     //
@@ -554,9 +554,9 @@ public:
 
     /// Returns the length of the layout
     CATLASS_HOST_DEVICE
-    size_t Capacity() const
+    LongIndex Capacity() const
     {
-        return static_cast<size_t>(stride_[1]) * shape_[1];
+        return static_cast<LongIndex>(stride_[1]) * shape_[1];
     }
 
 private:
@@ -745,9 +745,9 @@ public:
 
     /// Returns the length of the layout
     CATLASS_HOST_DEVICE
-    size_t Capacity() const
+    LongIndex Capacity() const
     {
-        return static_cast<size_t>(stride_[3]) * shape_[3];
+        return static_cast<LongIndex>(stride_[3]) * shape_[3];
     }
 
 private:

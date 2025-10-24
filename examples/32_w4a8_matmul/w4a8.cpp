@@ -98,7 +98,7 @@ void Run(Options const &options)
     uint32_t fftsLen{0};
     rtGetC2cCtrlAddr(&fftsAddr, &fftsLen);
 
-    uint8_t *deviceA, *deviceB, *deviceC, *workspace;
+    uint8_t *deviceA, *deviceB, *deviceC;
 
     ACL_CHECK(aclrtMalloc((void **)&deviceA, sizeA, ACL_MEM_MALLOC_HUGE_FIRST));
     ACL_CHECK(aclrtMalloc((void **)&deviceB, sizeB, ACL_MEM_MALLOC_HUGE_FIRST));
@@ -158,12 +158,15 @@ void Run(Options const &options)
 
         size_t sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
         uint8_t *deviceWorkspace = nullptr;
-        if (workspaceSize > 0) {
+        if (sizeWorkspace > 0) {
             ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST));
         }
 
         matmulOp.Initialize(arguments, deviceWorkspace);
         matmulOp(stream, aicoreNum, fftsAddr);
+        if (sizeWorkspace > 0) {
+            ACL_CHECK(aclrtFree(deviceWorkspace));
+        }
     } else {
         using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
         using BlockEpilogue = void;
@@ -184,12 +187,15 @@ void Run(Options const &options)
 
         size_t sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
         uint8_t *deviceWorkspace = nullptr;
-        if (workspaceSize > 0) {
+        if (sizeWorkspace > 0) {
             ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST));
         }
 
         matmulOp.Initialize(arguments, deviceWorkspace);
         matmulOp(stream, aicoreNum, fftsAddr);
+        if (sizeWorkspace > 0) {
+            ACL_CHECK(aclrtFree(deviceWorkspace));
+        }
     }
 
     ACL_CHECK(aclrtSynchronizeStream(stream));
@@ -200,9 +206,6 @@ void Run(Options const &options)
     std::vector<fp16_t> hostC(sizeC);
     ACL_CHECK(aclrtMemcpy(hostC.data(), sizeC, deviceC, sizeC, ACL_MEMCPY_DEVICE_TO_HOST));
     ACL_CHECK(aclrtFree(deviceC));
-    if (sizeWorkspace > 0) {
-        ACL_CHECK(aclrtFree(deviceWorkspace));
-    }
 
     std::vector<uint64_t> errorIndices = golden::CompareData(hostC, hExpected, k);
     if (errorIndices.empty()) {
