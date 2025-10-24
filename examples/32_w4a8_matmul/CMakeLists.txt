@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(w4a8.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(32_w4a8_matmul dav-c220 w4a8.cpp)
+catlass_example_add_executable(32_w4a8_matmul mix w4a8.cpp)
