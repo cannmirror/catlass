@@ -127,12 +127,12 @@ if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
     param = OpParam()
-    param.b = int(sys.argv[1])
-    param.m = int(sys.argv[2])
+    param.b = 1
+    param.m = int(sys.argv[1])
+    param.n = int(sys.argv[2])
     param.k = int(sys.argv[3])
-    param.n = int(sys.argv[4])
-    param.transA = int(sys.argv[5])
-    param.transB = int(sys.argv[6])
+    param.transA = 0
+    param.transB = 0
 
     data_dir = os.path.join(current_dir, "data")
 

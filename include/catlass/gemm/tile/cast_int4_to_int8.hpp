@@ -1,10 +1,10 @@
-/*
+/**
+ * This program is free software, you can redistribute it and/or modify.
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 1.0 (the "License").
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
@@ -24,6 +24,8 @@ template <
     class ArchTag,
     class SrcType_,
     class DstType_,
+    // Length of the compute elements
+    uint32_t COMPUTE_LEN_,
     uint32_t STAGES = 2
 >
 struct TileCastInt4ToInt8 {
@@ -34,7 +36,16 @@ struct TileCastInt4ToInt8 {
 
     static constexpr uint32_t ELE_NUM_PER_BLK_INT8 = BYTE_PER_BLK / sizeof(ElementSrc);
 
-    static constexpr uint32_t COMPUTE_LEN = 16 * 1024;
+    static_assert(
+        std::is_same_v<LayoutSrc, layout::RowMajor> ||
+        std::is_same_v<LayoutSrc, layout::ColumnMajor> ||
+        std::is_same_v<LayoutSrc, layout::RowMajorInt4> ||
+        std::is_same_v<LayoutSrc, layout::ColumnMajorInt4>,
+        "Unsupported layout, only can be RowMajor, ColumnMajor or RowMajorInt4 or ColumnMajorInt4"
+    );
+
+    static constexpr uint32_t COMPUTE_LEN = COMPUTE_LEN_;
+    static_assert(COMPUTE_LEN <= 24 * 1024, "COMPUTE_LEN cannot exceed 24 * 1024");
 
     struct Params {};
 
@@ -103,7 +114,7 @@ struct TileCastInt4ToInt8 {
             taskOffsetSrc += (tilesNum % AscendC::GetSubBlockNum()) * ((tileStrideSrc + 1) / 2);
             taskOffsetDst += (tilesNum % AscendC::GetSubBlockNum()) * tileStrideDst;
         }
-        uint32_t tilesPerLoop = 32;
+        uint32_t tilesPerLoop = COMPUTE_LEN / tileLenRoundInt8;
         uint32_t loops = CeilDiv(tilesPerAiv, tilesPerLoop);
         uint32_t pingpong = 0;
         for (uint32_t loopIdx = 0; loopIdx < loops; loopIdx++) {

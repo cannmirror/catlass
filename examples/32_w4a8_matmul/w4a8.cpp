@@ -1,10 +1,10 @@
-/*
+/**
+ * This program is free software, you can redistribute it and/or modify.
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 1.0 (the "License").
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
@@ -29,7 +29,7 @@
 #include "catlass/gemm/block/block_mmad.hpp"
 #include "catlass/gemm/block/block_swizzle.hpp"
 #include "catlass/gemm/dispatch_policy.hpp"
-#include "catlass/gemm/kernel/w4a8_matmul_local.hpp"
+#include "catlass/gemm/kernel/w4a8_matmul.hpp"
 #include "catlass/gemm/gemm_type.hpp"
 #include "catlass/gemm/device/device_gemm.hpp"
 
@@ -38,75 +38,7 @@
 
 using namespace Catlass;
 
-std::string GetCurrentCppDirectory() {
-    std::string current_file = __FILE__;
-    size_t last_sep = current_file.find_last_of("/\\");
-    if (last_sep == std::string::npos) {
-        return "./";
-    }
-    return current_file.substr(0, last_sep + 1);
-}
-
-template<typename RET_TYPE, typename REF_TYPE>
-void CompareResults(RET_TYPE *result, REF_TYPE *except, uint32_t M, uint32_t K, uint32_t N) {
-    size_t errorCount = 0;
-    REF_TYPE err = pow(2, -8);
-    if (K > 2048) {
-        err = pow(2, -7);
-    }
-    for (size_t i = 0; i < M * N; ++i) {
-        REF_TYPE a = static_cast<REF_TYPE>(result[i]);
-        REF_TYPE e = except[i];
-        REF_TYPE diff = std::fabs(a - e);
-        if (std::isnan(diff) || diff > err * std::max(1.0f, std::fabs(e))) {
-            errorCount++;
-        }
-    }
-
-    if (errorCount > 0) {
-        std::cout << "Compare failed. Error count: " << errorCount << std::endl;
-    } else {
-        std::cout << "Compare success." << std::endl;
-    }
-}
-
-struct Options {
-    const std::string HELPER = "32_w4a8_matmul [device_id] m n k transA transB ";
-
-    GemmCoord problemShape{128, 128, 128};
-    int32_t deviceId{0};
-    int32_t transA;
-    int32_t transB;
-
-    Options() = default;
-
-    int Parse(int argc, const char **argv)
-    {
-        enum ArgsIndex {
-            DEVICE_ID_INDEX = 1,
-            B_INDEX,
-            M_INDEX,
-            K_INDEX,
-            N_INDEX,
-            TRANS_A,
-            TRANS_B,
-            ARGS_MAX
-        };
-
-        if (argc != ARGS_MAX) {
-            std::cerr << HELPER << std::endl;
-            return -1;
-        }
-
-        deviceId = std::atoi(argv[DEVICE_ID_INDEX]);
-        problemShape.m() = std::atoi(argv[M_INDEX]);
-        problemShape.n() = std::atoi(argv[N_INDEX]);
-        problemShape.k() = std::atoi(argv[K_INDEX]);
-        transA = std::atoi(argv[TRANS_A]);
-        transB = std::atoi(argv[TRANS_B]);
-        return 0;
-    }
-};
+using Options = GemmOptions;
 
 template<typename T>
 uint64_t getSize(uint64_t m, uint64_t n) {
@@ -126,46 +58,9 @@ void Run(Options const &options)
     uint32_t m = options.problemShape.m();
     uint32_t n = options.problemShape.n();
     uint32_t k = options.problemShape.k();
-    uint32_t transA = options.transA;
-    uint32_t transB = options.transB;
-    uint32_t verifyLevel = 1;
     uint32_t loopTimes = 1;
 
     float scalar = 1.5;
-
-    size_t lenA = static_cast<size_t>(m) * k;
-    size_t lenB = static_cast<size_t>(k) * n;
-    size_t lenC = static_cast<size_t>(m) * n;
-
-    uint64_t sizeA = getSize<int8_t>(m, k);
-    uint64_t sizeB = getSize<int8_t>(k, (n + 1) / 2);
-    if (transB) {
-        sizeB = getSize<int8_t>((k + 1) / 2, n);
-    }
-    uint64_t sizeC = getSize<__fp16>(m, n);
-    uint64_t sizeExpected = getSize<float>(m, n);
-
-    uint8_t *hostA, *hostB, *hostC, *hExpected;
-    if (verifyLevel) {
-        ACL_CHECK(aclrtMallocHost((void **)(&hostA), sizeA));
-        ACL_CHECK(aclrtMallocHost((void **)(&hostB), sizeB));
-        ACL_CHECK(aclrtMallocHost((void **)(&hostC), sizeC));
-        ACL_CHECK(aclrtMallocHost((void **)(&hExpected), sizeExpected));
-
-        std::string cpp_dir = GetCurrentCppDirectory();
-        std::string inputA_path = cpp_dir + "data/inputA.dat";
-        std::string inputB_path = cpp_dir + "data/inputB.dat";
-        std::string expected_path = cpp_dir + "data/expected.dat";
-
-        ReadFile(inputA_path.c_str(), hostA, sizeA);
-        ReadFile(inputB_path.c_str(), hostB, sizeB);
-        ReadFile(expected_path.c_str(), hExpected, sizeExpected);
-    }
-
-    using ElementA = int8_t;
-    using ElementPrologueB = int8_t;
-    using ElementB = int8_t;
-    using ElementC = half;
 
     using LayoutA = layout::RowMajor;
     using LayoutPrologueB = layout::RowMajorInt4;
@@ -176,118 +71,146 @@ void Run(Options const &options)
     LayoutPrologueB layoutPrologueB{k, n};
     LayoutC layoutC{m, n};
 
+    size_t lenA = static_cast<size_t>(m) * k;
+    size_t lenB = static_cast<size_t>(k) * n;
+    size_t lenC = static_cast<size_t>(m) * n;
+
+    uint64_t sizeA = layoutA.Capacity() * sizeof(int8_t);
+    uint64_t sizeB = layoutPrologueB.Capacity() * sizeof(int8_t);
+    uint64_t sizeC = layoutC.Capacity() * sizeof(__fp16);
+    uint64_t sizeExpected = layoutA.Capacity() * sizeof(float);
+
+    void *hostA = nullptr;
+    ACL_CHECK(aclrtMallocHost(&hostA, sizeA));
+    std::string inputA_path = "../../examples/32_w4a8_matmul/data/inputA.dat";
+    ReadFile(inputA_path, hostA, sizeA);
+
+    void *hostB = nullptr;
+    ACL_CHECK(aclrtMallocHost(&hostB, sizeB));
+    std::string inputB_path = "../../examples/32_w4a8_matmul/data/inputB.dat";
+    ReadFile(inputB_path, hostB, sizeB);
+
+    std::vector<float> hExpected(sizeExpected);
+    std::string expected_path = "../../examples/32_w4a8_matmul/data/expected.dat";
+    ReadFile(expected_path, hExpected.data(), sizeExpected);
+
+    using ElementA = int8_t;
+    using ElementPrologueB = int8_t;
+    using ElementB = int8_t;
+    using ElementC = half;
+
     uint64_t fftsAddr{0};
     uint32_t fftsLen{0};
     rtGetC2cCtrlAddr(&fftsAddr, &fftsLen);
 
     uint8_t *deviceA, *deviceB, *deviceC, *workspace;
-    for (uint32_t i = 0; i < (verifyLevel == 0 ? loopTimes : 1); ++i) {
-        ACL_CHECK(aclrtMalloc((void **)&deviceA, sizeA, ACL_MEM_MALLOC_HUGE_FIRST));
-        ACL_CHECK(aclrtMalloc((void **)&deviceB, sizeB, ACL_MEM_MALLOC_HUGE_FIRST));
-        ACL_CHECK(aclrtMalloc((void **)&deviceC, sizeC, ACL_MEM_MALLOC_HUGE_FIRST));
 
-        if (verifyLevel) {
-            ACL_CHECK(aclrtMemcpy(deviceA, sizeA, hostA, sizeA, ACL_MEMCPY_HOST_TO_DEVICE));
-            ACL_CHECK(aclrtMemcpy(deviceB, sizeB, hostB, sizeB, ACL_MEMCPY_HOST_TO_DEVICE));
-        }
+    ACL_CHECK(aclrtMalloc((void **)&deviceA, sizeA, ACL_MEM_MALLOC_HUGE_FIRST));
+    ACL_CHECK(aclrtMalloc((void **)&deviceB, sizeB, ACL_MEM_MALLOC_HUGE_FIRST));
+    ACL_CHECK(aclrtMalloc((void **)&deviceC, sizeC, ACL_MEM_MALLOC_HUGE_FIRST));
 
-        using ArchTag = Arch::AtlasA2;
+    ACL_CHECK(aclrtMemcpy(deviceA, sizeA, hostA, sizeA, ACL_MEMCPY_HOST_TO_DEVICE));
+    ACL_CHECK(aclrtMemcpy(deviceB, sizeB, hostB, sizeB, ACL_MEMCPY_HOST_TO_DEVICE));
 
-        constexpr bool enableUnitFlag = false;
-        using DispatchPolicy = Gemm::MmadAtlasA2PingPongWithPrologue<enableUnitFlag>;
+    using ArchTag = Arch::AtlasA2;
 
-        // if LayoutA and LayoutB is both ColumnMajor
-        // L1TileShape using MatmulShape<256, 128, 256> can achieve better performance.
-        using L1TileShape = std::conditional_t<std::is_same_v<LayoutA, layout::ColumnMajor> &&
-            std::is_same_v<LayoutB, layout::ColumnMajor>, GemmShape<256, 128, 512>, GemmShape<128, 256, 512>>;
-        using L0TileShape = std::conditional_t<std::is_same_v<LayoutA, layout::ColumnMajor> &&
-            std::is_same_v<LayoutB, layout::ColumnMajor>, GemmShape<256, 128, 128>, GemmShape<128, 256, 128>>;
-        using PrologueSrcType = Gemm::GemmType<ElementPrologueB, LayoutPrologueB>;
-        using PrologueDstType = Gemm::GemmType<ElementB, LayoutB>;
+    constexpr bool enableUnitFlag = false;
+    using DispatchPolicy = Gemm::MmadAtlasA2PingPongWithPrologue<enableUnitFlag>;
 
-        using AType = Gemm::GemmType<ElementA, LayoutA>;
-        using BType = PrologueDstType;
-        using CType = Gemm::GemmType<ElementC, LayoutC>;
+    // if LayoutA and LayoutB is both ColumnMajor
+    // L1TileShape using MatmulShape<256, 128, 256> can achieve better performance.
+    using L1TileShape = std::conditional_t<std::is_same_v<LayoutA, layout::ColumnMajor> &&
+        std::is_same_v<LayoutB, layout::ColumnMajor>, GemmShape<256, 128, 512>, GemmShape<128, 256, 512>>;
+    using L0TileShape = std::conditional_t<std::is_same_v<LayoutA, layout::ColumnMajor> &&
+        std::is_same_v<LayoutB, layout::ColumnMajor>, GemmShape<256, 128, 128>, GemmShape<128, 256, 128>>;
+    using PrologueSrcType = Gemm::GemmType<ElementPrologueB, LayoutPrologueB>;
+    using PrologueDstType = Gemm::GemmType<ElementB, LayoutB>;
 
-        using PrologueA = void;
-        using PrologueB = Gemm::Tile::TileCastInt4ToInt8<ArchTag, PrologueSrcType, PrologueDstType>;
+    using AType = Gemm::GemmType<ElementA, LayoutA>;
+    using BType = PrologueDstType;
+    using CType = Gemm::GemmType<ElementC, LayoutC>;
 
-        using TileCopy = Gemm::Tile::TileCopyWithProligue<ArchTag, AType, BType, CType, PrologueA, PrologueB>;
-        using BlockMmad = Gemm::Block::BlockMmad<
-            DispatchPolicy,
-            L1TileShape, L0TileShape,
-            AType, BType, CType,  void,
-            TileCopy
-        >;
+    using PrologueA = void;
+    constexpr uint32_t computeLen = 24 * 1024;
+    using PrologueB = Gemm::Tile::TileCastInt4ToInt8<ArchTag, PrologueSrcType, PrologueDstType, computeLen>;
 
-        if (options.problemShape.m() > options.problemShape.n()) {
-            using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
-            using BlockEpilogue = void;
-            // kernel level
-            using MatmulKernel = Gemm::Kernel::W4A8MatmulLocal<BlockMmad, BlockEpilogue, BlockScheduler>;
-            // call a kernel
-            using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
+    using TileCopy = Gemm::Tile::TileCopyWithProligueW4A8<ArchTag, AType, BType, CType, PrologueA, PrologueB>;
+    using BlockMmad = Gemm::Block::BlockMmad<
+        DispatchPolicy,
+        L1TileShape, L0TileShape,
+        AType, BType, CType,  void,
+        TileCopy
+    >;
 
-            MatmulAdapter matmulOp;
-            typename MatmulKernel::Arguments arguments{
-                options.problemShape,
-                deviceA, layoutA,
-                deviceB, layoutPrologueB,
-                deviceC, layoutC,
-                scalar,
-                aicoreNum
-            };
-            matmulOp.CanImplement(arguments);
+    if (options.problemShape.m() > options.problemShape.n()) {
+        using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
+        using BlockEpilogue = void;
+        // kernel level
+        using MatmulKernel = Gemm::Kernel::W4A8Matmul<BlockMmad, BlockEpilogue, BlockScheduler>;
+        // call a kernel
+        using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
 
-            auto workspaceSize = matmulOp.GetWorkspaceSize(arguments);
-            ACL_CHECK(aclrtMalloc((void **)&workspace, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST));
+        MatmulAdapter matmulOp;
+        typename MatmulKernel::Arguments arguments{
+            options.problemShape,
+            deviceA, layoutA,
+            deviceB, layoutPrologueB,
+            deviceC, layoutC,
+            scalar,
+            aicoreNum
+        };
+        matmulOp.CanImplement(arguments);
 
-            matmulOp.Initialize(arguments, workspace);
-            matmulOp(stream, aicoreNum, fftsAddr);
-        } else {
-            using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
-            using BlockEpilogue = void;
-            // kernel level
-            using MatmulKernel = Gemm::Kernel::W4A8MatmulLocal<BlockMmad, BlockEpilogue, BlockScheduler>;
-            // call a kernel
-            using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
-            MatmulAdapter matmulOp;
-            typename MatmulKernel::Arguments arguments{
-                options.problemShape,
-                deviceA, layoutA,
-                deviceB, layoutPrologueB,
-                deviceC, layoutC,
-                scalar,
-                aicoreNum
-            };
-            matmulOp.CanImplement(arguments);
+        auto workspaceSize = matmulOp.GetWorkspaceSize(arguments);
+        ACL_CHECK(aclrtMalloc((void **)&workspace, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST));
 
-            auto workspaceSize = matmulOp.GetWorkspaceSize(arguments);
-            ACL_CHECK(aclrtMalloc((void **)&workspace, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST));
+        matmulOp.Initialize(arguments, workspace);
+        matmulOp(stream, aicoreNum, fftsAddr);
+    } else {
+        using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
+        using BlockEpilogue = void;
+        // kernel level
+        using MatmulKernel = Gemm::Kernel::W4A8Matmul<BlockMmad, BlockEpilogue, BlockScheduler>;
+        // call a kernel
+        using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
+        MatmulAdapter matmulOp;
+        typename MatmulKernel::Arguments arguments{
+            options.problemShape,
+            deviceA, layoutA,
+            deviceB, layoutPrologueB,
+            deviceC, layoutC,
+            scalar,
+            aicoreNum
+        };
+        matmulOp.CanImplement(arguments);
 
-            matmulOp.Initialize(arguments, workspace);
-            matmulOp(stream, aicoreNum, fftsAddr);
-        }
+        auto workspaceSize = matmulOp.GetWorkspaceSize(arguments);
+        ACL_CHECK(aclrtMalloc((void **)&workspace, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST));
 
-        ACL_CHECK(aclrtSynchronizeStream(stream));
-
-        ACL_CHECK(aclrtFree(deviceA));
-        ACL_CHECK(aclrtFree(deviceB));
-        if (verifyLevel) {
-            ACL_CHECK(aclrtMemcpy(hostC, sizeC, deviceC, sizeC, ACL_MEMCPY_DEVICE_TO_HOST));
-        }
-        ACL_CHECK(aclrtFree(deviceC));
-        ACL_CHECK(aclrtFree(workspace));
+        matmulOp.Initialize(arguments, workspace);
+        matmulOp(stream, aicoreNum, fftsAddr);
     }
 
-    if (verifyLevel) {
-        // WriteFile("./data/outputC.dat", hostC, sizeC);
-        CompareResults<__fp16, float>((__fp16*)hostC, (float*)hExpected, m, k, n);
-        ACL_CHECK(aclrtFreeHost(hostA));
-        ACL_CHECK(aclrtFreeHost(hostB));
-        ACL_CHECK(aclrtFreeHost(hostC));
-        ACL_CHECK(aclrtFreeHost(hExpected));
+    ACL_CHECK(aclrtSynchronizeStream(stream));
+
+    ACL_CHECK(aclrtFree(deviceA));
+    ACL_CHECK(aclrtFree(deviceB));
+
+    std::vector<fp16_t> hostC(sizeC);
+    ACL_CHECK(aclrtMemcpy(hostC.data(), sizeC, deviceC, sizeC, ACL_MEMCPY_DEVICE_TO_HOST));
+    ACL_CHECK(aclrtFree(deviceC));
+    ACL_CHECK(aclrtFree(workspace));
+
+    // CompareResults<__fp16, float>((__fp16*)hostC, (float*)hExpected, m, k, n);  // 参考其他代码实现
+    std::vector<uint64_t> errorIndices = golden::CompareData(hostC, hExpected, k);
+    if (errorIndices.empty()) {
+        std::cout << "Compare success." << std::endl;
+    } else {
+        std::cerr << "Compare failed. Error count: " << errorIndices.size() << std::endl;
     }
+
+    ACL_CHECK(aclrtFreeHost(hostA));
+    ACL_CHECK(aclrtFreeHost(hostB));
 
     ACL_CHECK(aclrtDestroyStream(stream));
     ACL_CHECK(aclrtResetDevice(options.deviceId));

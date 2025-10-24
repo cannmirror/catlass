@@ -15,29 +15,26 @@
 
 以下是一个完整的shell脚本示例
 ```
-batch=1
 m=860
 k=5712
 n=4535
-transA=0
-transB=0
 device=0
 
 function build() {
     rm -rf build
     rm -rf output
-    bash scripts/build.sh 32_w4a8_matmul
+    bash ../../scripts/build.sh 32_w4a8_matmul
 }
 
 function gen_data() {
-    python3 examples/32_w4a8_matmul/gen_data.py $batch $m $k $n $transA $transB
+    python3 gen_data.py $m $n $k
     echo "Data gen finished"
 }
 
 function run_kernel {
-    echo 'Case: batch=' $batch ' m=' $m ' k=' $k ' n=' $n ' transA=' $transA ' transB=' $transB
-    cd output/bin/
-    ./32_w4a8_matmul $device $batch $m $k $n $transA $transB
+    echo 'Case: m=' $m ' k=' $k ' n=' $n
+    cd ../../output/bin/
+    ./32_w4a8_matmul $device $m $n $k $device
 }
 
 build
