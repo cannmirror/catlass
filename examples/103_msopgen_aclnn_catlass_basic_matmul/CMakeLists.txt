@@ -1,0 +1,2 @@
+
+add_executable(103_msopgen_aclnn_catlass_basic_matmul msopgen_aclnn_catlass_basic_matmul.cpp)
