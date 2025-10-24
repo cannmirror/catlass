@@ -7,6 +7,9 @@
 │   ├── w4a8.cpp 
 │   └── README.md
 ```
+## 功能介绍
+- 提供了W4A8量化模式下的matmul实现
+- A矩阵为int8类型, B矩阵为int4类型, 经过矩阵乘和随路转换最终得到的结果矩阵为half类型
 ## 使用示例
 - 获取代码之后编译相应的算子可执行文件，可参考[quickstart](../../docs/quickstart.md#算子编译)   
 
@@ -34,7 +37,7 @@ function gen_data() {
 function run_kernel {
     echo 'Case: m=' $m ' k=' $k ' n=' $n
     cd ../../output/bin/
-    ./32_w4a8_matmul $device $m $n $k $device
+    ./32_w4a8_matmul $m $n $k $device
 }
 
 build
