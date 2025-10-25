@@ -31,13 +31,14 @@ struct TileCastFp8ToFp16Dequant {
     using ElementDst = typename DstType_::Element;
     using LayoutSrc = typename SrcType_::Layout;
     using LayoutDst = typename DstType_::Layout;
+    using LayoutRowMajor = Catlass::layout::RowMajor;
 
     static_assert(std::is_same_v<LayoutSrc, layout::RowMajor> || std::is_same_v<LayoutSrc, layout::ColumnMajor>,
         "Unsupported layout, only can be Row/Column Major.");
     static_assert(std::is_same_v<LayoutDst, LayoutSrc>, "layout src and dst must be the same.");
 
     static const uint32_t Alignment = 256;
-    static constexpr uint32_t ELE_NUM_PER_BLK = BYTE_PER_BLK / sizeof(int8_t);
+    // static constexpr uint32_t ELE_NUM_PER_BLK = BYTE_PER_BLK / sizeof(int8_t);
 
     struct Params {
         half scalar;
@@ -76,78 +77,7 @@ struct TileCastFp8ToFp16Dequant {
                                .template ReinterpretCast<half>();
             bufferOffset += COMPUTE_LENGTH * 2;
         }
-        int16_t value_uint = 0x4000;
-        value_vector1 = (resource.ubBuf.template GetBufferByByte<ElementSrc>(bufferOffset * sizeof(ElementSrc)))
-                            .template ReinterpretCast<int16_t>();
-        bufferOffset += 256;
-        AscendC::Duplicate<int16_t>(value_vector1, value_uint, 128);
-        AscendC::PipeBarrier<PIPE_V>();
-        // AscendC::PipeBarrier<PIPE_V>();
-        value_uint = 0x3FFF;
-        value_vector2 = (resource.ubBuf.template GetBufferByByte<ElementSrc>(bufferOffset * sizeof(ElementSrc)))
-                            .template ReinterpretCast<int16_t>();
-        bufferOffset += 256;
-        AscendC::Duplicate<int16_t>(value_vector2, value_uint, 128);
-        AscendC::PipeBarrier<PIPE_V>();
-        // AscendC::PipeBarrier<PIPE_V>();
-    }
-
-    CATLASS_DEVICE
-    void Dequant(AscendC::LocalTensor<int8_t> &src, AscendC::LocalTensor<half> &dst,
-        AscendC::LocalTensor<int16_t> &value_vector1, AscendC::LocalTensor<int16_t> &value_vector2,
-        AscendC::LocalTensor<half> &workspace)
-    {
-        pipe_barrier(PIPE_V);
-        uint32_t num = COMPUTE_LENGTH;
-        num = (num + 128 - 1) / 128 * 128;
-        AscendC::Cast<half, uint8_t>(dst.template ReinterpretCast<half>(),
-            src.template ReinterpretCast<uint8_t>(),
-            AscendC::RoundMode::CAST_NONE,
-            num);
-        pipe_barrier(PIPE_V);
-
-        AscendC::Adds<half>(dst, dst, 1024, num);
-        pipe_barrier(PIPE_V);
-
-        AscendC::ShiftLeft<uint16_t>(
-            dst.template ReinterpretCast<uint16_t>(), dst.template ReinterpretCast<uint16_t>(), 7, num);
-        pipe_barrier(PIPE_V);
-
-        uint64_t mask = 128;
-        AscendC::And<int16_t>(workspace.template ReinterpretCast<int16_t>(),
-            dst.template ReinterpretCast<int16_t>(),
-            value_vector1,
-            mask,
-            num / 128,
-            {1, 1, 1, 8, 8, 0});
-        pipe_barrier(PIPE_V);
-
-        AscendC::ShiftLeft<uint16_t>(
-            workspace.template ReinterpretCast<uint16_t>(), workspace.template ReinterpretCast<uint16_t>(), 1, num);
-        pipe_barrier(PIPE_V);
-
-        AscendC::And<int16_t>(dst.template ReinterpretCast<int16_t>(),
-            dst.template ReinterpretCast<int16_t>(),
-            value_vector2,
-            mask,
-            num / 128,
-            {1, 1, 1, 8, 8, 0});
-        pipe_barrier(PIPE_V);
-
-        AscendC::Or<int16_t>(dst.template ReinterpretCast<int16_t>(),
-            dst.template ReinterpretCast<int16_t>(),
-            workspace.template ReinterpretCast<int16_t>(),
-            num);
-        pipe_barrier(PIPE_V);
-
-        AscendC::Muls<half>(dst.template ReinterpretCast<half>(), dst.template ReinterpretCast<half>(), 1 << 8, num);
-        pipe_barrier(PIPE_V);
-
-        AscendC::Adds(dst, dst, params.zeroPoint, num);
-        pipe_barrier(PIPE_V);
-
-        AscendC::Muls(dst, dst, params.scalar, num);
-        pipe_barrier(PIPE_V);
+        InitLocalMaskVec(resource, bufferOffset);
     }
 
     CATLASS_DEVICE
@@ -275,45 +205,33 @@ struct TileCastFp8ToFp16Dequant {
     /*
      * DATAFLOW: gmSrc<float> -> ubInTensor -> ubOutTensor -> gmDst
     */
-    // CATLASS_DEVICE
-    // template<class InDType, class OutDType>
-    // ...
     CATLASS_DEVICE
     void EpCastFp32ToFp16 (
-        AscendC::GlobalTensor<half> gmDst, AscendC::GlobalTensor<float> gmSrc, 
-        LayoutSrc const &layoutSrc, uint32_t srcStride, uint32_t dstStride
+        AscendC::GlobalTensor<half> gmDst, LayoutRowMajor LayoutDst,
+        AscendC::GlobalTensor<float> gmSrc, LayoutRowMajor LayoutSrc,
+        uint32_t &bufferIndexForCast
     )
     {
-        using InDType = float;
-        using OutDType = half;
-
-        AscendC::LocalTensor<InDType> ubInTensor[BUFFER_NUM];
-        AscendC::LocalTensor<OutDType> ubOutTensor[BUFFER_NUM];
+        AscendC::LocalTensor<float> ubInTensor[BUFFER_NUM];
+        AscendC::LocalTensor<half> ubOutTensor[BUFFER_NUM];
 
         Arch::Resource<ArchTag> resource;
         int64_t bufferOffset = 0;
-        const int64_t CAST_LENGTH = 32 * 1024 / sizeof(OutDType);  // 一次处理16K个数据
+        const int64_t CAST_LENGTH = 32 * 1024 / sizeof(half);  // 一次处理16K个数据
         for (int i = 0; i < BUFFER_NUM; i++) {
             ubInTensor[i] = resource.ubBuf.template GetBufferByByte<float>(bufferOffset);
-            bufferOffset += CAST_LENGTH * sizeof(InDType);  // float 4字节
+            bufferOffset += CAST_LENGTH * 4;  // float 4字节
         }
         for (int i = 0; i < BUFFER_NUM; i++) {
             ubOutTensor[i] = resource.ubBuf.template GetBufferByByte<half>(bufferOffset);
-            bufferOffset += CAST_LENGTH * sizeof(OutDType);  // half 2字节
+            bufferOffset += CAST_LENGTH * 2;  // half 2字节
         }
 
         uint32_t tilesNum, tileLen, srcStride, dstStride;
-        if constexpr (std::is_same_v<LayoutSrc, layout::RowMajor>) {
-            tilesNum = layoutSrc.shape(0);
-            tileLen = layoutSrc.shape(1);
-            srcStride = layoutSrc.stride(0);
-            dstStride = layoutDst.stride(0);
-        } else if constexpr (std::is_same_v<LayoutSrc, layout::ColumnMajor>) {
-            tilesNum = layoutSrc.shape(1);
-            tileLen = layoutSrc.shape(0);
-            srcStride = layoutSrc.stride(1);
-            dstStride = layoutDst.stride(1);
-        }
+        tilesNum = layoutSrc.shape(0);
+        tileLen = layoutSrc.shape(1);
+        srcStride = layoutSrc.stride(0);
+        dstStride = layoutDst.stride(0); // Always RowMajor
 
         uint32_t tilesPerAiv = tilesNum / AscendC::GetSubBlockNum();
         uint32_t tilesRemain = tilesNum % AscendC::GetSubBlockNum();
@@ -378,14 +296,12 @@ struct TileCastFp8ToFp16Dequant {
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EventIdBufferForCast[bufferIndexForCast]);
             AscendC::DataCopyExtParams dataCopyParamsIn(
                 loadRepeat,
-                loadLen * sizeof(InDType),                         // float loaded
-                (srcStride - loadLen) * sizeof(InDType),
-                (tileLenRoundFp8 - loadLen) * sizeof(InDType) / BYTE_PER_BLK,
+                loadLen * sizeof(float),                         // float loaded
+                (srcStride - loadLen) * sizeof(float),
+                (tileLenRoundFp8 - loadLen) * sizeof(float) / BYTE_PER_BLK,
                 0
             );
-            AscendC::DataCopyPadExtParams<InDType> padParams(false, 0, 0, 0);
-
-            AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EventIdBuffer[bufferIndex]);
+            AscendC::DataCopyPadExtParams<float> padParams(false, 0, 0, 0);
             AscendC::DataCopyPad(ubInTensor[bufferIndexForCast], gmSrc[srcProcessOffset], 
                                     dataCopyParamsIn, padParams);
             // Begin casting ...
@@ -401,15 +317,91 @@ struct TileCastFp8ToFp16Dequant {
             
             AscendC::DataCopyExtParams dataCopyParams(
                 storeRepeat,
-                storeLen * sizeof(OutDType),
-                (tileLenRoundFp8 - storeLen) * sizeof(OutDType) / BYTE_PER_C0,
-                (dstStride - storeLen) * sizeof(OutDType),
+                storeLen * sizeof(half),
+                (tileLenRoundFp8 - storeLen) * sizeof(half) / BYTE_PER_C0,
+                (dstStride - storeLen) * sizeof(half),
                 0
             );
             AscendC::DataCopyPad(gmDst[dstProcessOffset], ubOutTensor[bufferIndexForCast], dataCopyParams);
-            AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EventIdBuffer[bufferIndex]);
+            AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EventIdBufferForCast[bufferIndexForCast]);
             bufferIndexForCast = (bufferIndexForCast + 1) % BUFFER_NUM;
         }
+    }
+private:
+    CATLASS_DEVICE
+    void InitLocalMaskVec(Arch::Resource<ArchTag> &resource, int64_t &bufferOffset)
+    {
+        int16_t value_uint = 0x4000;
+        value_vector1 = (resource.ubBuf.template GetBufferByByte<ElementSrc>(bufferOffset * sizeof(ElementSrc)))
+                            .template ReinterpretCast<int16_t>();
+        bufferOffset += 256;
+        AscendC::Duplicate<int16_t>(value_vector1, value_uint, 128);
+        AscendC::PipeBarrier<PIPE_V>();
+        // AscendC::PipeBarrier<PIPE_V>();
+        value_uint = 0x3FFF;
+        value_vector2 = (resource.ubBuf.template GetBufferByByte<ElementSrc>(bufferOffset * sizeof(ElementSrc)))
+                            .template ReinterpretCast<int16_t>();
+        bufferOffset += 256;
+        AscendC::Duplicate<int16_t>(value_vector2, value_uint, 128);
+        AscendC::PipeBarrier<PIPE_V>();
+    }
+
+    CATLASS_DEVICE
+    void Dequant(AscendC::LocalTensor<int8_t> &src, AscendC::LocalTensor<half> &dst,
+        AscendC::LocalTensor<int16_t> &value_vector1, AscendC::LocalTensor<int16_t> &value_vector2,
+        AscendC::LocalTensor<half> &workspace)
+    {
+        pipe_barrier(PIPE_V);
+        uint32_t num = COMPUTE_LENGTH;
+        num = (num + 128 - 1) / 128 * 128;
+        AscendC::Cast<half, uint8_t>(dst.template ReinterpretCast<half>(),
+            src.template ReinterpretCast<uint8_t>(),
+            AscendC::RoundMode::CAST_NONE,
+            num);
+        pipe_barrier(PIPE_V);
+
+        AscendC::Adds<half>(dst, dst, 1024, num);
+        pipe_barrier(PIPE_V);
+
+        AscendC::ShiftLeft<uint16_t>(
+            dst.template ReinterpretCast<uint16_t>(), dst.template ReinterpretCast<uint16_t>(), 7, num);
+        pipe_barrier(PIPE_V);
+
+        uint64_t mask = 128;
+        AscendC::And<int16_t>(workspace.template ReinterpretCast<int16_t>(),
+            dst.template ReinterpretCast<int16_t>(),
+            value_vector1,
+            mask,
+            num / 128,
+            {1, 1, 1, 8, 8, 0});
+        pipe_barrier(PIPE_V);
+
+        AscendC::ShiftLeft<uint16_t>(
+            workspace.template ReinterpretCast<uint16_t>(), workspace.template ReinterpretCast<uint16_t>(), 1, num);
+        pipe_barrier(PIPE_V);
+
+        AscendC::And<int16_t>(dst.template ReinterpretCast<int16_t>(),
+            dst.template ReinterpretCast<int16_t>(),
+            value_vector2,
+            mask,
+            num / 128,
+            {1, 1, 1, 8, 8, 0});
+        pipe_barrier(PIPE_V);
+
+        AscendC::Or<int16_t>(dst.template ReinterpretCast<int16_t>(),
+            dst.template ReinterpretCast<int16_t>(),
+            workspace.template ReinterpretCast<int16_t>(),
+            num);
+        pipe_barrier(PIPE_V);
+
+        AscendC::Muls<half>(dst.template ReinterpretCast<half>(), dst.template ReinterpretCast<half>(), 1 << 8, num);
+        pipe_barrier(PIPE_V);
+
+        AscendC::Adds(dst, dst, params.zeroPoint, num);
+        pipe_barrier(PIPE_V);
+
+        AscendC::Muls(dst, dst, params.scalar, num);
+        pipe_barrier(PIPE_V);
     }
 
 private:
@@ -421,7 +413,7 @@ private:
     AscendC::LocalTensor<half> workspace[BUFFER_NUM];
     AscendC::TEventID EventIdBuffer[BUFFER_NUM] = {EVENT_ID0, EVENT_ID1};
     AscendC::TEventID EventIdBufferForCast[BUFFER_NUM] = {EVENT_ID2, EVENT_ID3};
-    uint32_t bufferIndexForCast{0};
+    // uint32_t bufferIndexForCast{0};
 
     Params params;
 };

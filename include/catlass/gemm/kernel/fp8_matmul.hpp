@@ -330,23 +330,19 @@ public:
                     }
                     Catlass::Arch::CrossCoreWaitFlag(flag4);
                     Catlass::layout::RowMajor layoutBlockC(
-                        actualBlockShape.m(), actualBlockShape.n(), params.problemShape.n());
+                        actualBlockShape.m(), actualBlockShape.n(), nScalar * L1TileShape::N);
+                    Catlass::layout::RowMajor layoutBlockDstC(
+                        params.problemShape.m(), params.problemShape.n());
                     int64_t gmOffsetWC =
                         (AscendC::GetBlockIdx() / AIVPERCORE) * (mScalar * L1TileShape::M) * (nScalar * L1TileShape::N);
                     PrologueB postCast;
                     postCast.EpCastFp32ToFp16(
                         gmC[gmOffsetC],
+                        layoutBlockDstC,
                         gmWC[gmOffsetWC],
                         layoutBlockC,
-                        nScalar * L1TileShape::N,
-                        params.problemShape.n()
+                        bufferIndexForCast
                     );
-                    //     Cast cast;
-                    // cast.castFP32toFP16(gmWC[gmOffsetWC],
-                    //     gmC[gmOffsetC],
-                    //     layoutBlockC,
-                    //     nScalar * L1TileShape::N,
-                    //     params.problemShape.n());
                 }
 
                 crossCoreBufferIndexAIV = 1 - crossCoreBufferIndexAIV;
@@ -550,6 +546,7 @@ protected:
     uint32_t crossCoreBufferIndexAIC{0};
     uint32_t crossCoreBufferIndexAIV{0};
     uint32_t bufferIndex{0};
+    uint32_t bufferIndexForCast{0};
 };
 
 }  // namespace Catlass::Gemm::Kernel
