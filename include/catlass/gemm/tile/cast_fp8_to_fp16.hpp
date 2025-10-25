@@ -207,8 +207,8 @@ struct TileCastFp8ToFp16Dequant {
     */
     CATLASS_DEVICE
     void EpCastFp32ToFp16 (
-        AscendC::GlobalTensor<half> gmDst, LayoutRowMajor LayoutDst,
-        AscendC::GlobalTensor<float> gmSrc, LayoutRowMajor LayoutSrc,
+        AscendC::GlobalTensor<half> gmDst, LayoutRowMajor layoutDst,
+        AscendC::GlobalTensor<float> gmSrc, LayoutRowMajor layoutSrc,
         uint32_t &bufferIndexForCast
     )
     {
