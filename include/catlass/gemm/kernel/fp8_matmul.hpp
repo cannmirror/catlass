@@ -60,9 +60,9 @@ public:
     using PrologueSrcTypeB = typename Gemm::GemmType<ElementPrologueB, LayoutPrologueB>;
     using PrologueDstTypeB = typename Gemm::GemmType<ElementB, LayoutB>; 
 
-    using PrologueA = typename ::TileCastFp8ToFp16Dequant<ArchTag, PrologueSrcTypeA, PrologueDstTypeA, COMPUTE_LENGTH_A>;
-    using PrologueB = typename ::TileCastFp8ToFp16Dequant<ArchTag, PrologueSrcTypeB, PrologueDstTypeB, COMPUTE_LENGTH_B>;
-    using PrologueAParams = typename ::PrologueTraits<PrologueA>::Params;
+    using PrologueA = typename Tile::TileCastFp8ToFp16Dequant<ArchTag, PrologueSrcTypeA, PrologueDstTypeA, COMPUTE_LENGTH_A>;
+    using PrologueB = typename Tile::TileCastFp8ToFp16Dequant<ArchTag, PrologueSrcTypeB, PrologueDstTypeB, COMPUTE_LENGTH_B>;
+    using PrologueAParams = typename Tile::PrologueTraits<PrologueA>::Params;
     using PrologueBParams = typename Tile::PrologueTraits<PrologueB>::Params;
     // ONLY FOR TEST
 
@@ -181,7 +181,7 @@ public:
         constexpr bool isLayoutARowMajor = std::is_same_v<LayoutA, Catlass::layout::RowMajor>;
         constexpr bool isLayoutBRowMajor = std::is_same_v<LayoutB, Catlass::layout::RowMajor>;
         uint32_t srcAStride = isLayoutARowMajor ? params.problemShape.k(): params.problemShape.m();
-        uint32_t srcBStride = isLayoutBRowMajor ? params.problemShape.n(): params:problemShape.k();
+        uint32_t srcBStride = isLayoutBRowMajor ? params.problemShape.n(): params.problemShape.k();
 
         AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID0);
         AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID1);
@@ -266,7 +266,7 @@ public:
                                                : splitkLength;
                     kActualAligned_ = (kActualNext + 256 - 1) / 256 * 256;
 
-                    layoutWA = LayoutA(actualBlockShape.m(), kActualNext, kActualNextAligned);
+                    layoutWA = LayoutA(actualBlockShape.m(), kActualNext, kActualAligned_);
                     layoutWB = LayoutB(kActualNext, actualBlockShape.n(), actualBlockShape.n());
 
                     Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(flag1[crossCoreBufferIndexAIV]);
@@ -283,8 +283,8 @@ public:
                                                : splitkLength;
                     kActualAligned_ = (kActualNext + 256 - 1) / 256 * 256;
 
-                    layoutWA = layoutNextWA(nextActualBlockShape.m(), kActualNext, kActualNext);
-                    layoutWB = layoutNextWB(kActualNext, nextActualBlockShape.n(), nextActualBlockShape.n());
+                    layoutWA = LayoutA(nextActualBlockShape.m(), kActualNext, kActualNext);
+                    layoutWB = LayoutB(kActualNext, nextActualBlockShape.n(), nextActualBlockShape.n());
 
                     Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(flag1[crossCoreBufferIndexAIV]);
                     Catlass::Arch::CrossCoreWaitFlag(flag0[1 - crossCoreBufferIndexAIV]);
