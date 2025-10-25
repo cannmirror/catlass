@@ -17,7 +17,6 @@
 #include "catlass/gemm_coord.hpp"
 #include "catlass/gemm/dispatch_policy.hpp"
 #include "catlass/gemm/helper.hpp"
-#include "catlass/gemm/block/block_dequant.hpp"
 
 namespace Catlass::Gemm::Block {
 

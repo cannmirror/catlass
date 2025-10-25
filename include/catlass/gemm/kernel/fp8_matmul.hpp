@@ -17,7 +17,8 @@
 #include "catlass/layout/layout.hpp"
 #include "catlass/gemm_coord.hpp"
 #include "catlass/matrix_coord.hpp"
-#include "catlass/gemm/block/block_dequant.hpp"
+// #include "catlass/gemm/block/block_dequant.hpp"
+#include "catlass/arch/cross_core_sync.hpp"
 
 #include "catlass/gemm/tile/tile_copy.hpp"
 #include "catlass/gemm/tile/tile_traits.hpp" // should move to BLOCK
@@ -65,8 +66,6 @@ public:
     using PrologueAParams = typename Tile::PrologueTraits<PrologueA>::Params;
     using PrologueBParams = typename Tile::PrologueTraits<PrologueB>::Params;
     // ONLY FOR TEST
-
-    using Cast = Block::DequantFP8toFP16<ArchTag, int8_t, LayoutB, COMPUTE_LENGTH_B>;
 
     /// Parameters structure
     struct Params {
