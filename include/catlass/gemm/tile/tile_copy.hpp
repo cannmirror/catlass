@@ -22,7 +22,7 @@
 #include "catlass/gemm/tile/copy_l1_to_bt.hpp"
 #include "catlass/gemm/tile/copy_gm_to_ub.hpp"
 #include "catlass/gemm/tile/copy_ub_to_gm.hpp"
-#include "catlass/gemm/tile/cast_int8_to_fp16.hpp"
+// #include "catlass/gemm/tile/cast_int8_to_fp16.hpp"
 #include "catlass/gemm/tile/cast_fp8_to_fp16.hpp"
 #include "catlass/gemm/helper.hpp"
 
