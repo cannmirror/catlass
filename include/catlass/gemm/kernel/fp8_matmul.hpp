@@ -274,8 +274,8 @@ public:
                     Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(flag1[crossCoreBufferIndexAIV]);
                     Catlass::Arch::CrossCoreWaitFlag(flag0[1 - crossCoreBufferIndexAIV]);
                     
-                    gmOffSetA == params.layoutA.GetOffset(MakeCoord(0U, kActual));
-                    gmOffsetB == params.layoutB.GetOffset(MakeCoord(kActual, 0U));
+                    gmOffsetA += params.layoutA.GetOffset(MakeCoord(0U, kActual));
+                    gmOffsetB += params.layoutB.GetOffset(MakeCoord(kActual, 0U));
                 }
 
                 if ((ldk == kLoop - 1) && hasNextBlock) {
