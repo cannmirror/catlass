@@ -17,12 +17,8 @@
 #include <iostream>
 #include <vector>
 
-#include "helper.hpp"
-#include "golden.hpp"
-#include "fp16_t.h"
-
-#include "catlass/catlass.hpp"
 #include "catlass/arch/arch.hpp"
+#include "catlass/catlass.hpp"
 #include "catlass/conv/block/block_conv.hpp"
 #include "catlass/conv/block/block_swizzle.hpp"
 #include "catlass/conv/dispatch_policy.hpp"
@@ -36,8 +32,10 @@
 #include "catlass/conv2d_coord.hpp"
 #include "catlass/layout/conv2d.hpp"
 
+#include "golden.hpp"
+#include "helper.hpp"
+
 using namespace Catlass;
-using fp16_t = op::fp16_t;
 
 struct Options {
   const std::string HELPER = 
