@@ -66,8 +66,10 @@ struct VisitorAuxStore : VisitorImpl<> {
         Callbacks(Params const* params_ptr_)
             : params_ptr(params_ptr_) {}
 
-        template <typename ElementInput>
+        template <typename ElementAccumulator, typename ElementInput>
         CATLASS_DEVICE AscendC::LocalTensor<ElementInput> const& visit(
+            AscendC::GlobalTensor<ElementAccumulator> const& /*gmSubblockC*/,
+            layout::RowMajor const& /*layoutSubblockC*/,
             MatrixCoord const& globalTileOffset,
             MatrixCoord const& localTileOffset,  // 新增参数（不使用）
             MatrixCoord const& actualTileShape,
@@ -102,9 +104,7 @@ struct VisitorAuxStore : VisitorImpl<> {
     CATLASS_DEVICE auto get_callbacks(
         Arch::Resource<ArchTag>& resource,
         uint32_t& ub_offset,
-        uint32_t compute_length,
-        AscendC::GlobalTensor<Element> const&,
-        layout::RowMajor const&
+        uint32_t compute_length
     ) {
         return Callbacks(&params);
     }

@@ -73,8 +73,10 @@ struct VisitorRowReduce : VisitorImpl<> {
             : ubReduce(ubReduce_), params_ptr(params_ptr_), compute_length(compute_length_) {}
 
 
-        template <typename ElementInput>
+        template <typename ElementAccumulator, typename ElementInput>
         CATLASS_DEVICE AscendC::LocalTensor<ElementInput> const& visit(
+            AscendC::GlobalTensor<ElementAccumulator> const& /*gmSubblockC*/,
+            layout::RowMajor const& /*layoutSubblockC*/,
             MatrixCoord const& globalTileOffset,
             MatrixCoord const& /*localTileOffset*/,
             MatrixCoord const& actualTileShape,
@@ -130,9 +132,7 @@ struct VisitorRowReduce : VisitorImpl<> {
     CATLASS_DEVICE auto get_callbacks(
         Arch::Resource<ArchTag>& resource,
         uint32_t& ub_offset,
-        uint32_t compute_length,
-        AscendC::GlobalTensor<half> const&,
-        layout::RowMajor const&)
+        uint32_t compute_length)
     {
         auto ubReduce = resource.ubBuf.template GetBufferByByte<Element>(ub_offset);
         ub_offset += compute_length * sizeof(Element);

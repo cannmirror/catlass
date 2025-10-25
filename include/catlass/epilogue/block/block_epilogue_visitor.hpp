@@ -47,6 +47,11 @@ public:
     BlockEpilogue(Arch::Resource<ArchTag>& resource, Params const& params)
         : params(params), evt(params.evt_params), resource_(resource)
     {
+        uint32_t ub_offset0 = 0;
+        auto callbacks0 = evt.get_callbacks(
+            resource_, ub_offset0, COMPUTE_LENGTH
+        );
+        callbacks0.begin_epilogue();
         // 事件ID分配：四类事件分别独立编号（每类两路 buffer）
         int32_t evVMTE2 = 0;   // V_MTE2
         int32_t evMTE2V = 0;   // MTE2_V
@@ -74,6 +79,15 @@ public:
         AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventVMTE2[1]);
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventMTE3V[0]);
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventMTE3V[1]);
+
+        AscendC::PipeBarrier<PIPE_ALL>();
+        Arch::CrossCoreBarrier<0x0, PIPE_MTE3>();
+
+        uint32_t ub_offset0 = 0;
+        auto callbacks0 = evt.get_callbacks(
+            resource_, ub_offset0, COMPUTE_LENGTH
+        );
+        callbacks0.end_epilogue();
     }
 
     CATLASS_DEVICE
@@ -107,17 +121,12 @@ public:
         // 分配 UB 空间并获取两套 callbacks（双缓冲）
         uint32_t ub_offset0 = 0;
         auto callbacks0 = evt.get_callbacks(
-            resource_, ub_offset0, COMPUTE_LENGTH,
-            gmSubblockC, layoutSubblockC
+            resource_, ub_offset0, COMPUTE_LENGTH
         );
         uint32_t ub_offset1 = ub_offset0;
         auto callbacks1 = evt.get_callbacks(
-            resource_, ub_offset1, COMPUTE_LENGTH,
-            gmSubblockC, layoutSubblockC
+            resource_, ub_offset1, COMPUTE_LENGTH
         );
-
-        callbacks0.begin_epilogue();
-        callbacks1.begin_epilogue();
 
         uint32_t rows = actualSubblockShape.row();
         uint32_t cols = actualSubblockShape.column();
@@ -150,7 +159,7 @@ public:
                 };
                 
                 // 统一流水：执行一次 tile 的 Load-Compute-Store
-                run_tile(cbs, globalTileOffset, localTileOffset, tileShape, alignedTileShape, calCount, ubListId);
+                run_tile(cbs, gmSubblockC, layoutSubblockC, globalTileOffset, localTileOffset, tileShape, alignedTileShape, calCount, ubListId);
                 r += tileRows;
             } else { //应该暂时都用不到
                 // 列宽 > COMPUTE_LENGTH，需要列分块，每次处理1行
@@ -171,7 +180,7 @@ public:
                     };
                     
                     // 统一流水：执行一次 tile 的 Load-Compute-Store
-                    run_tile(cbs, globalTileOffset, localTileOffset, tileShape, alignedTileShape, calCount, ubListId);
+                    run_tile(cbs, gmSubblockC, layoutSubblockC, globalTileOffset, localTileOffset, tileShape, alignedTileShape, calCount, ubListId);
                     c += tileCols;
                 }
                 
@@ -180,15 +189,14 @@ public:
 
             ubListId = 1 - ubListId; // Buffer 轮转
         }
-
-        callbacks0.end_epilogue();
-        callbacks1.end_epilogue();
     }
 
 private:
     template <class Callbacks>
     CATLASS_DEVICE void run_tile(
         Callbacks& cbs,
+        AscendC::GlobalTensor<ElementC> const& gmSubblockC,
+        layout::RowMajor const& layoutSubblockC,
         MatrixCoord const& globalTileOffset,
         MatrixCoord const& localTileOffset,
         MatrixCoord const& actualTileShape,
@@ -197,17 +205,17 @@ private:
         uint32_t ubListId
     ) {
         AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventVMTE2[ubListId]);
-        cbs.visit(globalTileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, Epilogue::Fusion::VisitStage::LOAD);
+        cbs.visit(gmSubblockC, layoutSubblockC, globalTileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, Epilogue::Fusion::VisitStage::LOAD);
         AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventMTE2V[ubListId]);
 
         AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventMTE2V[ubListId]);
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventMTE3V[ubListId]);
-        cbs.visit(globalTileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, Epilogue::Fusion::VisitStage::COMPUTE);
+        cbs.visit(gmSubblockC, layoutSubblockC, globalTileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, Epilogue::Fusion::VisitStage::COMPUTE);
         AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventVMTE2[ubListId]);
         AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(eventVMTE3[ubListId]);
 
         AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(eventVMTE3[ubListId]);
-        cbs.visit(globalTileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, Epilogue::Fusion::VisitStage::STORE);
+        cbs.visit(gmSubblockC, layoutSubblockC, globalTileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, Epilogue::Fusion::VisitStage::STORE);
         AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(eventMTE3V[ubListId]);
     }
 

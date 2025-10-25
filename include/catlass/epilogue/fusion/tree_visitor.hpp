@@ -18,8 +18,10 @@ struct TreeVisitor : VisitorImpl<ChildOps..., NodeOp> {
         using CallbacksImpl::callbacks_tuple;
 
         // 辅助函数：收集子节点输出
-        template <typename... Args, int... Is>
+        template <typename ElementAccumulator, typename... Args, int... Is>
         CATLASS_DEVICE auto collect_child_outputs(
+            AscendC::GlobalTensor<ElementAccumulator> const& gmSubblockC,
+            layout::RowMajor const& layoutSubblockC,
             MatrixCoord const& tileOffset,
             MatrixCoord const& localTileOffset,
             MatrixCoord const& actualTileShape,
@@ -30,14 +32,19 @@ struct TreeVisitor : VisitorImpl<ChildOps..., NodeOp> {
             Args const&... args
         ) {
             return tla::tuple<decltype(tla::get<Is>(callbacks_tuple).visit(
+                gmSubblockC, layoutSubblockC,
                 tileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, stage, args...))...>(
-                tla::get<Is>(callbacks_tuple).visit(tileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, stage, args...)...
+                tla::get<Is>(callbacks_tuple).visit(
+                    gmSubblockC, layoutSubblockC,
+                    tileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, stage, args...)...
             );
         }
 
         // 辅助函数：调用父节点
-        template <typename ChildOutputs, int... Is>
+        template <typename ElementAccumulator, typename ChildOutputs, int... Is>
         CATLASS_DEVICE auto call_parent_with_outputs(
+            AscendC::GlobalTensor<ElementAccumulator> const& gmSubblockC,
+            layout::RowMajor const& layoutSubblockC,
             MatrixCoord const& tileOffset,
             MatrixCoord const& localTileOffset,
             MatrixCoord const& actualTileShape,
@@ -49,14 +56,17 @@ struct TreeVisitor : VisitorImpl<ChildOps..., NodeOp> {
         ) {
             constexpr int Rm1 = sizeof...(ChildOps);
             return tla::get<Rm1>(callbacks_tuple).visit(
+                gmSubblockC, layoutSubblockC,
                 tileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, stage,
                 tla::get<Is>(child_outputs)...
             );
         }
 
         // 统一的 visit 签名：可变参数
-        template <typename... Args>
+        template <typename ElementAccumulator, typename... Args>
         CATLASS_DEVICE auto visit(
+            AscendC::GlobalTensor<ElementAccumulator> const& gmSubblockC,
+            layout::RowMajor const& layoutSubblockC,
             MatrixCoord const& tileOffset,
             MatrixCoord const& localTileOffset,
             MatrixCoord const& actualTileShape,
@@ -69,6 +79,7 @@ struct TreeVisitor : VisitorImpl<ChildOps..., NodeOp> {
             
             // 访问所有子节点，收集输出
             auto child_outputs = collect_child_outputs(
+                gmSubblockC, layoutSubblockC,
                 tileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, stage,
                 tla::make_seq<Rm1>{},
                 args...
@@ -76,6 +87,7 @@ struct TreeVisitor : VisitorImpl<ChildOps..., NodeOp> {
             
             // 将子节点输出传给父节点
             return call_parent_with_outputs(
+                gmSubblockC, layoutSubblockC,
                 tileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, stage,
                 child_outputs,
                 tla::make_seq<Rm1>{}
@@ -87,13 +99,10 @@ struct TreeVisitor : VisitorImpl<ChildOps..., NodeOp> {
     CATLASS_DEVICE auto get_callbacks(
         Arch::Resource<ArchTag>& resource,
         uint32_t& ub_offset,
-        uint32_t compute_length,
-        AscendC::GlobalTensor<half> const& gmSubblockC,
-        layout::RowMajor const& layoutSubblockC
+        uint32_t compute_length
     ) {
         auto base_callbacks = this->VisitorImpl<ChildOps..., NodeOp>::get_callbacks(
-            resource, ub_offset, compute_length,
-            gmSubblockC, layoutSubblockC
+            resource, ub_offset, compute_length
         );
         return Callbacks<decltype(base_callbacks)>(
             static_cast<decltype(base_callbacks)&&>(base_callbacks)

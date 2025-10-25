@@ -53,8 +53,10 @@ struct VisitorCompute : VisitorImpl<> {
                  uint32_t compute_length_)
             : ubOut(ubOut_), compute_length(compute_length_) {}
 
-        template <typename... ElementInputs>
+        template <typename ElementAccumulator, typename... ElementInputs>
         CATLASS_DEVICE AscendC::LocalTensor<ElementCompute> const& visit(
+            AscendC::GlobalTensor<ElementAccumulator> const& /*gmSubblockC*/,    // 不使用
+            layout::RowMajor const& /*layoutSubblockC*/,           // 不使用
             MatrixCoord const& globalTileOffset,    // 不使用
             MatrixCoord const& localTileOffset,     // 新增参数（不使用）
             MatrixCoord const& actualTileShape,     // 不使用
@@ -79,9 +81,7 @@ struct VisitorCompute : VisitorImpl<> {
     CATLASS_DEVICE auto get_callbacks(
         Arch::Resource<ArchTag>& resource,
         uint32_t& ub_offset,
-        uint32_t compute_length,
-        AscendC::GlobalTensor<half> const&,
-        layout::RowMajor const&
+        uint32_t compute_length
     ) {
         auto ubOut = resource.ubBuf.template GetBufferByByte<ElementCompute>(ub_offset);
         ub_offset += compute_length * sizeof(ElementCompute);

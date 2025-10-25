@@ -70,8 +70,10 @@ struct VisitorRowBroadcast : VisitorImpl<> {
             uint32_t compute_length_)
             : ubOut(ubOut_), params_ptr(params_ptr_), compute_length(compute_length_) {}
 
-        template <typename... Args>
+        template <typename ElementAccumulator, typename... Args>
         CATLASS_DEVICE AscendC::LocalTensor<Element> const& visit(
+            AscendC::GlobalTensor<ElementAccumulator> const& /*gmSubblockC*/,
+            layout::RowMajor const& /*layoutSubblockC*/,
             MatrixCoord const& globalTileOffset,
             MatrixCoord const& /*localTileOffset*/,    // not needed here
             MatrixCoord const& actualTileShape,
@@ -117,9 +119,7 @@ struct VisitorRowBroadcast : VisitorImpl<> {
     CATLASS_DEVICE auto get_callbacks(
         Arch::Resource<ArchTag>& resource,
         uint32_t& ub_offset,
-        uint32_t compute_length,
-        AscendC::GlobalTensor<half> const&,
-        layout::RowMajor const&)
+        uint32_t compute_length)
     {
         auto ubOut = resource.ubBuf.template GetBufferByByte<Element>(ub_offset);
         ub_offset += compute_length * sizeof(Element);

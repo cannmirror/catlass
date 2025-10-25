@@ -59,20 +59,17 @@ struct VisitorAuxLoad : VisitorImpl<> {
         AscendC::LocalTensor<Element> ubAux;
         Params const* params_ptr;
         uint32_t compute_length;
-        AscendC::GlobalTensor<Element> gmSubblockC;
-        layout::RowMajor layoutSubblockC;
 
         CATLASS_DEVICE
         Callbacks(AscendC::LocalTensor<Element> ubAux_,
                  Params const* params_ptr_,
-                 uint32_t compute_length_,
-                 AscendC::GlobalTensor<Element> const& gmSubblockC_,
-                 layout::RowMajor const& layoutSubblockC_)
-            : ubAux(ubAux_), params_ptr(params_ptr_), compute_length(compute_length_),
-              gmSubblockC(gmSubblockC_), layoutSubblockC(layoutSubblockC_) {}
+                 uint32_t compute_length_)
+            : ubAux(ubAux_), params_ptr(params_ptr_), compute_length(compute_length_) {}
 
-        template <typename... Args>
+        template <typename ElementAccumulator, typename... Args>
         CATLASS_DEVICE AscendC::LocalTensor<Element> const& visit(
+            AscendC::GlobalTensor<ElementAccumulator> const& /*gmSubblockC*/,
+            layout::RowMajor const& /*layoutSubblockC*/,
             MatrixCoord const& globalTileOffset,
             MatrixCoord const& localTileOffset,  // 新增参数（不使用）
             MatrixCoord const& actualTileShape,
@@ -102,13 +99,11 @@ struct VisitorAuxLoad : VisitorImpl<> {
     CATLASS_DEVICE auto get_callbacks(
         Arch::Resource<ArchTag>& resource,
         uint32_t& ub_offset,
-        uint32_t compute_length,
-        AscendC::GlobalTensor<Element> const& gmSubblockC,
-        layout::RowMajor const& layoutSubblockC
+        uint32_t compute_length
     ) {
         auto ubAux = resource.ubBuf.template GetBufferByByte<Element>(ub_offset);
         ub_offset += compute_length * sizeof(Element);
-        return Callbacks(ubAux, &params, compute_length, gmSubblockC, layoutSubblockC);
+        return Callbacks(ubAux, &params, compute_length);
     }
 
     Params params;

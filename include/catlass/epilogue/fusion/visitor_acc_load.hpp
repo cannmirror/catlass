@@ -46,20 +46,17 @@ struct VisitorAccLoad : VisitorImpl<> {
         AscendC::LocalTensor<Element> ubAcc;
         Params const* params_ptr;
         uint32_t compute_length;
-        AscendC::GlobalTensor<Element> gmSubblockC;
-        layout::RowMajor layoutSubblockC;
 
         CATLASS_DEVICE
         Callbacks(AscendC::LocalTensor<Element> ubAcc_,
                  Params const* params_ptr_,
-                 uint32_t compute_length_,
-                 AscendC::GlobalTensor<Element> const& gmSubblockC_,
-                 layout::RowMajor const& layoutSubblockC_)
-            : ubAcc(ubAcc_), params_ptr(params_ptr_), compute_length(compute_length_),
-              gmSubblockC(gmSubblockC_), layoutSubblockC(layoutSubblockC_) {}
+                 uint32_t compute_length_)
+            : ubAcc(ubAcc_), params_ptr(params_ptr_), compute_length(compute_length_) {}
 
-        template <typename... Args>
+        template <typename ElementAccumulator, typename... Args>
         CATLASS_DEVICE AscendC::LocalTensor<Element> const& visit(
+            AscendC::GlobalTensor<ElementAccumulator> const& gmSubblockC,
+            layout::RowMajor const& layoutSubblockC,
             MatrixCoord const& globalTileOffset,    // 不使用
             MatrixCoord const& localTileOffset,     // 使用局部坐标
             MatrixCoord const& actualTileShape,
@@ -68,6 +65,7 @@ struct VisitorAccLoad : VisitorImpl<> {
             VisitStage stage,
             Args const&... /*unused*/
         ) {
+            static_assert(std::is_same_v<ElementAccumulator, Element>, "ElementAccumulator must be the same as Element");
             if (stage == VisitStage::LOAD) {
                 // GM load 使用 actualTileShape，UB layout 使用 alignedTileShape
                 auto layoutUb = layout::RowMajor::MakeLayoutInUb<Element>(alignedTileShape);
@@ -87,13 +85,11 @@ struct VisitorAccLoad : VisitorImpl<> {
     CATLASS_DEVICE auto get_callbacks(
         Arch::Resource<ArchTag>& resource,
         uint32_t& ub_offset,
-        uint32_t compute_length,
-        AscendC::GlobalTensor<Element> const& gmSubblockC,
-        layout::RowMajor const& layoutSubblockC
+        uint32_t compute_length
     ) {
         auto ubAcc = resource.ubBuf.template GetBufferByByte<Element>(ub_offset);
         ub_offset += compute_length * sizeof(Element);
-        return Callbacks(ubAcc, &params, compute_length, gmSubblockC, layoutSubblockC);
+        return Callbacks(ubAcc, &params, compute_length);
     }
 
     Params params;

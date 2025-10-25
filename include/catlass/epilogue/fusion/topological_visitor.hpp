@@ -45,8 +45,10 @@ struct TopologicalVisitor : VisitorImpl<Ops...> {
         struct TypeAtHelper<0, T0, Ts...> { using type = T0; };
 
         // 访问节点 i：先访问其子节点，按 EdgeTuple 指定顺序收集输出，再调用第 i 个回调
-        template <int I, class Seq, class... Args>
+        template <int I, typename ElementAccumulator, class Seq, class... Args>
         CATLASS_DEVICE auto visit_node(
+            AscendC::GlobalTensor<ElementAccumulator> const& gmSubblockC,
+            layout::RowMajor const& layoutSubblockC,
             MatrixCoord const& tileOffset,
             MatrixCoord const& localTileOffset,
             MatrixCoord const& actualTileShape,
@@ -67,12 +69,13 @@ struct TopologicalVisitor : VisitorImpl<Ops...> {
             }
 
             // 收集子节点输出为一个 tla::tuple<ChildOutputs...>
-            auto child_outputs = collect_children<I>(
+            auto child_outputs = collect_children<I, ElementAccumulator>(
+                gmSubblockC, layoutSubblockC,
                 tileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, stage, Seq{}, args...
             );
 
             // 将子节点输出按照 Seq 指定顺序展开，调用第 I 个回调
-            auto ret = call_current<I>(tileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, stage, child_outputs);
+            auto ret = call_current<I, ElementAccumulator>(gmSubblockC, layoutSubblockC, tileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, stage, child_outputs);
 
             // 仅在输出阶段缓存（STORE 阶段不缓存以保留副作用）
             if constexpr (OutStage != VisitStage::STORE) {
@@ -86,8 +89,10 @@ struct TopologicalVisitor : VisitorImpl<Ops...> {
         }
 
         // 收集子节点输出的实现：针对 tla::seq 索引序列展开
-        template <int I, int... ChildIs, class... Args>
+        template <int I, typename ElementAccumulator, int... ChildIs, class... Args>
         CATLASS_DEVICE auto collect_children(
+            AscendC::GlobalTensor<ElementAccumulator> const& gmSubblockC,
+            layout::RowMajor const& layoutSubblockC,
             MatrixCoord const& tileOffset,
             MatrixCoord const& localTileOffset,
             MatrixCoord const& actualTileShape,
@@ -98,12 +103,14 @@ struct TopologicalVisitor : VisitorImpl<Ops...> {
             Args const&... args
         ) {
             return tla::tuple<decltype(
-                this->template visit_node<ChildIs>(
+                this->template visit_node<ChildIs, ElementAccumulator>(
+                    gmSubblockC, layoutSubblockC,
                     tileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, stage,
                     decltype(tla::get<ChildIs>(EdgeTuple{})){}, args...
                 )
             )...>(
-                this->template visit_node<ChildIs>(
+                this->template visit_node<ChildIs, ElementAccumulator>(
+                    gmSubblockC, layoutSubblockC,
                     tileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, stage,
                     decltype(tla::get<ChildIs>(EdgeTuple{})){}, args...
                 )...
@@ -111,8 +118,10 @@ struct TopologicalVisitor : VisitorImpl<Ops...> {
         }
 
         // 展开 child_outputs 元组并调用第 I 个算子
-        template <int I, class ChildOutputs, int... Js>
+        template <int I, typename ElementAccumulator, class ChildOutputs, int... Js>
         CATLASS_DEVICE auto call_current_expand(
+            AscendC::GlobalTensor<ElementAccumulator> const& gmSubblockC,
+            layout::RowMajor const& layoutSubblockC,
             MatrixCoord const& tileOffset,
             MatrixCoord const& localTileOffset,
             MatrixCoord const& actualTileShape,
@@ -123,13 +132,16 @@ struct TopologicalVisitor : VisitorImpl<Ops...> {
             tla::seq<Js...>
         ) {
             return tla::get<I>(this->callbacks_tuple).visit(
+                gmSubblockC, layoutSubblockC,
                 tileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, stage,
                 tla::get<Js>(child_outputs)...
             );
         }
 
-        template <int I, class ChildOutputs>
+        template <int I, typename ElementAccumulator, class ChildOutputs>
         CATLASS_DEVICE auto call_current(
+            AscendC::GlobalTensor<ElementAccumulator> const& gmSubblockC,
+            layout::RowMajor const& layoutSubblockC,
             MatrixCoord const& tileOffset,
             MatrixCoord const& localTileOffset,
             MatrixCoord const& actualTileShape,
@@ -139,7 +151,8 @@ struct TopologicalVisitor : VisitorImpl<Ops...> {
             ChildOutputs const& child_outputs
         ) {
             constexpr int Num = tla::tuple_size<ChildOutputs>::value;
-            return call_current_expand<I>(
+            return call_current_expand<I, ElementAccumulator>(
+                gmSubblockC, layoutSubblockC,
                 tileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, stage,
                 child_outputs, tla::make_seq<Num>{}
             );
@@ -148,8 +161,10 @@ struct TopologicalVisitor : VisitorImpl<Ops...> {
         // 通过 collect_children 直接递归 visit_node，无需单独 dispatch_child
 
         // 统一入口：以根节点 R-1 开始访问
-        template <typename... Args>
+        template <typename ElementAccumulator, typename... Args>
         CATLASS_DEVICE auto visit(
+            AscendC::GlobalTensor<ElementAccumulator> const& gmSubblockC,
+            layout::RowMajor const& layoutSubblockC,
             MatrixCoord const& tileOffset,
             MatrixCoord const& localTileOffset,
             MatrixCoord const& actualTileShape,
@@ -164,7 +179,7 @@ struct TopologicalVisitor : VisitorImpl<Ops...> {
             }
             constexpr int R = sizeof...(Ops);
             using RootEdges = decltype(tla::get<R - 1>(EdgeTuple{}));
-            return visit_node<R - 1>(tileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, stage, RootEdges{}, args...);
+            return visit_node<R - 1, ElementAccumulator>(gmSubblockC, layoutSubblockC, tileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, stage, RootEdges{}, args...);
         }
     };
 
@@ -172,13 +187,10 @@ struct TopologicalVisitor : VisitorImpl<Ops...> {
     CATLASS_DEVICE auto get_callbacks(
         Arch::Resource<ArchTag>& resource,
         uint32_t& ub_offset,
-        uint32_t compute_length,
-        AscendC::GlobalTensor<half> const& gmSubblockC,
-        layout::RowMajor const& layoutSubblockC
+        uint32_t compute_length
     ) {
         auto base_callbacks = this->VisitorImpl<Ops...>::get_callbacks(
-            resource, ub_offset, compute_length,
-            gmSubblockC, layoutSubblockC
+            resource, ub_offset, compute_length
         );
         return Callbacks<decltype(base_callbacks)>(static_cast<decltype(base_callbacks)&&>(base_callbacks));
     }

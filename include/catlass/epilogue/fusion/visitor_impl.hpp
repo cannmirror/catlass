@@ -47,16 +47,12 @@ struct VisitorImpl : VisitorImplBase<Ops...> {
         Arch::Resource<ArchTag>& resource,
         uint32_t& ub_offset,
         uint32_t compute_length,
-        AscendC::GlobalTensor<half> const& gmSubblockC,
-        layout::RowMajor const& layoutSubblockC,
         tla::seq<Is...>
     ) {
         auto tuple_cbs = tla::tuple<
-            decltype(tla::get<Is>(ops).get_callbacks(resource, ub_offset, compute_length,
-                                                     gmSubblockC, layoutSubblockC))...
+            decltype(tla::get<Is>(ops).get_callbacks(resource, ub_offset, compute_length))...
         >(
-            tla::get<Is>(ops).get_callbacks(resource, ub_offset, compute_length,
-                                           gmSubblockC, layoutSubblockC)...
+            tla::get<Is>(ops).get_callbacks(resource, ub_offset, compute_length)...
         );
         return Callbacks<decltype(tuple_cbs)>(static_cast<decltype(tuple_cbs)&&>(tuple_cbs));
     }
@@ -65,13 +61,10 @@ struct VisitorImpl : VisitorImplBase<Ops...> {
     CATLASS_DEVICE auto get_callbacks(
         Arch::Resource<ArchTag>& resource,
         uint32_t& ub_offset,
-        uint32_t compute_length,
-        AscendC::GlobalTensor<half> const& gmSubblockC,
-        layout::RowMajor const& layoutSubblockC
+        uint32_t compute_length
     ) {
         return get_callbacks_impl(
             resource, ub_offset, compute_length,
-            gmSubblockC, layoutSubblockC,
             tla::make_seq<sizeof...(Ops)>{}
         );
     }
