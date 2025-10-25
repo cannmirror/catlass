@@ -333,12 +333,20 @@ public:
                         actualBlockShape.m(), actualBlockShape.n(), params.problemShape.n());
                     int64_t gmOffsetWC =
                         (AscendC::GetBlockIdx() / AIVPERCORE) * (mScalar * L1TileShape::M) * (nScalar * L1TileShape::N);
-                    Cast cast;
-                    cast.castFP32toFP16(gmWC[gmOffsetWC],
+                    PrologueB postCast;
+                    postCast.EpCastFp32ToFp16(
                         gmC[gmOffsetC],
+                        gmWC[gmOffsetWC],
                         layoutBlockC,
                         nScalar * L1TileShape::N,
-                        params.problemShape.n());
+                        params.problemShape.n()
+                    );
+                    //     Cast cast;
+                    // cast.castFP32toFP16(gmWC[gmOffsetWC],
+                    //     gmC[gmOffsetC],
+                    //     layoutBlockC,
+                    //     nScalar * L1TileShape::N,
+                    //     params.problemShape.n());
                 }
 
                 crossCoreBufferIndexAIV = 1 - crossCoreBufferIndexAIV;

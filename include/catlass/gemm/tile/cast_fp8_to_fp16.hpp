@@ -272,6 +272,146 @@ struct TileCastFp8ToFp16Dequant {
         }
     }
 
+    /*
+     * DATAFLOW: gmSrc<float> -> ubInTensor -> ubOutTensor -> gmDst
+    */
+    // CATLASS_DEVICE
+    // template<class InDType, class OutDType>
+    // ...
+    CATLASS_DEVICE
+    void EpCastFp32ToFp16 (
+        AscendC::GlobalTensor<half> gmDst, AscendC::GlobalTensor<float> gmSrc, 
+        LayoutSrc const &layoutSrc, uint32_t srcStride, uint32_t dstStride
+    )
+    {
+        using InDType = float;
+        using OutDType = half;
+
+        AscendC::LocalTensor<InDType> ubInTensor[BUFFER_NUM];
+        AscendC::LocalTensor<OutDType> ubOutTensor[BUFFER_NUM];
+
+        Arch::Resource<ArchTag> resource;
+        int64_t bufferOffset = 0;
+        const int64_t CAST_LENGTH = 32 * 1024 / sizeof(OutDType);  // 一次处理16K个数据
+        for (int i = 0; i < BUFFER_NUM; i++) {
+            ubInTensor[i] = resource.ubBuf.template GetBufferByByte<float>(bufferOffset);
+            bufferOffset += CAST_LENGTH * sizeof(InDType);  // float 4字节
+        }
+        for (int i = 0; i < BUFFER_NUM; i++) {
+            ubOutTensor[i] = resource.ubBuf.template GetBufferByByte<half>(bufferOffset);
+            bufferOffset += CAST_LENGTH * sizeof(OutDType);  // half 2字节
+        }
+
+        uint32_t tilesNum, tileLen, srcStride, dstStride;
+        if constexpr (std::is_same_v<LayoutSrc, layout::RowMajor>) {
+            tilesNum = layoutSrc.shape(0);
+            tileLen = layoutSrc.shape(1);
+            srcStride = layoutSrc.stride(0);
+            dstStride = layoutDst.stride(0);
+        } else if constexpr (std::is_same_v<LayoutSrc, layout::ColumnMajor>) {
+            tilesNum = layoutSrc.shape(1);
+            tileLen = layoutSrc.shape(0);
+            srcStride = layoutSrc.stride(1);
+            dstStride = layoutDst.stride(1);
+        }
+
+        uint32_t tilesPerAiv = tilesNum / AscendC::GetSubBlockNum();
+        uint32_t tilesRemain = tilesNum % AscendC::GetSubBlockNum();
+        if (AscendC::GetSubBlockIdx() < tilesRemain) {
+            tilesPerAiv++;
+        }
+
+        uint64_t taskSrcOffset = AscendC::GetSubBlockIdx() * tilesPerAiv * srcStride;
+        uint64_t taskDstOffset = AscendC::GetSubBlockIdx() * tilesPerAiv * dstStride;
+        if (AscendC::GetSubBlockIdx() >= tilesRemain) {
+            taskSrcOffset += tilesRemain * srcStride;
+            taskDstOffset += tilesRemain * dstStride;
+        }
+
+        uint32_t totalLoops = 0;
+        uint32_t loopsPerTile, tilesInALoop;
+        uint32_t tileLenRoundFp8 = RoundUp<Alignment, uint32_t>(tileLen);
+        if (tileLenRoundFp8 > COMPUTE_LENGTH / 2) { 
+            // One signle tile length is bigger than COMPUTE_LENGTH, which should be clipped.
+            loopsPerTile = CeilDiv(tileLen, COMPUTE_LENGTH);
+            totalLoops = tilesPerAiv * loopsPerTile;
+        }else if (tileLenRoundFp8 != 0) { 
+            // COMPUTE_LENGTH is bigger than tile length, such that more than one tiles can be arranged together.
+            tilesInALoop = COMPUTE_LENGTH / tileLenRoundFp8;
+            totalLoops = CeilDiv(tilesPerAiv, tilesInALoop);
+        } // tileLenRoundFp8 == 0 --> totalLoops = 0
+        
+        uint32_t tileTailLen = tileLen % COMPUTE_LENGTH;
+        uint64_t srcProcessOffset, dstProcessOffset;
+        uint32_t loadLen = COMPUTE_LENGTH, storeLen, loadRepeat = 1, storeRepeat = 1;
+        // uint32_t srcLoadStride = srcStride, dstLoadStride = tileLenRoundFp8, 
+        //         srcStoreStride = tileLenRoundFp8, dstStoreStride = dstStride;
+        for (int ldx=0; ldx < totalLoops; ldx++) {
+
+            // Dynamic compute length
+            if (tileLenRoundFp8 > COMPUTE_LENGTH / 2) {
+                uint32_t fullTileRounds    = ldx / loopsPerTile;
+                uint32_t residueTileRounds = ldx % loopsPerTile;
+                srcProcessOffset = taskSrcOffset + fullTileRounds * srcStride + residueTileRounds * COMPUTE_LENGTH;
+                dstProcessOffset = taskDstOffset + fullTileRounds * dstStride + residueTileRounds * COMPUTE_LENGTH;
+                
+                if ((residueTileRounds == loopsPerTile - 1) && (tileTailLen != 0)) {
+                    loadLen = tileTailLen;
+                }
+            }else {
+                uint32_t fullTileRounds = ldx * tilesInALoop;
+                srcProcessOffset = taskSrcOffset + fullTileRounds * srcStride;
+                dstProcessOffset = taskDstOffset + fullTileRounds * dstStride;
+
+                loadLen = tileLen;
+                storeLen = tileLen;
+                loadRepeat = tilesInALoop;
+                storeRepeat = tilesInALoop;
+
+                if ((ldx == totalLoops - 1) && (tilesPerAiv % tilesInALoop != 0)) {
+                    loadRepeat = tilesPerAiv % tilesInALoop;
+                    storeRepeat = loadRepeat;
+                }
+            }
+            
+            // copy GM -> UB <fp32>
+            AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EventIdBufferForCast[bufferIndexForCast]);
+            AscendC::DataCopyExtParams dataCopyParamsIn(
+                loadRepeat,
+                loadLen * sizeof(InDType),                         // float loaded
+                (srcStride - loadLen) * sizeof(InDType),
+                (tileLenRoundFp8 - loadLen) * sizeof(InDType) / BYTE_PER_BLK,
+                0
+            );
+            AscendC::DataCopyPadExtParams<InDType> padParams(false, 0, 0, 0);
+
+            AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EventIdBuffer[bufferIndex]);
+            AscendC::DataCopyPad(ubInTensor[bufferIndexForCast], gmSrc[srcProcessOffset], 
+                                    dataCopyParamsIn, padParams);
+            // Begin casting ...
+            AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(EventIdBufferForCast[bufferIndexForCast]);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(EventIdBufferForCast[bufferIndexForCast]);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EventIdBufferForCast[bufferIndexForCast]);
+            AscendC::Cast(ubOutTensor[bufferIndexForCast], ubInTensor[bufferIndexForCast], 
+                            AscendC::RoundMode::CAST_RINT, CAST_LENGTH);
+            AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EventIdBufferForCast[bufferIndexForCast]);
+            AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EventIdBufferForCast[bufferIndexForCast]);
+            AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(EventIdBufferForCast[bufferIndexForCast]);
+            // End casting ...
+            
+            AscendC::DataCopyExtParams dataCopyParams(
+                storeRepeat,
+                storeLen * sizeof(OutDType),
+                (tileLenRoundFp8 - storeLen) * sizeof(OutDType) / BYTE_PER_C0,
+                (dstStride - storeLen) * sizeof(OutDType),
+                0
+            );
+            AscendC::DataCopyPad(gmDst[dstProcessOffset], ubOutTensor[bufferIndexForCast], dataCopyParams);
+            AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EventIdBuffer[bufferIndex]);
+            bufferIndexForCast = (bufferIndexForCast + 1) % BUFFER_NUM;
+        }
+    }
+
 private:
     static const uint32_t BUFFER_NUM = 2;
     AscendC::LocalTensor<int8_t> inputBuffer[BUFFER_NUM];
