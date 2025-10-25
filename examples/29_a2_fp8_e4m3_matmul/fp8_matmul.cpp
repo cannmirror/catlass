@@ -79,21 +79,9 @@ static void Run(const Options &options) {
     std::vector<int8_t> hostA(lenA);
     std::vector<int8_t> hostB(lenB);
     std::string inFileAName = "../../examples/29_a2_fp8_e4m3_matmul/input/a_8.bin";
-    std::ifstream inFileA(inFileAName, std::ios::binary);
-    if (!inFileA.is_open()) {
-        std::cerr << "Failed to open inFileA: " << inFileAName << std::endl;
-    } else {
-        inFileA.read(reinterpret_cast<char *>(hostA.data()), sizeA);
-        inFileA.close();
-    }
+    ReadFile(inFileAName, hostA.data(), sizeA);
     std::string inFileBName = "../../examples/29_a2_fp8_e4m3_matmul/input/b_8.bin";
-    std::ifstream inFileB(inFileBName, std::ios::binary);
-    if (!inFileB.is_open()) {
-        std::cerr << "Failed to open inFileB: " << inFileBName << std::endl;
-    } else {
-        inFileB.read(reinterpret_cast<char *>(hostB.data()), sizeB);
-        inFileB.close();
-    }
+    ReadFile(inFileBName, hostB.data(), sizeB);
 
     uint8_t *deviceA{nullptr};
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceA), sizeA, ACL_MEM_MALLOC_HUGE_FIRST));
@@ -132,47 +120,29 @@ static void Run(const Options &options) {
     using BlockMmad = Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType>;
     using BlockEpilogue = void;
 
+    using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
     if (options.problemShape.m() > options.problemShape.n()) {
         // Swizzle offset is 3 and direction is 0.
         using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
-
-        // kernel level
-        using MatmulKernel =
-            Gemm::Kernel::FP8Matmul<BlockMmad, BlockEpilogue, BlockScheduler, mScalar, nScalar, splitkLength>;
-
-        using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
-        MatmulKernel::Arguments arguments{
-            options.problemShape, deviceA, deviceB, deviceC, deviceWA, deviceWB, deviceWC, scalar, zeroPoint};
-        MatmulAdapter matmulOp;
-        matmulOp.CanImplement(arguments);
-        sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
-        if (sizeWorkspace > 0) {
-            ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST)
-            );
-        }
-        matmulOp.Initialize(arguments, deviceWorkspace);
-        matmulOp(stream, aicCoreNum, fftsAddr);
-    } else {
-        // Swizzle offset is 3 and direction is 1.
-        using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
-
-        // kernel level
-        using MatmulKernel =
-            Gemm::Kernel::FP8Matmul<BlockMmad, BlockEpilogue, BlockScheduler, mScalar, nScalar, splitkLength>;
-
-        using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
-        MatmulKernel::Arguments arguments{
-            options.problemShape, deviceA, deviceB, deviceC, deviceWA, deviceWB, deviceWC, scalar, zeroPoint};
-        MatmulAdapter matmulOp;
-        matmulOp.CanImplement(arguments);
-        sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
-        if (sizeWorkspace > 0) {
-            ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST)
-            );
-        }
-        matmulOp.Initialize(arguments, deviceWorkspace);
-        matmulOp(stream, aicCoreNum, fftsAddr);
     }
+
+    // kernel level
+    using MatmulKernel =
+        Gemm::Kernel::FP8Matmul<BlockMmad, BlockEpilogue, BlockScheduler, mScalar, nScalar, splitkLength>;
+
+    using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
+    MatmulKernel::Arguments arguments{
+        options.problemShape, deviceA, deviceB, deviceC, deviceWA, deviceWB, deviceWC, scalar, zeroPoint};
+    MatmulAdapter matmulOp;
+    matmulOp.CanImplement(arguments);
+    sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
+    if (sizeWorkspace > 0) {
+        ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST)
+        );
+    }
+    matmulOp.Initialize(arguments, deviceWorkspace);
+    matmulOp(stream, aicCoreNum, fftsAddr);
+
     ACL_CHECK(aclrtSynchronizeStream(stream));
 
     std::vector<half> hostC(lenC);
@@ -188,7 +158,6 @@ static void Run(const Options &options) {
     std::string outputFileName = "../../examples/29_a2_fp8_e4m3_matmul/output/expected_data.bin";
     ReadFile(outputFileName, hostGolden.data(), sizeof(float) * hostGolden.size());
 
-    std::vector<float> hostCFP32(hostC.begin(), hostC.end());
     std::vector<uint64_t> errorIndices = golden::CompareData(hostC, hostGolden, k);
     if (errorIndices.empty()) {
         std::cout << "Compare success." << std::endl;
