@@ -154,16 +154,20 @@ struct TileCastFp8ToFp16Dequant {
     void operator() (
         AscendC::GlobalTensor<ElementDst> gmDst, LayoutDst const &layoutDst,
         AscendC::GlobalTensor<ElementSrc> gmSrc, LayoutSrc const &layoutSrc,
-        uint32_t srcStride, uint32_t dstStride, uint32_t &bufferIndex
+        uint32_t &bufferIndex
     )
     {
-        uint32_t tilesNum, tileLen;
+        uint32_t tilesNum, tileLen, srcStride, dstStride;
         if constexpr (std::is_same_v<LayoutSrc, layout::RowMajor>) {
             tilesNum = layoutSrc.shape(0);
             tileLen = layoutSrc.shape(1);
+            srcStride = layoutSrc.stride(0);
+            dstStride = layoutDst.stride(0);
         } else if constexpr (std::is_same_v<LayoutSrc, layout::ColumnMajor>) {
             tilesNum = layoutSrc.shape(1);
             tileLen = layoutSrc.shape(0);
+            srcStride = layoutSrc.stride(1);
+            dstStride = layoutDst.stride(1);
         }
 
         uint32_t tilesPerAiv = tilesNum / AscendC::GetSubBlockNum();

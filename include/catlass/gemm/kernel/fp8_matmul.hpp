@@ -178,10 +178,8 @@ public:
         AscendC::GlobalTensor<float> gmWC;
         gmWC.SetGlobalBuffer((__gm__ float *)params.ptrWC);
 
-        constexpr bool isLayoutARowMajor = std::is_same_v<LayoutA, Catlass::layout::RowMajor>;
-        constexpr bool isLayoutBRowMajor = std::is_same_v<LayoutB, Catlass::layout::RowMajor>;
-        uint32_t srcAStride = isLayoutARowMajor ? params.problemShape.k(): params.problemShape.m();
-        uint32_t srcBStride = isLayoutBRowMajor ? params.problemShape.n(): params.problemShape.k();
+        uint32_t srcAStride = params.layoutA.stride(std::is_same_v<LayoutA, Catlass::layout::RowMajor> ? 0:1);
+        uint32_t srcBStride = params.layoutB.stride(std::is_same_v<LayoutB, Catlass::layout::RowMajor> ? 0:1);
 
         AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID0);
         AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID1);
@@ -256,8 +254,10 @@ public:
                     notEndTask = 1U;
                     Catlass::Arch::CrossCoreWaitFlag(flag0[crossCoreBufferIndexAIV]);
 
-                    layoutWA = LayoutA(actualBlockShape.m(), kActual, kActualAligned);
-                    layoutWB = LayoutB(kActual, actualBlockShape.n(), actualBlockShape.n());
+                    // layoutWA = LayoutA(actualBlockShape.m(), kActual, kActualAligned);
+                    // layoutWB = LayoutB(kActual, actualBlockShape.n(), actualBlockShape.n());
+                    layoutWA = LayoutA(actualBlockShape.m(), kActual, srcAStride);
+                    layoutWB = LayoutB(kActual, actualBlockShape.n(), srcBStride);
                 } 
                 if (ldk < kLoop - 1) {
                     notEndTask = 1U;
@@ -266,14 +266,16 @@ public:
                                                : splitkLength;
                     kActualAligned_ = (kActualNext + 256 - 1) / 256 * 256;
 
-                    layoutWA = LayoutA(actualBlockShape.m(), kActualNext, kActualAligned_);
-                    layoutWB = LayoutB(kActualNext, actualBlockShape.n(), actualBlockShape.n());
+                    // layoutWA = LayoutA(actualBlockShape.m(), kActualNext, kActualAligned_);
+                    // layoutWB = LayoutB(kActualNext, actualBlockShape.n(), actualBlockShape.n());
+                    layoutWA = LayoutA(actualBlockShape.m(), kActualNext, srcAStride);
+                    layoutWB = LayoutB(kActualNext, actualBlockShape.n(), srcBStride);
 
                     Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(flag1[crossCoreBufferIndexAIV]);
                     Catlass::Arch::CrossCoreWaitFlag(flag0[1 - crossCoreBufferIndexAIV]);
-
-                    gmOffsetA += isLayoutARowMajor ? kActual: kActual * params.problemShape.m();
-                    gmOffsetB += isLayoutBRowMajor ? kActual * params.problemShape.n(): kActual;
+                    
+                    gmOffSetA == params.layoutA.GetOffset(MakeCoord(0U, kActual));
+                    gmOffsetB == params.layoutB.GetOffset(MakeCoord(kActual, 0U));
                 }
 
                 if ((ldk == kLoop - 1) && hasNextBlock) {
@@ -283,8 +285,10 @@ public:
                                                : splitkLength;
                     kActualAligned_ = (kActualNext + 256 - 1) / 256 * 256;
 
-                    layoutWA = LayoutA(nextActualBlockShape.m(), kActualNext, kActualNext);
-                    layoutWB = LayoutB(kActualNext, nextActualBlockShape.n(), nextActualBlockShape.n());
+                    // layoutWA = LayoutA(nextActualBlockShape.m(), kActualNext, kActualNext);
+                    // layoutWB = LayoutB(kActualNext, nextActualBlockShape.n(), nextActualBlockShape.n());
+                    layoutWA = LayoutA(nextActualBlockShape.m(), kActualNext, srcAStride);
+                    layoutWB = LayoutB(kActualNext, nextActualBlockShape.n(), srcBStride);
 
                     Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(flag1[crossCoreBufferIndexAIV]);
                     Catlass::Arch::CrossCoreWaitFlag(flag0[1 - crossCoreBufferIndexAIV]);
@@ -296,18 +300,16 @@ public:
                     int64_t gmOffsetWA_ = (isFirstBlock && ldk == 0) ? gmOffsetWA: gmOffsetNextWA;
                     int64_t gmOffsetWB_ = (isFirstBlock && ldk == 0) ? gmOffsetWB: gmOffsetNextWB;
 
-                    uint32_t dstAStride = isLayoutARowMajor ? kActualAligned_ : layoutWA.shape(0);
-                    uint32_t dstBStride = isLayoutBRowMajor ? layoutWB.shape(1): kActualAligned_;
+                    LayoutA layoutDstA(layoutWA.shape(0), kActualAligned_);
+                    LayoutB layoutDstB(kActualAligned_, layoutWB.shape(1));
 
                     PrologueA prologueA(resource, 
                         PrologueAParams(params.scalar, params.zeroPoint));
                     prologueA(
                         gmWA[gmOffsetWA_],
-                        layoutWA,
+                        layoutDstA,
                         gmA[gmOffsetA_],
                         layoutWA,
-                        srcAStride,
-                        dstAStride,
                         bufferIndex
                     );
                     
@@ -315,11 +317,9 @@ public:
                         PrologueBParams(params.scalar, params.zeroPoint));
                     prologueA(
                         gmWB[gmOffsetWB_],
-                        layoutWB,
+                        layoutDstB,
                         gmB[gmOffsetB_],
                         layoutWB,
-                        srcBStride,
-                        dstBStride,
                         bufferIndex
                     );
                 }
