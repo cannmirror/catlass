@@ -102,15 +102,15 @@ struct VisitorColReduce : VisitorImpl<> {
                 if constexpr (std::is_same_v<ReduceFn<Element>, Plus<Element>>) {
                     // Sum: hardware ReduceSum over the contiguous row segment
                     for (uint32_t r = 0; r < actualRows; ++r) {
-                        AscendC::ReduceSum<Element>(ubRowReduce[r], input[r * alignedCols], ubWork, actualCols);
+                        AscendC::ReduceSum<Element>(ubRowReduce[r*alignedCols], input[r * alignedCols], ubWork, actualCols);
                     }
                 } else if constexpr (std::is_same_v<ReduceFn<Element>, Maximum<Element>>) {
                     for (uint32_t r = 0; r < actualRows; ++r) {
-                        AscendC::ReduceMax<Element>(ubRowReduce[r], input[r * alignedCols], ubWork, actualCols);
+                        AscendC::ReduceMax<Element>(ubRowReduce[r*alignedCols], input[r * alignedCols], ubWork, actualCols);
                     }
                 } else if constexpr (std::is_same_v<ReduceFn<Element>, Minimum<Element>>) {
                     for (uint32_t r = 0; r < actualRows; ++r) {
-                        AscendC::ReduceMin<Element>(ubRowReduce[r], input[r * alignedCols], ubWork, actualCols);
+                        AscendC::ReduceMin<Element>(ubRowReduce[r*alignedCols], input[r * alignedCols], ubWork, actualCols);
                     }
                 } else {
                     // Unsupported reduce op for column reduction currently
@@ -124,7 +124,7 @@ struct VisitorColReduce : VisitorImpl<> {
 
                 auto gmTile = gmColOut[params_ptr->layout.GetOffset(MatrixCoord{globalTileOffset.row(), 0})];
                 // UB view for {actualRows, 1}
-                auto layoutUbCol = layout::RowMajor::MakeLayoutInUb<Element>(MatrixCoord{actualRows, 1u});
+                auto layoutUbCol = layout::RowMajor{actualRows, 1, alignedCols};
                 using CopyUb2GmT = Epilogue::Tile::CopyUb2Gm<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>>;
                 CopyUb2GmT copyUb2Gm{};
 

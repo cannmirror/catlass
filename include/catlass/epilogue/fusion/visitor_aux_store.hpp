@@ -84,7 +84,8 @@ struct VisitorAuxStore : VisitorImpl<> {
                 // 写回 GM（使用全局坐标，tile 封装处理跨距）
                 if (params_ptr->ptr_aux != nullptr) {
                     // GM store 使用 actualTileShape，UB layout 使用 alignedTileShape
-                    auto layoutUb = layout::RowMajor::MakeLayoutInUb<Element>(alignedTileShape);
+                    // auto layoutUb = layout::RowMajor::MakeLayoutInUb<Element>(alignedTileShape);
+                    auto layoutUb = layout::RowMajor{actualTileShape.row(), actualTileShape.column(), alignedTileShape.column()};
                     using CopyUb2GmT = Epilogue::Tile::CopyUb2Gm<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>>;
                     CopyUb2GmT copyUb2Gm{};
                     AscendC::GlobalTensor<Element> gmAux;

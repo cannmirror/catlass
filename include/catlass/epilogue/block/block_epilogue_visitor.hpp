@@ -140,7 +140,8 @@ public:
             // 检查是否需要列分块
             if (cols <= COMPUTE_LENGTH) {
                 // 列宽 <= COMPUTE_LENGTH，可以处理完整行宽
-                uint32_t maxRowsPerTile = COMPUTE_LENGTH / RoundUp<BYTE_PER_C0 / sizeof(half)>(cols);
+                uint32_t colsAligned = RoundUp<BYTE_PER_C0>(cols);
+                uint32_t maxRowsPerTile = COMPUTE_LENGTH / colsAligned;
                 if (maxRowsPerTile == 0) maxRowsPerTile = 1;  // 防止除零
                 
                 uint32_t remainRows = rows - r;
@@ -150,12 +151,12 @@ public:
                 MatrixCoord localTileOffset{r, 0};
                 // 计算全局绝对坐标
                 MatrixCoord globalTileOffset = blockOffset + subblockOffset + localTileOffset;
-                uint32_t calCount = tileRows * cols;
+                uint32_t calCount = tileRows * colsAligned;
                 
                 // 计算对齐的 tile shape
                 MatrixCoord alignedTileShape{
                     tileShape.row(),
-                    RoundUp<BYTE_PER_C0 / sizeof(half)>(tileShape.column())
+                    colsAligned
                 };
                 
                 // 统一流水：执行一次 tile 的 Load-Compute-Store
@@ -167,6 +168,8 @@ public:
                     uint32_t remainCols = cols - c;
                     uint32_t tileCols = (remainCols < COMPUTE_LENGTH) ? remainCols : COMPUTE_LENGTH;
                     
+                    uint32_t colsAligned = RoundUp<BYTE_PER_C0>(tileCols);
+
                     MatrixCoord tileShape{1, tileCols};
                     MatrixCoord localTileOffset{r, c};
                     // 计算全局绝对坐标
@@ -176,7 +179,7 @@ public:
                     // 计算对齐的 tile shape
                     MatrixCoord alignedTileShape{
                         tileShape.row(),
-                        RoundUp<BYTE_PER_C0 / sizeof(half)>(tileShape.column())
+                        colsAligned
                     };
                     
                     // 统一流水：执行一次 tile 的 Load-Compute-Store

@@ -100,11 +100,17 @@ struct VisitorColBroadcast : VisitorImpl<> {
             if (stage == VisitStage::COMPUTE) {
                 // 列向广播：LOAD阶段将每行标量按{actualRows,1}布局写入ubOut的连续位置r
                 // 此处从偏移r读取，然后复制到按alignedCols对齐的一整行
+                AscendC::SetFlag<AscendC::HardEvent::V_S>(0);
+                AscendC::WaitFlag<AscendC::HardEvent::V_S>(0);
                 for (uint32_t r = 0; r < actualRows; ++r) {
                     Element v = ubOut.GetValue(r * alignedCols);
                     // AscendC::SetFlag<AscendC::HardEvent::S_V>(0);
                     // AscendC::WaitFlag<AscendC::HardEvent::S_V>(0);
-                    AscendC::Duplicate<Element>(ubOut[r * alignedCols], v, alignedCols);
+                    // AscendC::PipeBarrier<PIPE_S>();
+                    // if (AscendC::GetBlockIdx() == 0 && AscendC::GetSubBlockIdx() == 0 && r < 10) {
+                    //     cce::printf("v: %f\n", v);
+                    // }
+                    AscendC::Duplicate<Element>(ubOut[r * alignedCols], v, actualCols);
                     // AscendC::PipeBarrier<PIPE_V>();
                 }
             }
