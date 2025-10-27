@@ -36,7 +36,7 @@ struct CopyL1ToFP<ArchTag, Catlass::Gemm::GemmType<ElementSrc, layout::VectorLay
     using LayoutDst = layout::VectorLayout;
     using LayoutSrc = layout::VectorLayout;
 
-    static constexpr uint32_t ELE_NUM_PER_C2 =  BYTE_PER_C2 / sizeof(ElementSrc);
+    static constexpr uint32_t ELE_NUM_PER_FP =  BYTE_PER_BLK_FP / sizeof(ElementSrc);
 
     CATLASS_DEVICE
     CopyL1ToFP(){}
@@ -49,7 +49,7 @@ struct CopyL1ToFP<ArchTag, Catlass::Gemm::GemmType<ElementSrc, layout::VectorLay
     ){
         AscendC::DataCopyParams intriParams;
         intriParams.blockCount = 1;
-        intriParams.blockLen = (layoutDst.shape(0) + ELE_NUM_PER_C2 - 1) / ELE_NUM_PER_C2;
+        intriParams.blockLen = (layoutDst.shape(0) + ELE_NUM_PER_FP - 1) / ELE_NUM_PER_FP;
         intriParams.srcStride = 0;
         intriParams.dstStride = 0;
         AscendC::DataCopy(dstTensor, srcTensor, intriParams);
