@@ -16,6 +16,7 @@
 #include "catlass/detail/tag_to_layout.hpp"
 #include "tla/tensor.hpp"
 #include "catlass/gemm/tile/copy_gm_to_l1.hpp"
+#include "catlass/gemm/tile/copy_l1_to_fp.hpp"
 #include "catlass/gemm/tile/copy_l0c_to_gm.hpp"
 #include "catlass/gemm/tile/copy_l1_to_l0a.hpp"
 #include "catlass/gemm/tile/copy_l1_to_l0b.hpp"
@@ -324,6 +325,37 @@ struct ReluTileCopy : public TileCopy<ArchTag, AType, BType, CType, BiasType> {
     using ElementAccumulator = typename TileCopy<ArchTag, AType, BType, CType, BiasType>::ElementAccumulator;
     using CopyL0CToGm = Gemm::Tile::CopyL0CToGm<ArchTag, ElementAccumulator, CType,
         Catlass::Gemm::Tile::ScaleGranularity::NO_QUANT, true>;
+};
+
+// fixpipe开启随路量化
+template <
+    /// Tag indicating architecture
+    class ArchTag,
+    /// GemmType for A matrix operand
+    class AType,
+    /// GemmType type for B matrix operand
+    class BType,
+    /// GemmType type for C matrix operand
+    class CType,
+    /// GemmType type for Bias operand
+    class BiasType = void,
+    /// GemmType type for Bias operand
+    ScaleGranularity SCALE_GRANU = ScaleGranularity::PER_TENSOR
+>
+struct QuantTileCopy : public TileCopy<ArchTag, AType, BType, CType, BiasType> {
+    // 重写 CopyL0CToGm
+    using ElementAccumulator = typename TileCopy<ArchTag, AType, BType, CType, BiasType>::ElementAccumulator;
+    using CopyL0CToGm = Gemm::Tile::CopyL0CToGm<ArchTag, ElementAccumulator, CType, SCALE_GRANU, false>;
+
+    using CopyGmToL1Scale = Gemm::Tile::CopyGmToL1<ArchTag,
+        Gemm::GemmType<uint64_t, layout::VectorLayout, AscendC::TPosition::GM>,
+        Gemm::GemmType<uint64_t, layout::VectorLayout, AscendC::TPosition::A1>
+    >;
+
+    using CopyL1ToFP = Gemm::Tile::CopyL1ToFP<ArchTag,
+        Gemm::GemmType<uint64_t, layout::VectorLayout, AscendC::TPosition::A1>,
+        Gemm::GemmType<uint64_t, layout::VectorLayout, AscendC::TPosition::C2PIPE2GM>
+    >;
 };
 
 } // namespace Catlass::Gemm::Tile
