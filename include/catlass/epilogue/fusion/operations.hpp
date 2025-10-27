@@ -4,6 +4,41 @@
 #include "catlass/catlass.hpp"
 
 namespace Catlass::Epilogue::Fusion {
+// 指数一元算子
+template <typename T>
+struct ExpOp {
+    CATLASS_DEVICE
+    void operator()(AscendC::LocalTensor<T>& dst,
+                    AscendC::LocalTensor<T> const& src,
+                    uint32_t compute_length) const {
+        AscendC::Exp(dst, src, compute_length);
+    }
+};
+
+// 减法二元算子 dst = src0 - src1
+template <typename T>
+struct SubOp {
+    CATLASS_DEVICE
+    void operator()(AscendC::LocalTensor<T>& dst,
+                    AscendC::LocalTensor<T> const& src0,
+                    AscendC::LocalTensor<T> const& src1,
+                    uint32_t compute_length) const {
+        AscendC::Sub(dst, src0, src1, compute_length);
+    }
+};
+
+// 除法二元算子 dst = src0 / src1
+template <typename T>
+struct DivOp {
+    CATLASS_DEVICE
+    void operator()(AscendC::LocalTensor<T>& dst,
+                    AscendC::LocalTensor<T> const& src0,
+                    AscendC::LocalTensor<T> const& src1,
+                    uint32_t compute_length) const {
+        AscendC::Div(dst, src0, src1, compute_length);
+    }
+};
+
 
 // 类型转换操作符（3参数版本）
 template <
