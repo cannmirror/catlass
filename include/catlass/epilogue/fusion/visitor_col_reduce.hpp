@@ -13,7 +13,7 @@ namespace Catlass::Epilogue::Fusion {
 //
 // NOTE: First implementation focuses on ReduceFn = Plus (sum) to enable simple atomic accumulation.
 //       ReduceFn = Maximum/Minimum can be added similarly when needed.
-template <template<class> class ReduceFn, class Element, class Layout = layout::RowMajor>
+template <template<class> class ReduceFn, class Element, class Layout = layout::RowMajor, ReduceStrategy Strategy = ReduceStrategy::ATOMIC_REDUCE>
 struct VisitorColReduce : VisitorImpl<> {
     using VisitorImpl<>::VisitorImpl;
 
@@ -48,8 +48,22 @@ struct VisitorColReduce : VisitorImpl<> {
 
     template <class ProblemShape>
     CATLASS_HOST_DEVICE static size_t
-    get_workspace_size(ProblemShape const&, Arguments const&) {
+    get_workspace_size(ProblemShape const& problem_shape, Arguments const& args) {
+        if constexpr (Strategy == ReduceStrategy::WORKSPACE_REDUCE) {
+            // TODO: 计算 workspace 大小
+            return 0;
+        }
         return 0;
+    }
+
+    template <class ProblemShape>
+    CATLASS_HOST_DEVICE static bool
+    initialize_workspace(ProblemShape const& problem_shape, Arguments const& args, void* workspace) {
+        if constexpr (Strategy == ReduceStrategy::WORKSPACE_REDUCE) {
+            // TODO: 初始化 workspace
+            return true;
+        }
+        return true;
     }
 
     template <class ProblemShape>
@@ -98,40 +112,18 @@ struct VisitorColReduce : VisitorImpl<> {
             uint32_t alignedCols = alignedTileShape.column();
 
             if (stage == VisitStage::COMPUTE) {
-                // Reduce each row of the tile over columns to a scalar
-                if constexpr (std::is_same_v<ReduceFn<Element>, Plus<Element>>) {
-                    // Sum: hardware ReduceSum over the contiguous row segment
-                    for (uint32_t r = 0; r < actualRows; ++r) {
-                        AscendC::ReduceSum<Element>(ubRowReduce[r*alignedCols], input[r * alignedCols], ubWork, actualCols);
-                    }
-                } else if constexpr (std::is_same_v<ReduceFn<Element>, Maximum<Element>>) {
-                    for (uint32_t r = 0; r < actualRows; ++r) {
-                        AscendC::ReduceMax<Element>(ubRowReduce[r*alignedCols], input[r * alignedCols], ubWork, actualCols);
-                    }
-                } else if constexpr (std::is_same_v<ReduceFn<Element>, Minimum<Element>>) {
-                    for (uint32_t r = 0; r < actualRows; ++r) {
-                        AscendC::ReduceMin<Element>(ubRowReduce[r*alignedCols], input[r * alignedCols], ubWork, actualCols);
-                    }
-                } else {
-                    // Unsupported reduce op for column reduction currently
-                }
+                // 使用策略化的计算逻辑
+                ColReduceCompute<ReduceFn, Element, Strategy>::compute(
+                    ubRowReduce, ubWork, input, actualRows, actualCols, alignedCols);
             }
 
             if (stage == VisitStage::STORE) {
-                // Atomic write back to GM column vector at rows [globalTileOffset.row(), ...)
+                // 使用策略化的存储逻辑
                 AscendC::GlobalTensor<Element> gmColOut;
                 gmColOut.SetGlobalBuffer((__gm__ Element*)(params_ptr->ptr_col_out));
-
-                auto gmTile = gmColOut[params_ptr->layout.GetOffset(MatrixCoord{globalTileOffset.row(), 0})];
-                // UB view for {actualRows, 1}
-                auto layoutUbCol = layout::RowMajor{actualRows, 1, alignedCols};
-                using CopyUb2GmT = Epilogue::Tile::CopyUb2Gm<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>>;
-                CopyUb2GmT copyUb2Gm{};
-
-                AtomicSetter<ReduceFn, Element>::set();
-                auto layoutDst = params_ptr->layout.GetTileLayout(MatrixCoord{actualRows, 1u});
-                copyUb2Gm(gmTile, ubRowReduce, layoutDst, layoutUbCol);
-                AtomicSetter<ReduceFn, Element>::clear();
+                
+                ColReduceCompute<ReduceFn, Element, Strategy>::store(
+                    gmColOut, ubRowReduce, globalTileOffset, actualTileShape, params_ptr->layout);
             }
             return input;
         }

@@ -12,7 +12,7 @@ namespace Catlass::Epilogue::Fusion {
 // Reduce the entire MxN tile to a single scalar and accumulate to GM.
 // COMPUTE stage: perform scalar reduction and store in UB.
 // STORE stage: atomically write the scalar result back to GM.
-template <template<class> class ReduceFn, class Element, class Layout = layout::RowMajor>
+template <template<class> class ReduceFn, class Element, class Layout = layout::RowMajor, ReduceStrategy Strategy = ReduceStrategy::ATOMIC_REDUCE>
 struct VisitorScalarReduce : VisitorImpl<> {
     using VisitorImpl<>::VisitorImpl;
 
@@ -46,8 +46,22 @@ struct VisitorScalarReduce : VisitorImpl<> {
 
     template <class ProblemShape>
     CATLASS_HOST_DEVICE static size_t
-    get_workspace_size(ProblemShape const&, Arguments const&) {
+    get_workspace_size(ProblemShape const& problem_shape, Arguments const& args) {
+        if constexpr (Strategy == ReduceStrategy::WORKSPACE_REDUCE) {
+            // TODO: 计算 workspace 大小
+            return 0;
+        }
         return 0;
+    }
+
+    template <class ProblemShape>
+    CATLASS_HOST_DEVICE static bool
+    initialize_workspace(ProblemShape const& problem_shape, Arguments const& args, void* workspace) {
+        if constexpr (Strategy == ReduceStrategy::WORKSPACE_REDUCE) {
+            // TODO: 初始化 workspace
+            return true;
+        }
+        return true;
     }
 
     template <class ProblemShape>
@@ -96,32 +110,18 @@ struct VisitorScalarReduce : VisitorImpl<> {
             uint32_t alignedCols = alignedTileShape.column();
 
             if (stage == VisitStage::COMPUTE) {
-                AscendC::Duplicate(ubScalar, params_ptr->identity, actualRows * actualCols);
-                if constexpr (std::is_same_v<ReduceFn<Element>, Plus<Element>>) {
-                    // Sum: hardware ReduceSum over the contiguous row segment
-                    AscendC::ReduceSum<Element>(ubScalar, input, ubWork, actualRows * actualCols);
-                } else if constexpr (std::is_same_v<ReduceFn<Element>, Maximum<Element>>) {
-                    AscendC::ReduceMax<Element>(ubScalar, input, ubWork, actualRows * actualCols);
-                } else if constexpr (std::is_same_v<ReduceFn<Element>, Minimum<Element>>) {
-                    AscendC::ReduceMin<Element>(ubScalar, input, ubWork, actualRows * actualCols);
-                } else {
-                    // Unsupported reduce op for scalar reduction currently
-                }
+                // 使用策略化的计算逻辑
+                ScalarReduceCompute<ReduceFn, Element, Strategy>::compute(
+                    ubScalar, ubWork, input, params_ptr->identity, actualRows, actualCols);
             }
 
             if (stage == VisitStage::STORE) {
+                // 使用策略化的存储逻辑
                 AscendC::GlobalTensor<Element> gmOut;
                 gmOut.SetGlobalBuffer((__gm__ Element*)(params_ptr->ptr_scalar_out));
-                auto gmTile = gmOut[params_ptr->layout.GetOffset(MatrixCoord{0u, 0u})];
-
-                using CopyUb2GmT = Epilogue::Tile::CopyUb2Gm<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>>;
-                CopyUb2GmT copyUb2Gm{};
-                auto layoutUbScalar = layout::RowMajor::MakeLayoutInUb<Element>(MatrixCoord{1u, 1u});
-                auto layoutDst = params_ptr->layout.GetTileLayout(MatrixCoord{1u, 1u});
-
-                AtomicSetter<ReduceFn, Element>::set();
-                copyUb2Gm(gmTile, ubScalar, layoutDst, layoutUbScalar);
-                AtomicSetter<ReduceFn, Element>::clear();
+                
+                ScalarReduceCompute<ReduceFn, Element, Strategy>::store(
+                    gmOut, ubScalar, params_ptr->layout);
             }
 
             return input;

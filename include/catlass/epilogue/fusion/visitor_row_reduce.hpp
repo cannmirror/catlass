@@ -9,7 +9,7 @@ namespace Catlass::Epilogue::Fusion {
 
 // Row reduction over the tile along rows: reduce each column of the MxN tile into a 1xN vector,
 // then atomically reduce to a GM row vector. Returns input tensor to allow chaining.
-template <template<class> class ReduceFn, class Element, class Layout = layout::RowMajor>
+template <template<class> class ReduceFn, class Element, class Layout = layout::RowMajor, ReduceStrategy Strategy = ReduceStrategy::ATOMIC_REDUCE>
 struct VisitorRowReduce : VisitorImpl<> {
     using VisitorImpl<>::VisitorImpl;
 
@@ -44,8 +44,22 @@ struct VisitorRowReduce : VisitorImpl<> {
 
     template <class ProblemShape>
     CATLASS_HOST_DEVICE static size_t
-    get_workspace_size(ProblemShape const&, Arguments const&) {
+    get_workspace_size(ProblemShape const& problem_shape, Arguments const& args) {
+        if constexpr (Strategy == ReduceStrategy::WORKSPACE_REDUCE) {
+            // TODO: 计算 workspace 大小
+            return 0;
+        }
         return 0;
+    }
+
+    template <class ProblemShape>
+    CATLASS_HOST_DEVICE static bool
+    initialize_workspace(ProblemShape const& problem_shape, Arguments const& args, void* workspace) {
+        if constexpr (Strategy == ReduceStrategy::WORKSPACE_REDUCE) {
+            // TODO: 初始化 workspace
+            return true;
+        }
+        return true;
     }
 
     template <class ProblemShape>
@@ -94,35 +108,18 @@ struct VisitorRowReduce : VisitorImpl<> {
                 static_assert(std::is_same_v<ElementInput, Element>,
                               "VisitorRowReduce expects input type == Element. Insert VisitorCast if needed.");
                 
-                // 初始化 reduce buffer 为 identity
-                AscendC::Duplicate(ubReduce, params_ptr->identity, alignedCols);
-                if (actualRows > 0) {
-                    // 第一行：直接复制
-                    AscendC::DataCopy(ubReduce, input, alignedCols);
-                }
-                
-                // 后续行：规约操作
-                for (uint32_t r = 1; r < actualRows; ++r) {
-                    AscendC::PipeBarrier<PIPE_V>();
-                    ReduceFn<Element> reduce_fn{};
-                    reduce_fn(ubReduce, ubReduce, input[r * alignedCols], alignedCols);
-                }
+                // 使用策略化的计算逻辑
+                RowReduceCompute<ReduceFn, Element, Strategy>::compute(
+                    ubReduce, input, params_ptr->identity, actualRows, actualCols, alignedCols);
             }
 
             if (stage == VisitStage::STORE) {
-                // 原子写回 GM 使用 actualTileShape
+                // 使用策略化的存储逻辑
                 AscendC::GlobalTensor<Element> gmRowOut;
                 gmRowOut.SetGlobalBuffer((__gm__ Element*)(params_ptr->ptr_row_out));
-                auto gmTile = gmRowOut[params_ptr->layout.GetOffset(MatrixCoord{0, globalTileOffset.column()})];
-
-                // Prepare UB view for 1 x actualCols
-                auto layoutUbRowOut = layout::RowMajor::MakeLayoutInUb<Element>(MatrixCoord{1u, actualCols});
-                using CopyUb2GmT = Epilogue::Tile::CopyUb2Gm<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>>;
-                CopyUb2GmT copyUb2Gm{};
-                auto layoutDst = params_ptr->layout.GetTileLayout(MatrixCoord{1u, actualCols});
-                AtomicSetter<ReduceFn, Element>::set();
-                copyUb2Gm(gmTile, ubReduce, layoutDst, layoutUbRowOut);
-                AtomicSetter<ReduceFn, Element>::clear();
+                
+                RowReduceCompute<ReduceFn, Element, Strategy>::store(
+                    gmRowOut, ubReduce, globalTileOffset, actualTileShape, params_ptr->layout);
             }
             return input;
         }
