@@ -71,13 +71,9 @@ static void Run(const Options &options) {
     std::vector<fp16_t> hostA(lenA);
     std::vector<fp16_t> hostB(lenB);
     std::vector<fp16_t> hostX(lenX);
-    std::srand(std::time(nullptr));
     golden::FillRandomData<fp16_t>(hostA, -5.0f, 5.0f);
     golden::FillRandomData<fp16_t>(hostB, -5.0f, 5.0f);
     golden::FillRandomData<fp16_t>(hostX, -5.0f, 5.0f);
-    // golden::FillRandomData<fp16_t>(hostA, 1.0f, 1.0f);
-    // golden::FillRandomData<fp16_t>(hostB, 1.0f, 1.0f);
-    // golden::FillRandomData<fp16_t>(hostX, 1.0f, 1.0f);
 
     // Allocate device memory and copy data from host to device
     uint8_t *deviceA{nullptr};
@@ -88,13 +84,10 @@ static void Run(const Options &options) {
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceB), sizeB, ACL_MEM_MALLOC_HUGE_FIRST));
     ACL_CHECK(aclrtMemcpy(deviceB, sizeB, hostB.data(), sizeB, ACL_MEMCPY_HOST_TO_DEVICE));
 
-    // Allocate separate memory for X and D
-    uint8_t *deviceX{nullptr};
-    ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceX), sizeD, ACL_MEM_MALLOC_HUGE_FIRST));
-    ACL_CHECK(aclrtMemcpy(deviceX, sizeD, hostX.data(), sizeD, ACL_MEMCPY_HOST_TO_DEVICE));
-
+    // The data of X is stored on deviceD to save storage space
     uint8_t *deviceD{nullptr};
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceD), sizeD, ACL_MEM_MALLOC_HUGE_FIRST));
+    ACL_CHECK(aclrtMemcpy(deviceD, sizeD, hostX.data(), sizeD, ACL_MEMCPY_HOST_TO_DEVICE));
 
     // Prepare FFTS address
     uint64_t fftsAddr{0};
@@ -118,14 +111,18 @@ static void Run(const Options &options) {
     using BlockMmad = Gemm::Block::BlockMmad<MmadDispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType>;
 
     // 定义 EVT: D = C + X
-    constexpr uint32_t computeLength = 4096;
+
+    using LayoutX = LayoutC;
+    using LayoutD = LayoutC;
+
+    constexpr uint32_t computeLength = Epilogue::EpilogueAtlasA2Visitor::ArchTag::UB_SIZE /3/2/sizeof(half);
     
     using EVT = Epilogue::Fusion::TreeVisitor<
-        Epilogue::Fusion::VisitorAuxStore<half, LayoutC>,
+        Epilogue::Fusion::VisitorAuxStore<half, LayoutD>,
         Epilogue::Fusion::TreeVisitor<
             Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
             Epilogue::Fusion::VisitorAccLoad<half>,  // 加载 C (workspace)
-            Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>   // 加载 X
+            Epilogue::Fusion::VisitorAuxLoad<half, LayoutX>   // 加载 X
         >
     >;
 
@@ -141,82 +138,69 @@ static void Run(const Options &options) {
     typename EVT::Arguments evt_args{
         {
             {},
-            {deviceX, layoutD},
+            {deviceD, layoutD},
             {}
         },
         {deviceD, layoutD}
     };
 
-    // 更复杂的嵌套 EVT 示例：D = (((C + X1) + X2) + X3)
-    using EVT_Compute1 = Epilogue::Fusion::TreeVisitor<
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-        Epilogue::Fusion::VisitorAccLoad<half>,
-        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>
-    >;
-    using EVT_Compute2 = Epilogue::Fusion::TreeVisitor<
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-        EVT_Compute1,
-        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>
-    >;
-    using EVT_Compute3 = Epilogue::Fusion::TreeVisitor<
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-        EVT_Compute2,
-        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>
-    >;
-    using EVT_Complex = Epilogue::Fusion::TreeVisitor<
-        Epilogue::Fusion::VisitorAuxStore<half, LayoutC>,
-        EVT_Compute3
-    >;
-
-    typename EVT_Complex::Arguments evt_args_complex{
-        {
-            {
-                {
-                    {},
-                    {deviceX, layoutD},
-                    {}
-                },
-                {deviceX, layoutD},
-                {}
-            },
-            {deviceX, layoutD},
-            {}
-        },
-        {deviceD, layoutD}
-    };
-    (void)evt_args_complex; // 仅用于示例，不参与执行
 
     std::vector<fp16_t> hostD(lenD);
-    // Define BlockScheduler
-    // Swizzle offset is 3 and direction is 0.
-    using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
-    // Kernel level
-    using MatmulKernel = Gemm::Kernel::MatmulVisitor<BlockMmad, BlockEpilogue, BlockScheduler>;
-    // Prepare params
-    typename MatmulKernel::Arguments arguments{options.problemShape, deviceA, deviceB, evt_args};
-    using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
-    MatmulAdapter matmulOp;
-    size_t sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
-    uint8_t *deviceWorkspace{nullptr};
-    if (sizeWorkspace > 0) {
-        ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST)
-        );
-    }
-    matmulOp.Initialize(arguments, deviceWorkspace);
-    matmulOp(stream, aicCoreNum, fftsAddr);
-    ACL_CHECK(aclrtSynchronizeStream(stream));
-    if (sizeWorkspace > 0) {
-        ACL_CHECK(aclrtFree(deviceWorkspace));
-    }
+    if (m > n) {
+        // Define BlockScheduler
+        // Swizzle offset is 3 and direction is 0.
+        using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
+        // Kernel level
+        using MatmulKernel = Gemm::Kernel::MatmulVisitor<BlockMmad, BlockEpilogue, BlockScheduler>;
+        // Prepare params
+        typename MatmulKernel::Arguments arguments{options.problemShape, deviceA, deviceB, evt_args};
+        using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
+        MatmulAdapter matmulOp;
+        size_t sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
+        uint8_t *deviceWorkspace{nullptr};
+        if (sizeWorkspace > 0) {
+            ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST)
+            );
+        }
+        matmulOp.Initialize(arguments, deviceWorkspace);
+        matmulOp(stream, aicCoreNum, fftsAddr);
+        ACL_CHECK(aclrtSynchronizeStream(stream));
+        if (sizeWorkspace > 0) {
+            ACL_CHECK(aclrtFree(deviceWorkspace));
+        }
 
+        // Copy the result from device to host
+        ACL_CHECK(aclrtMemcpy(hostD.data(), sizeD, deviceD, sizeD, ACL_MEMCPY_DEVICE_TO_HOST));
+    } else {
+        // Define BlockScheduler
+        // Swizzle offset is 3 and direction is 1.
+        using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
+        // Kernel level
+        using MatmulKernel = Gemm::Kernel::MatmulVisitor<BlockMmad, BlockEpilogue, BlockScheduler>;
+        // Prepare params
+        typename MatmulKernel::Arguments arguments{options.problemShape, deviceA, deviceB, evt_args};
+        using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
+        MatmulAdapter matmulOp;
+        size_t sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
+        uint8_t *deviceWorkspace{nullptr};
+        if (sizeWorkspace > 0) {
+            ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST)
+            );
+        }
+        matmulOp.Initialize(arguments, deviceWorkspace);
+        matmulOp(stream, aicCoreNum, fftsAddr);
+        ACL_CHECK(aclrtSynchronizeStream(stream));
+        if (sizeWorkspace > 0) {
+            ACL_CHECK(aclrtFree(deviceWorkspace));
+        }
 
-    // Copy the result from device to host
-    ACL_CHECK(aclrtMemcpy(hostD.data(), sizeD, deviceD, sizeD, ACL_MEMCPY_DEVICE_TO_HOST));
+        // Copy the result from device to host
+        ACL_CHECK(aclrtMemcpy(hostD.data(), sizeD, deviceD, sizeD, ACL_MEMCPY_DEVICE_TO_HOST));
+    }
 
     // Compute the golden result
     std::vector<float> hostGolden(lenD);
     golden::ComputeMatmulElemWiseAdd(options.problemShape, hostA, layoutA, hostB, layoutB, hostX, hostGolden, layoutD);
-
 
     // Compare the result
     std::vector<uint64_t> errorIndices = golden::CompareData(hostD, hostGolden, k);
@@ -231,7 +215,6 @@ static void Run(const Options &options) {
 
     ACL_CHECK(aclrtFree(deviceA));
     ACL_CHECK(aclrtFree(deviceB));
-    ACL_CHECK(aclrtFree(deviceX));  // 新增
     ACL_CHECK(aclrtFree(deviceD));
 
     ACL_CHECK(aclrtDestroyStream(stream));
