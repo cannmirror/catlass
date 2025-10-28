@@ -55,12 +55,7 @@ public:
     bool Init();
     void Synchronize();
     std::pair<int64_t, int32_t> GetAicoreFreq();
-
-    inline void SetDeviceId(int32_t deviceId)
-    {
-        deviceId_ = deviceId;
-        profiler_.SetDeviceId(deviceId);
-    }
+    bool SetDeviceId(int32_t deviceId);
 
     inline std::vector<double> GetDurations()
     {
