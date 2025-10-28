@@ -34,13 +34,17 @@ struct TileCastInt4ToInt8 {
     using LayoutSrc = typename SrcType_::Layout;
     using LayoutDst = typename DstType_::Layout;
 
-    static constexpr uint32_t ELE_NUM_PER_BLK_INT8 = BYTE_PER_BLK / sizeof(ElementSrc);
+    static constexpr uint32_t ELE_NUM_PER_BLK_INT8 = BYTE_PER_BLK / sizeof(ElementDst);
+    static constexpr uint32_t ELE_NUM_PER_BLK_INT4 = BYTE_PER_BLK / sizeof(ElementDst) * 2;
+
+    static_assert(
+        sizeof(ElementSrc) == sizeof(ElementDst),
+        "Error: Src and Dst element sizes are equal (forbidden)"
+    );
 
     static_assert(
         std::is_same_v<LayoutSrc, layout::RowMajor> ||
-        std::is_same_v<LayoutSrc, layout::ColumnMajor> ||
-        std::is_same_v<LayoutSrc, layout::RowMajorInt4> ||
-        std::is_same_v<LayoutSrc, layout::ColumnMajorInt4>,
+        std::is_same_v<LayoutSrc, layout::ColumnMajor>,
         "Unsupported layout, only can be RowMajor, ColumnMajor or RowMajorInt4 or ColumnMajorInt4"
     );
 
@@ -54,7 +58,7 @@ struct TileCastInt4ToInt8 {
     TileCastInt4ToInt8(Arch::Resource<ArchTag> const &resource, Params const &params) {
         if constexpr (g_coreType == AscendC::AIV) {
             uint32_t ubOffset = 0;
-            uint32_t ubInSize = COMPUTE_LEN * sizeof(ElementSrc) / 2;
+            uint32_t ubInSize = COMPUTE_LEN * sizeof(int8_t) / 2;
             uint32_t ubOutSize = COMPUTE_LEN * sizeof(ElementDst);
             uint32_t ubWorkspaceSize = COMPUTE_LEN * sizeof(half);
             // Init buffers
@@ -93,14 +97,14 @@ struct TileCastInt4ToInt8 {
         uint32_t tilesNum = layoutSrc.shape(0);
         uint32_t tileLen = layoutSrc.shape(1);
         uint32_t tileLenRoundInt8 = RoundUp(layoutSrc.shape(1), ELE_NUM_PER_BLK_INT8);
-        uint32_t tileLenRoundInt4 = RoundUp((layoutSrc.shape(1) + 1) / 2, ELE_NUM_PER_BLK_INT8);
+        uint32_t tileLenRoundInt4 = RoundUp(layoutSrc.shape(1), ELE_NUM_PER_BLK_INT4);
         uint64_t tileStrideSrc = layoutSrc.stride(0);
         uint64_t tileStrideDst = layoutDst.stride(0);
-        if constexpr (std::is_same_v<LayoutSrc, layout::ColumnMajorInt4>) {
+        if constexpr (std::is_same_v<LayoutSrc, layout::ColumnMajor>) {
             tilesNum = layoutSrc.shape(1);
             tileLen = layoutSrc.shape(0);
             tileLenRoundInt8 = RoundUp(layoutSrc.shape(0), ELE_NUM_PER_BLK_INT8);
-            tileLenRoundInt4 = RoundUp((layoutSrc.shape(0) + 1) / 2, ELE_NUM_PER_BLK_INT8);
+            tileLenRoundInt4 = RoundUp(layoutSrc.shape(0), ELE_NUM_PER_BLK_INT4);
             tileStrideSrc = layoutSrc.stride(1);
             tileStrideDst = layoutDst.stride(1);
         }
@@ -108,13 +112,14 @@ struct TileCastInt4ToInt8 {
         if (AscendC::GetSubBlockIdx() < (tilesNum % AscendC::GetSubBlockNum())) {
             tilesPerAiv++;
         }
-        uint64_t taskOffsetSrc = AscendC::GetSubBlockIdx() * tilesPerAiv * ((tileStrideSrc + 1) / 2);
+        uint64_t taskOffsetSrc = AscendC::GetSubBlockIdx() * tilesPerAiv * tileStrideSrc;
         uint64_t taskOffsetDst = AscendC::GetSubBlockIdx() * tilesPerAiv * tileStrideDst;
         if (AscendC::GetSubBlockIdx() >= (tilesNum % AscendC::GetSubBlockNum())) {
-            taskOffsetSrc += (tilesNum % AscendC::GetSubBlockNum()) * ((tileStrideSrc + 1) / 2);
+            taskOffsetSrc += (tilesNum % AscendC::GetSubBlockNum()) * tileStrideSrc;
             taskOffsetDst += (tilesNum % AscendC::GetSubBlockNum()) * tileStrideDst;
         }
-        uint32_t tilesPerLoop = COMPUTE_LEN / tileLenRoundInt8;
+        // uint32_t tilesPerLoop = COMPUTE_LEN / tileLenRoundInt8;
+        uint32_t tilesPerLoop = 32;
         uint32_t loops = CeilDiv(tilesPerAiv, tilesPerLoop);
         uint32_t pingpong = 0;
         for (uint32_t loopIdx = 0; loopIdx < loops; loopIdx++) {
@@ -122,11 +127,11 @@ struct TileCastInt4ToInt8 {
             if (loopIdx == loops - 1) {
                 actualTiles = tilesPerAiv - loopIdx * tilesPerLoop;
             }
-            uint64_t tileOffsetSrc = loopIdx * tilesPerLoop * ((tileStrideSrc + 1) / 2);
+            uint64_t tileOffsetSrc = loopIdx * tilesPerLoop * tileStrideSrc;
             AscendC::DataCopyExtParams dataCopyParamsIn(
-                actualTiles, (tileLen + 1) / 2 * sizeof(ElementSrc),
-                ((tileStrideSrc + 1) / 2 - (tileLen + 1) / 2) * sizeof(ElementSrc),
-                (tileLenRoundInt4 - (tileLen + 1) / 2) / ELE_NUM_PER_BLK_INT8, 0
+                actualTiles, (tileLen + 1) / 2 * sizeof(int8_t),
+                (tileStrideSrc - tileLen) * sizeof(int8_t) / 2,
+                (tileLenRoundInt4 - tileLen) / ELE_NUM_PER_BLK_INT4, 0
             );
             AscendC::DataCopyPadExtParams<ElementSrc> padParams(false, 0, 0, 0);
 
@@ -139,20 +144,18 @@ struct TileCastInt4ToInt8 {
 
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_S>(ubEventList[pingpong]);
 
-            int4_workspace[pingpong] = ubInTensorList[pingpong].template ReinterpretCast<AscendC::int4b_t>();
-
             AscendC::SetFlag<AscendC::HardEvent::S_V>(ubEventList[pingpong]);
             AscendC::WaitFlag<AscendC::HardEvent::S_V>(ubEventList[pingpong]);
 
-            AscendC::Cast(ubWorkspaceList[pingpong], int4_workspace[pingpong],
-                AscendC::RoundMode::CAST_NONE, actualTiles * tileLenRoundInt4 * 2);
+            AscendC::Cast(ubWorkspaceList[pingpong], ubInTensorList[pingpong],
+                AscendC::RoundMode::CAST_NONE, actualTiles * tileLenRoundInt4);
 
             AscendC::PipeBarrier<PIPE_V>();
 
             AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(ubEventList[pingpong]);
 
             AscendC::Cast(ubOutTensorList[pingpong], ubWorkspaceList[pingpong],
-                AscendC::RoundMode::CAST_NONE, actualTiles * tileLenRoundInt4 * 2);
+                AscendC::RoundMode::CAST_NONE, actualTiles * tileLenRoundInt4);
 
             AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(ubEventList[pingpong]);
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(ubEventList[pingpong]);
@@ -160,7 +163,7 @@ struct TileCastInt4ToInt8 {
             uint64_t tileOffsetDst = loopIdx * tilesPerLoop * tileStrideDst;
             AscendC::DataCopyExtParams dataCopyParamsOut(
                 actualTiles, tileLen * sizeof(ElementDst),
-                (tileLenRoundInt4 * 2 - tileLen) / ELE_NUM_PER_BLK_INT8,
+                (tileLenRoundInt4 - tileLen) / ELE_NUM_PER_BLK_INT8,
                 (tileStrideDst - tileLen) * sizeof(ElementDst), 0
             );
             AscendC::DataCopyPad(gmDst[taskOffsetDst + tileOffsetDst],

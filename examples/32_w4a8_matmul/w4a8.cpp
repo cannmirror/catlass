@@ -58,12 +58,13 @@ void Run(Options const &options)
     float scalar = 1.5;
 
     using LayoutA = layout::RowMajor;
-    using LayoutPrologueB = layout::RowMajorInt4;
+    using LayoutPrologueB = layout::RowMajor;
     using LayoutB = layout::RowMajor;
     using LayoutC = layout::RowMajor;
 
     LayoutA layoutA{m, k};
-    LayoutPrologueB layoutPrologueB{k, n};
+    LayoutPrologueB layoutPrologueB{k, n, (n + 1) / 2 * 2};
+
     LayoutC layoutC{m, n};
 
     size_t lenA = static_cast<size_t>(m) * k;
@@ -71,9 +72,9 @@ void Run(Options const &options)
     size_t lenC = static_cast<size_t>(m) * n;
 
     uint64_t sizeA = layoutA.Capacity() * sizeof(int8_t);
-    uint64_t sizeB = layoutPrologueB.Capacity() * sizeof(int8_t);
+    uint64_t sizeB = layoutPrologueB.Capacity() / 2 * sizeof(int8_t);
     uint64_t sizeC = layoutC.Capacity() * sizeof(__fp16);
-    uint64_t goldenSize = layoutA.Capacity() * sizeof(float);
+    uint64_t goldenSize = layoutC.Capacity() * sizeof(float);
 
     void *hostA = nullptr;
     ACL_CHECK(aclrtMallocHost(&hostA, sizeA));
@@ -90,7 +91,7 @@ void Run(Options const &options)
     ReadFile(expected_path, hExpected.data(), goldenSize);
 
     using ElementA = int8_t;
-    using ElementPrologueB = int8_t;
+    using ElementPrologueB = AscendC::int4b_t;
     using ElementB = int8_t;
     using ElementC = half;
 
