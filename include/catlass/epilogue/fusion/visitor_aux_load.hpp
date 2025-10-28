@@ -103,6 +103,7 @@ struct VisitorAuxLoad : VisitorImpl<> {
     ) {
         auto ubAux = resource.ubBuf.template GetBufferByByte<Element>(ub_offset);
         ub_offset += compute_length * sizeof(Element);
+        assert(ub_offset <= ArchTag::UB_SIZE, "ub_offset exceeds ArchTag::UB_SIZE");
         return Callbacks(ubAux, &params, compute_length);
     }
 

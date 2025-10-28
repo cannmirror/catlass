@@ -85,6 +85,7 @@ struct VisitorCompute : VisitorImpl<> {
     ) {
         auto ubOut = resource.ubBuf.template GetBufferByByte<ElementCompute>(ub_offset);
         ub_offset += compute_length * sizeof(ElementCompute);
+        assert(ub_offset <= ArchTag::UB_SIZE, "ub_offset exceeds ArchTag::UB_SIZE");
         return Callbacks(ubOut, compute_length);
     }
 };

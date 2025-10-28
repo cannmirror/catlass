@@ -139,6 +139,7 @@ struct VisitorColReduce : VisitorImpl<> {
         ub_offset += compute_length * sizeof(Element);
         auto ubWork = resource.ubBuf.template GetBufferByByte<Element>(ub_offset);
         ub_offset += compute_length * sizeof(Element);
+        assert(ub_offset <= ArchTag::UB_SIZE, "ub_offset exceeds ArchTag::UB_SIZE");
         return Callbacks(ubRowReduce, ubWork, &params, compute_length);
     }
 
