@@ -15,8 +15,9 @@
 #include "catlass/epilogue/fusion/visitor_row_reduce.hpp"
 #include "catlass/epilogue/fusion/visitor_col_reduce.hpp"
 #include "catlass/epilogue/fusion/visitor_col_broadcast.hpp"
+#include "catlass/epilogue/fusion/visitor_scalar_broadcast.hpp"
+#include "catlass/epilogue/fusion/visitor_scalar_reduce.hpp"
 
 #endif
-
 
 

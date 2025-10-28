@@ -115,6 +115,7 @@ foreach(EXAMPLE
     34_matmul_add_topo
     35_row_broadcast_reduction_evt
     35_col_broadcast_reduction_evt
+    35_scalar_broadcast_reduction_evt
     36_softmax_multi_evt
     102_dynamic_optimized_matmul
 )
