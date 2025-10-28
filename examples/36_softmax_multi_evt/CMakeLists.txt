@@ -8,6 +8,6 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # ----------------------------------------------------------------------------
 
-set_source_files_properties(double_evt.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(36_double_evt mix double_evt.cpp)
-target_link_libraries(36_double_evt PRIVATE m)
+set_source_files_properties(softmax_multi_evt.cpp PROPERTIES LANGUAGE ASCEND)
+catlass_example_add_executable(36_softmax_multi_evt mix softmax_multi_evt.cpp)
+target_link_libraries(36_softmax_multi_evt PRIVATE m)
