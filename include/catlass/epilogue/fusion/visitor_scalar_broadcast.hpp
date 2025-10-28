@@ -98,7 +98,6 @@ struct VisitorScalarBroadcast : VisitorImpl<> {
             }
 
             if (stage == VisitStage::COMPUTE) {
-
                 AscendC::SetFlag<AscendC::HardEvent::V_S>(0);
                 AscendC::WaitFlag<AscendC::HardEvent::V_S>(0);
                 Element v = ubOut.GetValue(0);

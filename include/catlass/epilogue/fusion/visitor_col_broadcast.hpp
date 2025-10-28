@@ -104,14 +104,7 @@ struct VisitorColBroadcast : VisitorImpl<> {
                 AscendC::WaitFlag<AscendC::HardEvent::V_S>(0);
                 for (uint32_t r = 0; r < actualRows; ++r) {
                     Element v = ubOut.GetValue(r * alignedCols);
-                    // AscendC::SetFlag<AscendC::HardEvent::S_V>(0);
-                    // AscendC::WaitFlag<AscendC::HardEvent::S_V>(0);
-                    // AscendC::PipeBarrier<PIPE_S>();
-                    // if (AscendC::GetBlockIdx() == 0 && AscendC::GetSubBlockIdx() == 0 && r < 10) {
-                    //     cce::printf("v: %f\n", v);
-                    // }
                     AscendC::Duplicate<Element>(ubOut[r * alignedCols], v, actualCols);
-                    // AscendC::PipeBarrier<PIPE_V>();
                 }
             }
             return ubOut;
