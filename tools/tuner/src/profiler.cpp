@@ -10,8 +10,8 @@
  
 #include "profiler.h"
 #include <algorithm>
-#include "log.h"
 #include <runtime/dev.h>
+#include "log.h"
 
 namespace {
 constexpr uint32_t STARS_ENABLE_FLAG = 1;
