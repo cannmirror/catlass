@@ -15,7 +15,6 @@
 #include "catlass/detail/alignment.hpp"
 #include "catlass/conv_coord.hpp"
 #include "catlass/matrix_coord.hpp"
-#include "catlass/conv2d_coord.hpp"
 
 namespace Catlass::Conv::Block {
 /////////////////////////////////////////////////////////////////////////////////////////////////////////

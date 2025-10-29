@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 1.0 (the "License").
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
@@ -13,8 +13,7 @@
 
 #include "catlass/catlass.hpp"
 #include "catlass/arch/resource.hpp"
-#include "catlass/coord.hpp"
-#include "catlass/conv2d_coord.hpp"
+#include "catlass/conv_coord.hpp"
 #include "catlass/conv/dispatch_policy.hpp"
 #include "catlass/conv/helper.hpp"
 
@@ -110,7 +109,7 @@ public:
     static constexpr uint32_t L0B_PINGPONG_BUF_SIZE = L0B_SIZE / L0B_STAGES;
 
     // Check LayoutOutput
-    static_assert(std::is_same_v<LayoutOutput, layout::Output>, "LayoutOutput only support Output yet!");
+    static_assert(std::is_same_v<LayoutOutput, layout::Fmap>, "LayoutOutput only support Fmap yet!");
 
     // Check L0TileShape
     static constexpr uint32_t L0B_TILE_SIZE = L0TileShape::K * L0TileShape::N * sizeof(ElementFilter);
@@ -454,21 +453,6 @@ protected:
     CopyL1ToL0A copyL1ToL0A;
     CopyL1ToL0B copyL1ToL0B;
     CopyL0CToGm copyL0CToGm;
-
-    __aicore__ inline int32_t Max(int32_t a, int32_t b) {
-        if (a > b) {
-            return a;
-        } else {
-            return b;
-        }
-    }
-    __aicore__ inline int32_t Min(int32_t a, int32_t b) {
-        if (a < b) {
-            return a;
-        } else {
-            return b;
-        }
-    }
 };
 
 } // namespace Catlass::Conv::Block

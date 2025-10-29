@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 1.0 (the "License").
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
@@ -29,7 +29,7 @@
 #include "catlass/status.hpp"
 #include "catlass/conv/device/device_conv.hpp"
 
-#include "catlass/conv2d_coord.hpp"
+#include "catlass/conv_coord.hpp"
 #include "catlass/layout/conv2d.hpp"
 
 #include "golden.hpp"
@@ -119,36 +119,11 @@ void Run(Options const &options) {
   uint32_t cin1 = options.problemParams.cin1();
   uint32_t ho = options.problemParams.ho();
   uint32_t wo = options.problemParams.wo();
-  uint32_t howo = options.problemParams.howo();
-  uint32_t howoRound = options.problemParams.howoRound();
   uint32_t cout1 = options.problemParams.cout1();
   uint32_t cout = options.problemParams.cout();
   uint32_t coutRound = options.problemParams.coutRound();
   uint32_t kh = options.problemParams.kh();
   uint32_t kw = options.problemParams.kw();
-  uint32_t padLeft = options.problemParams.padLeft();
-  uint32_t padRight = options.problemParams.padRight();
-  uint32_t padTop = options.problemParams.padTop();
-  uint32_t padBottom = options.problemParams.padBottom();
-  uint32_t strideH = options.problemParams.strideH();
-  uint32_t strideW = options.problemParams.strideW();
-  uint32_t dilationH = options.problemParams.dilationH();
-  uint32_t dilationW = options.problemParams.dilationW();
-
-  printf("c0 = %d\n", c0);
-  printf("batch = %d\n", batch);
-  printf("hi = %d\n", hi);
-  printf("wi = %d\n", wi);
-  printf("kh = %d\n", kh);
-  printf("kw = %d\n", kw);
-  printf("cin1 = %d\n", cin1);
-  printf("ho = %d\n", ho);
-  printf("wo = %d\n", wo);
-  printf("howo = %d\n", howo);
-  printf("howoRound = %d\n", howoRound);
-  printf("cout1 = %d\n", cout1);
-  printf("cout = %d\n", cout);
-  printf("coutRound = %d\n", coutRound);
   
   size_t lenFmap = batch * cin1 * hi * wi * c0;
   size_t lenFilter = cin1 * kh * kw * cout * c0;
@@ -160,7 +135,7 @@ void Run(Options const &options) {
 
   using LayoutFmap = layout::Fmap;
   using LayoutFilter = layout::Filter;
-  using LayoutOutput = layout::Output;
+  using LayoutOutput = layout::Fmap;
   LayoutFmap layoutFmap{batch, cin1, hi, wi, c0};
   LayoutFilter layoutFilter{cin1, kh, kw, cout, c0};
   LayoutOutput layoutOutput{batch, cout1, ho, wo, c0};
@@ -196,31 +171,6 @@ void Run(Options const &options) {
   using FmapL1TileShape = Catlass::Conv2dFmapL1Shape<8, 12, 8>; // (hoBlock, woBlock, cin1BlockSmall)
   using FilterL1TileShape = Catlass::Conv2dFilterL1Shape<96, 8>; // (coutBlock, cin1BlockBig)
   using L0TileShape = Catlass::Conv2dL0Shape<16, 96, 16>; // (mL0, nL0, kL0)
-
-  uint32_t hoBlock = FmapL1TileShape::Ho;
-  uint32_t woBlock = FmapL1TileShape::Wo;
-  uint32_t cin1FmapL1Block = FmapL1TileShape::Cin1;
-  uint32_t coutBlock = RoundUp(FilterL1TileShape::Cout, c0);
-  uint32_t cin1FilterL1Block = FilterL1TileShape::Cin1;
-  uint32_t hiBlock = (hoBlock - 1) * strideH + (kh - 1) * dilationH + 1;
-  uint32_t wiBlock = (woBlock - 1) * strideW + (kw - 1) * dilationW + 1;
-  uint32_t howoBlock = hoBlock * woBlock;
-  uint32_t cin1L0Block = Max(L0TileShape::K / (kh * kw * c0), 1);
-  uint32_t coutL0Block = RoundUp(L0TileShape::N, c0);
-
-  uint32_t l1DataSize = 
-      2 * (cin1FmapL1Block * hiBlock * wiBlock * c0 + 
-           cin1FilterL1Block * kh * kw * coutBlock *c0) * sizeof(fp16_t);
-  uint32_t l0ADataSize = 
-      2 * howoBlock * (cin1L0Block * kh * kw * c0) * sizeof(fp16_t);
-  uint32_t l0BDataSize = 
-      2 * (cin1L0Block * kh * kw * c0) * coutL0Block * sizeof(fp16_t); 
-  uint32_t l0CDataSize = howoBlock * coutBlock * sizeof(float); 
-  
-  printf("l1DataSize=%d, L1Size=%d\n", l1DataSize, ArchTag::L1_SIZE);
-  printf("l0ADataSize=%d, L0A_SIZE=%d\n", l0ADataSize, ArchTag::L0A_SIZE);
-  printf("l0BDataSize=%d, L0B_SIZE=%d\n", l0BDataSize, ArchTag::L0B_SIZE);
-  printf("l0CDataSize=%d, L0C_SIZE=%d\n", l0CDataSize, ArchTag::L0C_SIZE);
   
   using FmapType = Conv::Conv2dType<half, LayoutFmap>;
   using FilterType = Conv::Conv2dType<half, LayoutFilter>;

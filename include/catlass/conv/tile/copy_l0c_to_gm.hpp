@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 1.0 (the "License").
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
@@ -63,7 +63,7 @@ template <
 >
 struct CopyL0CToGm<Catlass::Arch::AtlasA2,
                    ElementAccumulator_,
-                   Conv::Conv2dType<ElementDst_, layout::Output>,
+                   Conv::Conv2dType<ElementDst_, layout::Fmap>,
                    ScaleGranularity::NO_QUANT,
                    ReluEnable_>
 {
@@ -71,7 +71,7 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
     using ElementDst = ElementDst_;
     using ElementSrc = ElementAccumulator_;
     using LayoutSrc = Catlass::layout::zN;
-    using LayoutDst = Catlass::layout::Output;
+    using LayoutDst = Catlass::layout::Fmap;
     static constexpr auto quantPre = CopyL0CToGmQuantMode<ArchTag, ElementSrc, ElementDst,
         ScaleGranularity::NO_QUANT>::VALUE;
     static constexpr auto reluEn = ReluEnable_;
