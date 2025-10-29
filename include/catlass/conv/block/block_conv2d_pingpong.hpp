@@ -15,7 +15,7 @@
 #include "catlass/arch/resource.hpp"
 #include "catlass/conv_coord.hpp"
 #include "catlass/conv/dispatch_policy.hpp"
-#include "catlass/conv/helper.hpp"
+#include "catlass/gemm/helper.hpp"
 
 namespace Catlass::Conv::Block {
 
@@ -82,7 +82,7 @@ public:
     using CopyL1ToL0B = typename TileCopy_::CopyL1ToL0B;
     using CopyL0CToGm = typename TileCopy_::CopyL0CToGm;
     using ElementAccumulator =
-        typename Conv::helper::ElementAccumulatorSelector<ElementFmap, ElementFilter>::ElementAccumulator;
+        typename Gemm::helper::ElementAccumulatorSelector<ElementFmap, ElementFilter>::ElementAccumulator;
     using LayoutFmapInL1 = typename CopyL1ToL0A::LayoutSrc;
     using LayoutFilterInL1 = typename CopyL1ToL0B::LayoutSrc;
     using LayoutFmapInL0 = typename CopyL1ToL0A::LayoutDst;
@@ -220,7 +220,7 @@ public:
         
         uint32_t nL0 = Min(RoundUp<C0_NUM_PER_FRACTAL>(L0TileShape::N), coutRound);
         uint32_t nPartLoop = CeilDiv(coutRound, nL0);
-        uint32_t cin1L0Tile = Max(L0TileShape::K / (configs.kh() * configs.kw() * ELE_NUM_A_PER_C0), 1);
+        uint32_t cin1L0Tile = Max(L0TileShape::K / (configs.kh() * configs.kw() * ELE_NUM_A_PER_C0), 1U);
         
         auto layoutFmapInL1 = LayoutFmapInL1::template MakeLayout<ElementFmap>(
             (uint32_t)1, FmapL1TileShape::Cin1, hiActual, wiActual, ELE_NUM_A_PER_C0);

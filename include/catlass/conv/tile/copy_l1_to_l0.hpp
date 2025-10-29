@@ -14,7 +14,7 @@
 #include "catlass/catlass.hpp"
 #include "catlass/arch/arch.hpp"
 #include "catlass/layout/layout.hpp"
-#include "catlass/conv/conv_type.hpp"
+#include "catlass/gemm/gemm_type.hpp"
 
 namespace Catlass::Conv::Tile {
 
@@ -28,7 +28,7 @@ struct CopyL1ToL0A {
 };
 
 template<class ArchTag, class Element>
-struct CopyL1ToL0A<ArchTag, Catlass::Conv::Conv2dType<Element, layout::Fmap, AscendC::TPosition::A1>>{
+struct CopyL1ToL0A<ArchTag, Catlass::Gemm::GemmType<Element, layout::Fmap, AscendC::TPosition::A1>>{
     using LayoutDst = layout::zZ;
     using LayoutSrc = layout::Fmap;
 
@@ -89,7 +89,7 @@ struct CopyL1ToL0B {
 };
 
 template<class ArchTag, class Element>
-struct CopyL1ToL0B<ArchTag, Catlass::Conv::Conv2dType<Element, layout::Filter, AscendC::TPosition::A1>>{
+struct CopyL1ToL0B<ArchTag, Catlass::Gemm::GemmType<Element, layout::Filter, AscendC::TPosition::A1>>{
     using LayoutDst = layout::nZ;
     using LayoutSrc = layout::Filter;
 

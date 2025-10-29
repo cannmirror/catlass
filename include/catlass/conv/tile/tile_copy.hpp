@@ -17,7 +17,7 @@
 #include "catlass/conv/tile/copy_gm_to_l1.hpp"
 #include "catlass/conv/tile/copy_l0c_to_gm.hpp"
 #include "catlass/conv/tile/copy_l1_to_l0.hpp"
-#include "catlass/conv/helper.hpp"
+#include "catlass/gemm/helper.hpp"
 
 namespace Catlass::Conv::Tile {
 
@@ -42,9 +42,9 @@ struct TileCopy {
     using CopyGmToL1A = Conv::Tile::CopyGmToL1<ArchTag, FmapType>;
     using CopyGmToL1B = Conv::Tile::CopyGmToL1<ArchTag, FilterType>;
     using CopyL1ToL0A = Conv::Tile::CopyL1ToL0A<
-        ArchTag, typename helper::L1ATypeSelector<FmapType>::L1AType>;
+        ArchTag, typename Gemm::helper::L1ATypeSelector<FmapType>::L1AType>;
     using CopyL1ToL0B = Conv::Tile::CopyL1ToL0B<
-        ArchTag, typename helper::L1BTypeSelector<FilterType>::L1BType>;
+        ArchTag, typename Gemm::helper::L1BTypeSelector<FilterType>::L1BType>;
     using CopyL0CToGm = Conv::Tile::CopyL0CToGm<ArchTag, ElementAccumulator, OutputType>;
 };
 

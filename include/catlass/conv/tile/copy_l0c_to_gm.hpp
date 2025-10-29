@@ -13,7 +13,7 @@
 
 #include "catlass/catlass.hpp"
 #include "catlass/arch/arch.hpp"
-#include "catlass/conv/conv_type.hpp"
+#include "catlass/gemm/gemm_type.hpp"
 
 namespace Catlass::Conv::Tile {
 
@@ -63,7 +63,7 @@ template <
 >
 struct CopyL0CToGm<Catlass::Arch::AtlasA2,
                    ElementAccumulator_,
-                   Conv::Conv2dType<ElementDst_, layout::Fmap>,
+                   Gemm::GemmType<ElementDst_, layout::Fmap>,
                    ScaleGranularity::NO_QUANT,
                    ReluEnable_>
 {

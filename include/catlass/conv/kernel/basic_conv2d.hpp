@@ -167,7 +167,7 @@ public:
             // Compute initial location in logical coordinates
             FmapCoord offsetFmap{blockCoord.batch(), 0, (uint32_t)hiStart, (uint32_t)wiStart, 0}; // (Batch, Cin1, Hi, Wi, C0)
             FilterCoord offsetFilter{0, 0, 0, blockCoord.cout() * FilterL1TileShape::Cout, 0}; // (Cin1, Kw, Kh, Cout, C0)
-            OutputCoord offsetOutput{blockCoord.batch(), blockCoord.cout() * FilterL1TileShape::Cout / C0, hoStart, woStart, 0}; // (Batch, Cout1, Ho, Wo, C0)
+            FmapCoord offsetOutput{blockCoord.batch(), blockCoord.cout() * FilterL1TileShape::Cout / C0, hoStart, woStart, 0}; // (Batch, Cout1, Ho, Wo, C0)
             int64_t gmOffsetFmap = params.layoutFmap.GetOffset(offsetFmap);
             int64_t gmOffsetFilter = params.layoutFilter.GetOffset(offsetFilter);
             int64_t gmOffsetOutput = params.layoutOutput.GetOffset(offsetOutput);
