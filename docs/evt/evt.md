@@ -123,6 +123,7 @@ graph TB
 | Aux Store | `Epilogue::Fusion::VisitorAuxStore<Element, Layout>` | 写回用户GM（STORE阶段） |
 | Row Broadcast | `Epilogue::Fusion::VisitorRowBroadcast<Element, Layout>` | 1xN行向量广播到MxN tile |
 | Row Reduce | `Epilogue::Fusion::VisitorRowReduce<ReduceFn, Element, Layout>` | 按行规约到1xN并原子加到GM |
+| ... | ... | ... |
 
 ### 2.1 多层级API（Kernel）
 
@@ -132,7 +133,7 @@ AIC每算完一个A*B分块，对C分块进行后处理。
 - 计算 `GetWorkspaceSize`（= GEMM 的 C 工作区 + EVT 的 workspace 对齐和），调用initalize_workspace()；
 - 调用 `ToUnderlyingArguments`：先组织 A/B/C 的布局与 workspace，再用 `EVT::to_underlying_arguments` 生成 Fusion 层 `Params`；
 - AIC 完成小块A*B 并写入 C(workspace)；AIV 等待跨核 flag 后执行 BlockEpilogue。
-- 在end_epilogue场景可能需要在最后进行BlockEpilogue.end()
+- 在end_epilogue场景可能需要在最后进行BlockEpilogue.end()或者在BlockEpilogue的析构进行。
 
 ### 2.2 多层级API（Block）
 
@@ -232,7 +233,7 @@ graph TB
 
 #### 1) `visitor_impl_base`
 - `Arguments/Params`汇聚：统一参数管理
-- workspace计量：对齐的workspace计算
+- `workspace计量`：对齐的workspace计算
 - `can_implement`一致性校验：确保所有节点可执行
 
 #### 2) `visitor_impl`
@@ -367,7 +368,7 @@ using EVT = Epilogue::Fusion::TreeVisitor<
 ##### 典型用户流程说明(以示例32为例)
 
 ```cpp
-    constexpr uint32_t computeLength = 8192;
+    constexpr uint32_t computeLength = 16384;
     
     using EVT = Epilogue::Fusion::TreeVisitor<
         Epilogue::Fusion::VisitorAuxStore<half, LayoutC>,
@@ -469,9 +470,30 @@ graph TD
 ```
 **EVT定义：**
 ```cpp
+using EVT_AccLoad = Epilogue::Fusion::VisitorAccLoad<half>;
+using EVT_AuxLoad = Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>;
+
+// Cast: half -> float
+using EVT_CastHalf2Float = Epilogue::Fusion::VisitorCast<float, half, AscendC::RoundMode::CAST_NONE>;
+
+// Compute: float + float -> float
+using EVT_Compute = Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, float>;
+
+// Cast: float -> half
+using EVT_CastFloat2Half = Epilogue::Fusion::VisitorCast<half, float, AscendC::RoundMode::CAST_NONE>;
+
+// Store: half
+using EVT_Store = Epilogue::Fusion::VisitorAuxStore<half, LayoutC>;
+
+using EVT_Inner = Epilogue::Fusion::TreeVisitor<
+    EVT_Compute,
+    Epilogue::Fusion::TreeVisitor<EVT_CastHalf2Float, EVT_AccLoad>,
+    Epilogue::Fusion::TreeVisitor<EVT_CastHalf2Float, EVT_AuxLoad>
+>;
+
 using EVT = Epilogue::Fusion::TreeVisitor<
     EVT_Store,
-    Epilogue::Fusion::TreeVisitor<EVT_CastOut, EVT_Inner>
+    Epilogue::Fusion::TreeVisitor<EVT_CastFloat2Half, EVT_Inner>
 >;
 ```
 
