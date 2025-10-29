@@ -453,7 +453,7 @@ struct Conv2dL0Shape {
     }
 };
 
-struct FmapCoord : public Coord<5, uint32_t> { // (Batch, Cin1, H, W, C0)
+struct FmapCoord : public Coord<5, uint32_t> { // (Batch, C1, H, W, C0)
 public:
     /// Integer-valued index
     using Index = uint32_t;
@@ -466,7 +466,7 @@ public:
 
     /// dimensions
     static constexpr uint32_t BATCH_INDEX = 0;
-    static constexpr uint32_t CIN1_INDEX = 1;
+    static constexpr uint32_t C1_INDEX = 1;
     static constexpr uint32_t H_INDEX = 2;
     static constexpr uint32_t W_INDEX = 3;
     static constexpr uint32_t C0_INDEX = 4;
@@ -479,22 +479,22 @@ public:
     CATLASS_HOST_DEVICE
     FmapCoord(Coord<5, Index> const &coord) : Base(coord) {}
 
-    /// Helper to construct from Cin1, H, W, C0
+    /// Helper to construct from C1, H, W, C0
     CATLASS_HOST_DEVICE
-    FmapCoord(Index batch, Index cin1, Index h, Index w, Index c0)
-    : Base(MakeCoord(batch, cin1, h, w, c0)) {}
+    FmapCoord(Index batch, Index c1, Index h, Index w, Index c0)
+    : Base(MakeCoord(batch, c1, h, w, c0)) {}
 
     CATLASS_HOST_DEVICE
-    FmapCoord(LongIndex batch, LongIndex cin1, LongIndex h, LongIndex w, LongIndex c0)
-    : Base(MakeCoord(Index(batch), Index(cin1), Index(h), Index(w), Index(c0))) {}
+    FmapCoord(LongIndex batch, LongIndex c1, LongIndex h, LongIndex w, LongIndex c0)
+    : Base(MakeCoord(Index(batch), Index(c1), Index(h), Index(w), Index(c0))) {}
 
     CATLASS_HOST_DEVICE
-    Index const &cin1() const {
-        return this->At(CIN1_INDEX);
+    Index const &c1() const {
+        return this->At(C1_INDEX);
     }
     CATLASS_HOST_DEVICE
-    Index &cin1() {
-        return this->At(CIN1_INDEX);
+    Index &c1() {
+        return this->At(C1_INDEX);
     }
 
     CATLASS_HOST_DEVICE
@@ -1030,16 +1030,16 @@ public:
 
     CATLASS_HOST_DEVICE
     Index cin() const {
-        return this->fmapShape.cin1() * C0;
+        return this->fmapShape.c1() * C0;
     }
 
     CATLASS_HOST_DEVICE
     Index const &cin1() const {
-        return this->fmapShape.cin1();
+        return this->fmapShape.c1();
     }
     CATLASS_HOST_DEVICE
     Index &cin1() {
-        return this->fmapShape.cin1();
+        return this->fmapShape.c1();
     }
 
     CATLASS_HOST_DEVICE
@@ -1053,11 +1053,11 @@ public:
 
     CATLASS_HOST_DEVICE
     Index const &cout1() const {
-        return this->outputShape.cout1();
+        return this->outputShape.c1();
     }
     CATLASS_HOST_DEVICE
     Index &cout1() {
-        return this->outputShape.cout1();
+        return this->outputShape.c1();
     }
 
     CATLASS_HOST_DEVICE
