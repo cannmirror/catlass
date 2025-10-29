@@ -946,7 +946,7 @@ private:
     // Batch, Hi, Wi, Cin, Cout, Kh, Kw
     FmapCoord fmapShape; // {Batch, Cin1, Hi, Wi, C0}
     FilterCoord filterShape; // {Cin1, Kh, Kw, Cout, C0}
-    OutputCoord outputShape; // {Batch, Cout1, Ho, Wo, C0}
+    FmapCoord outputShape; // {Batch, Cout1, Ho, Wo, C0}
     Conv2dConfigs configs; // {Ks, Pads, Strides, Dilations}
     Conv2d5HdCoord postIm2colShape; // {Batch, Ho, Wo, Cout, Cin1}
 public:
@@ -992,7 +992,7 @@ public:
     }
 
     CATLASS_HOST_DEVICE
-    OutputCoord const &getOutputShape() const {
+    FmapCoord const &getOutputShape() const {
         return this->outputShape;
     }
 
@@ -1012,20 +1012,20 @@ public:
 
     CATLASS_HOST_DEVICE
     Index const &hi() const {
-        return this->fmapShape.hi();
+        return this->fmapShape.h();
     }
     CATLASS_HOST_DEVICE
     Index &hi() {
-        return this->fmapShape.hi();
+        return this->fmapShape.h();
     }
 
     CATLASS_HOST_DEVICE
     Index const &wi() const {
-        return this->fmapShape.wi();
+        return this->fmapShape.w();
     }
     CATLASS_HOST_DEVICE
     Index &wi() {
-        return this->fmapShape.wi();
+        return this->fmapShape.w();
     }
 
     CATLASS_HOST_DEVICE
@@ -1067,25 +1067,25 @@ public:
 
     CATLASS_HOST_DEVICE
     Index const &ho() const {
-        return this->outputShape.ho();
+        return this->outputShape.h();
     }
     CATLASS_HOST_DEVICE
     Index &ho() {
-        return this->outputShape.ho();
+        return this->outputShape.h();
     }
 
     CATLASS_HOST_DEVICE
     Index const &wo() const {
-        return this->outputShape.wo();
+        return this->outputShape.w();
     }
     CATLASS_HOST_DEVICE
     Index &wo() {
-        return this->outputShape.wo();
+        return this->outputShape.w();
     }
 
     CATLASS_HOST_DEVICE
     Index howo() const {
-        return this->outputShape.ho() * this->outputShape.wo();
+        return this->outputShape.h() * this->outputShape.w();
     }
 
     CATLASS_HOST_DEVICE
