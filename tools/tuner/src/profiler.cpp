@@ -10,7 +10,7 @@
  
 #include "profiler.h"
 #include <algorithm>
-#include <runtime/dev.h>
+#include "dlfcn.h"
 #include "log.h"
 
 namespace {
@@ -388,15 +388,26 @@ int64_t ProfileDataHandler::GetAicpuFreq()
 
 bool ProfileDataHandler::SetDeviceId(int32_t deviceId)
 {
+    using RtGetVisibleDeviceIdByLogicDeviceId = int32_t(*) (const int32_t, int32_t * const);
     constexpr char const *VIS = "ASCEND_RT_VISIBLE_DEVICES";
     int32_t convertedId = deviceId;
     auto env = getenv(VIS);
     if (env) {
-        auto error = rtGetVisibleDeviceIdByLogicDeviceId(deviceId, &convertedId);
-        if (error != RT_ERROR_NONE) {
-            LOGE("Call rtGetVisibleDeviceIdByLogicDeviceId failed, error: %d. Please disable %s or try again.",
-                 error, VIS);
-            return false;
+        void* dl = dlopen("libruntime.so", RTLD_LAZY);
+        std::shared_ptr<void> defer(nullptr, [&dl](void*) {
+            if (dl) { dlclose(dl); }
+        });
+        void* func = dl ? dlsym(dl, "rtGetVisibleDeviceIdByLogicDeviceId") : nullptr;
+        if (!func) {
+            LOGW("Cannot find function:rtGetVisibleDeviceIdByLogicDeviceId in libruntime.so,"
+                 "task_duration may not be collected if you set %s", VIS);
+        } else {
+            int32_t error = reinterpret_cast<RtGetVisibleDeviceIdByLogicDeviceId>(func)(deviceId, &convertedId);
+            if (error != 0) {
+                LOGE("Call rtGetVisibleDeviceIdByLogicDeviceId failed, error: %d. Please disable %s or try again.",
+                     error, VIS);
+                return false;
+            }
         }
     }
     deviceId_ = convertedId;
