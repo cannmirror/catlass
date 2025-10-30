@@ -313,23 +313,36 @@ protected:
         // layoutSrcA: params.layoutA, layoutSrcB: params.layoutB, layoutSrcC: params.layoutC
         int64_t gmOffsetA, gmOffsetB, gmOffsetC, gmOffsetWA, gmOffsetWB, gmOffsetWC;
         int64_t gmOffsetNextA, gmOffsetNextB, gmOffsetWADelta, gmOffsetWBDelta;
-        if constexpr (HAS_PROLOGUE_A) {
-            // MatrixCoord offsetA{blockCoord.m() * (L1TileShape::M * params.mScalar), 0};
-            gmOffsetA = layoutSrcA.GetOffset(MakeCoord(blockCoord.m() * (L1TileShape::M * params.mScalar), 0U));
-            gmOffsetNextA = layoutSrcA.GetOffset(MakeCoord(nextBlockCoord.m() * (L1TileShape::M * params.mScalar), 0U));
-            gmOffsetWA = (AscendC::GetBlockIdx() / AIVPERCORE) * 
-                        (params.mScalar * L1TileShape::M) * params.splitkLength * STAGES;
-            gmOffsetWADelta = (params.mScalar * L1TileShape::M) * params.splitkLength;
-        }
 
-        if constexpr (HAS_PROLOGUE_B) {
-            // MatrixCoord offsetB{0, blockCoord.n() * (L1TileShape::N * params.nScalar)};
-            gmOffsetB = layoutSrcB.GetOffset(MakeCoord(0U, blockCoord.n() * (L1TileShape::N * params.nScalar)));
-            gmOffsetNextB = layoutSrcB.GetOffset(MakeCoord(0U, nextBlockCoord.n() * (L1TileShape::N * params.nScalar)));
-            gmOffsetWB = (AscendC::GetBlockIdx() / AIVPERCORE) * 
-                        (params.nScalar * L1TileShape::N) * params.splitkLength * STAGES;
-            gmOffsetWBDelta = params.splitkLength * (params.nScalar * L1TileShape::N);
-        }
+        gmOffsetA = layoutSrcA.GetOffset(MakeCoord(blockCoord.m() * (L1TileShape::M * params.mScalar), 0U));
+        gmOffsetNextA = layoutSrcA.GetOffset(MakeCoord(nextBlockCoord.m() * (L1TileShape::M * params.mScalar), 0U));
+        gmOffsetWA = (AscendC::GetBlockIdx() / AIVPERCORE) * 
+                    (params.mScalar * L1TileShape::M) * params.splitkLength * STAGES;
+        gmOffsetWADelta = (params.mScalar * L1TileShape::M) * params.splitkLength;
+
+        gmOffsetB = layoutSrcB.GetOffset(MakeCoord(0U, blockCoord.n() * (L1TileShape::N * params.nScalar)));
+        gmOffsetNextB = layoutSrcB.GetOffset(MakeCoord(0U, nextBlockCoord.n() * (L1TileShape::N * params.nScalar)));
+        gmOffsetWB = (AscendC::GetBlockIdx() / AIVPERCORE) * 
+                    (params.nScalar * L1TileShape::N) * params.splitkLength * STAGES;
+        gmOffsetWBDelta = params.splitkLength * (params.nScalar * L1TileShape::N);
+
+        // if constexpr (HAS_PROLOGUE_A) {
+        //     // MatrixCoord offsetA{blockCoord.m() * (L1TileShape::M * params.mScalar), 0};
+        //     gmOffsetA = layoutSrcA.GetOffset(MakeCoord(blockCoord.m() * (L1TileShape::M * params.mScalar), 0U));
+        //     gmOffsetNextA = layoutSrcA.GetOffset(MakeCoord(nextBlockCoord.m() * (L1TileShape::M * params.mScalar), 0U));
+        //     gmOffsetWA = (AscendC::GetBlockIdx() / AIVPERCORE) * 
+        //                 (params.mScalar * L1TileShape::M) * params.splitkLength * STAGES;
+        //     gmOffsetWADelta = (params.mScalar * L1TileShape::M) * params.splitkLength;
+        // }
+
+        // if constexpr (HAS_PROLOGUE_B) {
+        //     // MatrixCoord offsetB{0, blockCoord.n() * (L1TileShape::N * params.nScalar)};
+        //     gmOffsetB = layoutSrcB.GetOffset(MakeCoord(0U, blockCoord.n() * (L1TileShape::N * params.nScalar)));
+        //     gmOffsetNextB = layoutSrcB.GetOffset(MakeCoord(0U, nextBlockCoord.n() * (L1TileShape::N * params.nScalar)));
+        //     gmOffsetWB = (AscendC::GetBlockIdx() / AIVPERCORE) * 
+        //                 (params.nScalar * L1TileShape::N) * params.splitkLength * STAGES;
+        //     gmOffsetWBDelta = params.splitkLength * (params.nScalar * L1TileShape::N);
+        // }
 
         if (doEpCast) {
             MatrixCoord offsetC{blockCoord.m() * (L1TileShape::M * params.mScalar), 
@@ -355,13 +368,31 @@ protected:
                                        ? kResidueLenght : params.splitkLength;
             uint32_t kActual_ = kActual;
 
-            bool doPrologue=false;
             if (ldk == 0 && isFirstBlock) { // 首块
-                doPrologue = true;
                 Catlass::Arch::CrossCoreWaitFlag(flag0[crossCoreBufferIndexAIV]);
+
+                uint32_t kActualAligned_ = RoundUp<256, uint32_t>(kActual_);
+                LayoutA layoutWA(actualBlockShape.m(), kActual_, srcAStride);
+                LayoutA layoutDstA(actualBlockShape.m(), kActualAligned_);
+                LayoutB layoutWB(kActual_, actualBlockShape.n(), srcBStride);
+                LayoutB layoutDstB(kActualAligned_, actualBlockShape.n());
+
+                prologueA(
+                    gmDstA[gmOffsetWA + crossCoreBufferIndexAIV * gmOffsetWADelta],
+                    layoutDstA,
+                    gmSrcA[gmOffsetA],
+                    layoutWA,
+                    bufferIndex
+                );
+                prologueB(
+                    gmDstB[gmOffsetWB + crossCoreBufferIndexAIV * gmOffsetWBDelta],
+                    layoutDstB,
+                    gmSrcB[gmOffsetB],
+                    layoutWB,
+                    bufferIndex
+                );
             }
             if (ldk < kLoop - 1) { // 后续块
-                doPrologue = true;
                 kActual_ = (problemShape.k() < (ldk + 2) * params.splitkLength)
                                        ? kResidueLenght : params.splitkLength;
 
@@ -369,51 +400,94 @@ protected:
                 Catlass::Arch::CrossCoreWaitFlag(flag0[1 - crossCoreBufferIndexAIV]);         
                 gmOffsetA += layoutSrcA.GetOffset(MakeCoord(0U, kActual_));
                 gmOffsetB += layoutSrcB.GetOffset(MakeCoord(kActual_, 0U));
+                // gmOffsetA += layoutSrcA.GetOffset(MakeCoord(0U, kActual));
+                // gmOffsetB += layoutSrcB.GetOffset(MakeCoord(kActual, 0U));
+
+                uint32_t kActualAligned_ = RoundUp<256, uint32_t>(kActual_);
+                LayoutA layoutWA(actualBlockShape.m(), kActual_, srcAStride);
+                LayoutA layoutDstA(actualBlockShape.m(), kActualAligned_);
+                LayoutB layoutWB(kActual_, actualBlockShape.n(), srcBStride);
+                LayoutB layoutDstB(kActualAligned_, actualBlockShape.n());
+
+                prologueA(
+                    gmDstA[gmOffsetWA + crossCoreBufferIndexAIV * gmOffsetWADelta],
+                    layoutDstA,
+                    gmSrcA[gmOffsetA],
+                    layoutWA,
+                    bufferIndex
+                );
+                prologueB(
+                    gmDstB[gmOffsetWB + crossCoreBufferIndexAIV * gmOffsetWBDelta],
+                    layoutDstB,
+                    gmSrcB[gmOffsetB],
+                    layoutWB,
+                    bufferIndex
+                );
             }
             if ((ldk == kLoop - 1) && hasNextBlock) { // SliceK尾部块
-                doPrologue = true;
                 kActual_ = (problemShape.k() < params.splitkLength) ? kResidueLenght : params.splitkLength;
-                mShape_ = nextActualBlockShape.m();
-                nShape_ = nextActualBlockShape.n();
+                // mShape_ = nextActualBlockShape.m();
+                // nShape_ = nextActualBlockShape.n();
                 
                 Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(flag1[crossCoreBufferIndexAIV]);
                 Catlass::Arch::CrossCoreWaitFlag(flag0[1 - crossCoreBufferIndexAIV]);
+
+                uint32_t kActualAligned_ = RoundUp<256, uint32_t>(kActual_);
+                LayoutA layoutWA(nextActualBlockShape.m(), kActual_, srcAStride);
+                LayoutA layoutDstA(nextActualBlockShape.m(), kActualAligned_);
+                LayoutB layoutWB(kActual_, nextActualBlockShape.n(), srcBStride);
+                LayoutB layoutDstB(kActualAligned_, nextActualBlockShape.n());
+
+                prologueA(
+                    gmDstA[gmOffsetWA + (1 - crossCoreBufferIndexAIV) * gmOffsetWADelta],
+                    layoutDstA,
+                    gmSrcA[gmOffsetNextA],
+                    layoutWA,
+                    bufferIndex
+                );
+                prologueB(
+                    gmDstB[gmOffsetWB + (1 - crossCoreBufferIndexAIV) * gmOffsetWBDelta],
+                    layoutDstB,
+                    gmSrcB[gmOffsetNextB],
+                    layoutWB,
+                    bufferIndex
+                );
             }
             
-            if (doPrologue) {
-                uint32_t kActualAligned_ = RoundUp<256>(kActual_);
-                if constexpr (HAS_PROLOGUE_A)  {
-                    int64_t gmOffsetA_ = (hasNextBlock && ldk == kLoop - 1) ? gmOffsetNextA : gmOffsetA;
-                    int64_t gmOffsetWA_ = (static_cast<bool>(crossCoreBufferIndexAIV) ^ 
-                        (isFirstBlock && ldk == 0)) ? gmOffsetWA : gmOffsetWA + gmOffsetWADelta; 
+            // if (doPrologue) {
+            //     uint32_t kActualAligned_ = RoundUp<256>(kActual_);
+            //     if constexpr (HAS_PROLOGUE_A)  {
+            //         int64_t gmOffsetA_ = (hasNextBlock && ldk == kLoop - 1) ? gmOffsetNextA : gmOffsetA;
+            //         int64_t gmOffsetWA_ = (static_cast<bool>(crossCoreBufferIndexAIV) ^ 
+            //             (isFirstBlock && ldk == 0)) ? gmOffsetWA : gmOffsetWA + gmOffsetWADelta; 
 
-                    LayoutA layoutWA(mShape_, kActual_, srcAStride);
-                    LayoutA layoutDstA(mShape_, kActualAligned_);
-                    prologueA(
-                        gmDstA[gmOffsetWA_],
-                        layoutDstA,
-                        gmSrcA[gmOffsetA_],
-                        layoutWA,
-                        bufferIndex  // TODO: bufferIndex需要在本文件声明并使用
-                    );
-                }
+            //         LayoutA layoutWA(mShape_, kActual_, srcAStride);
+            //         LayoutA layoutDstA(mShape_, kActualAligned_);
+            //         prologueA(
+            //             gmDstA[gmOffsetWA_],
+            //             layoutDstA,
+            //             gmSrcA[gmOffsetA_],
+            //             layoutWA,
+            //             bufferIndex  // TODO: bufferIndex需要在本文件声明并使用
+            //         );
+            //     }
 
-                if constexpr (HAS_PROLOGUE_B) {
-                    int64_t gmOffsetB_ = (hasNextBlock && ldk == kLoop - 1) ? gmOffsetNextB : gmOffsetB;
-                    int64_t gmOffsetWB_ = (static_cast<bool>(crossCoreBufferIndexAIV) ^ 
-                        (isFirstBlock && ldk == 0)) ? gmOffsetWB : gmOffsetWB + gmOffsetWBDelta; 
+            //     if constexpr (HAS_PROLOGUE_B) {
+            //         int64_t gmOffsetB_ = (hasNextBlock && ldk == kLoop - 1) ? gmOffsetNextB : gmOffsetB;
+            //         int64_t gmOffsetWB_ = (static_cast<bool>(crossCoreBufferIndexAIV) ^ 
+            //             (isFirstBlock && ldk == 0)) ? gmOffsetWB : gmOffsetWB + gmOffsetWBDelta; 
                     
-                    LayoutB layoutWB(kActual_, nShape_, srcBStride);
-                    LayoutB layoutDstB(kActualAligned_, nShape_);
-                    prologueB(
-                        gmDstB[gmOffsetWB_],
-                        layoutDstB,
-                        gmSrcB[gmOffsetB_],
-                        layoutWB,
-                        bufferIndex
-                    );
-                }
-            }
+            //         LayoutB layoutWB(kActual_, nShape_, srcBStride);
+            //         LayoutB layoutDstB(kActualAligned_, nShape_);
+            //         prologueB(
+            //             gmDstB[gmOffsetWB_],
+            //             layoutDstB,
+            //             gmSrcB[gmOffsetB_],
+            //             layoutWB,
+            //             bufferIndex
+            //         );
+            //     }
+            // }
            
             if (ldk == kLoop - 1) { // 尾部块
                 if (!hasNextBlock) {
