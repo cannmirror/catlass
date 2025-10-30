@@ -93,7 +93,7 @@ struct Options {
 
         problemParams = Catlass::Conv2dParams::MakeConv2dParams(dataSizes, filterSizes, pads, strides, dilations);
 
-        if (argc == static_cast<uint32_t>(ArgsIndex::ARGS_MAX) {
+        if (argc == static_cast<uint32_t>(ArgsIndex::ARGS_MAX)) {
             deviceId = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::DEVICE_ID_INDEX)]);
         }
         return 0;
