@@ -36,12 +36,31 @@ struct CopyL0CToGmQuantMode {
     static_assert(DEPENDENT_FALSE<ArchTag>, "Unsupported copy l0c to gm, can not find the specialization.");
 };
 
+// CopyL0CToGm fp32 to fp32
+template <>
+struct CopyL0CToGmQuantMode<
+    Catlass::Arch::AtlasA2,
+    float, float,
+    ScaleGranularity::NO_QUANT
+> {
+    static constexpr auto VALUE = QuantMode_t::NoQuant;
+};
+
 // CopyL0CToGm cast fp32 to fp16
 template <>
 struct CopyL0CToGmQuantMode<
     Catlass::Arch::AtlasA2,
     float, half,
     ScaleGranularity::NO_QUANT
+> {
+    static constexpr auto VALUE = QuantMode_t::F322F16;
+};
+
+template <>
+struct CopyL0CToGmQuantMode<
+    Catlass::Arch::AtlasA2,
+    float, half,
+    ScaleGranularity::PER_TENSOR
 > {
     static constexpr auto VALUE = QuantMode_t::F322F16;
 };
@@ -56,14 +75,50 @@ struct CopyL0CToGmQuantMode<
     static constexpr auto VALUE = QuantMode_t::F322BF16;
 };
 
-// CopyL0CToGm output fp32
 template <>
 struct CopyL0CToGmQuantMode<
     Catlass::Arch::AtlasA2,
-    float, float,
-    ScaleGranularity::NO_QUANT
+    float, bfloat16_t,
+    ScaleGranularity::PER_TENSOR
 > {
-    static constexpr auto VALUE = QuantMode_t::NoQuant;
+    static constexpr auto VALUE = QuantMode_t::F322BF16;
+};
+
+// CopyL0CToGm cast float to uint8/int8
+template <>
+struct CopyL0CToGmQuantMode<
+    Catlass::Arch::AtlasA2,
+    float, uint8_t,
+    ScaleGranularity::PER_TENSOR
+> {
+    static constexpr auto VALUE = QuantMode_t::QF322B8_PRE;
+};
+
+template <>
+struct CopyL0CToGmQuantMode<
+    Catlass::Arch::AtlasA2,
+    float, uint8_t,
+    ScaleGranularity::PER_CHANNEL
+> {
+    static constexpr auto VALUE = QuantMode_t::VQF322B8_PRE;
+};
+
+template <>
+struct CopyL0CToGmQuantMode<
+    Catlass::Arch::AtlasA2,
+    float, int8_t,
+    ScaleGranularity::PER_TENSOR
+> {
+    static constexpr auto VALUE = QuantMode_t::QF322B8_PRE;
+};
+
+template <>
+struct CopyL0CToGmQuantMode<
+    Catlass::Arch::AtlasA2,
+    float, int8_t,
+    ScaleGranularity::PER_CHANNEL
+> {
+    static constexpr auto VALUE = QuantMode_t::VQF322B8_PRE;
 };
 
 // CopyL0CToGm output int32
@@ -93,6 +148,43 @@ struct CopyL0CToGmQuantMode<
     ScaleGranularity::PER_CHANNEL
 > {
     static constexpr auto VALUE = QuantMode_t::VDEQF16;
+};
+
+// CopyL0CToGm cast int32 to uint8/int8
+template <>
+struct CopyL0CToGmQuantMode<
+    Catlass::Arch::AtlasA2,
+    int32_t, uint8_t,
+    ScaleGranularity::PER_TENSOR
+> {
+    static constexpr auto VALUE = QuantMode_t::REQ8;
+};
+
+template <>
+struct CopyL0CToGmQuantMode<
+    Catlass::Arch::AtlasA2,
+    int32_t, uint8_t,
+    ScaleGranularity::PER_CHANNEL
+> {
+    static constexpr auto VALUE = QuantMode_t::VREQ8;
+};
+
+template <>
+struct CopyL0CToGmQuantMode<
+    Catlass::Arch::AtlasA2,
+    int32_t, int8_t,
+    ScaleGranularity::PER_TENSOR
+> {
+    static constexpr auto VALUE = QuantMode_t::REQ8;
+};
+
+template <>
+struct CopyL0CToGmQuantMode<
+    Catlass::Arch::AtlasA2,
+    int32_t, int8_t,
+    ScaleGranularity::PER_CHANNEL
+> {
+    static constexpr auto VALUE = QuantMode_t::VREQ8;
 };
 
 template <
@@ -155,6 +247,111 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
         // Call AscendC Fixpipe
         AscendC::Fixpipe<ElementDst, ElementSrc, AscendC::CFG_ROW_MAJOR>(dst, src, intriParams);
     }
+};
+
+template <
+    class ElementAccumulator_,
+    class ElementDst_,
+    bool ReluEnable_
+>
+struct CopyL0CToGm<Catlass::Arch::AtlasA2,
+                   ElementAccumulator_,
+                   Gemm::GemmType<ElementDst_, layout::RowMajor>,
+                   ScaleGranularity::PER_TENSOR,
+                   ReluEnable_>
+{
+    using ArchTag = Catlass::Arch::AtlasA2;
+    using ElementDst = ElementDst_;
+    using ElementSrc = ElementAccumulator_;
+    using LayoutSrc = Catlass::layout::zN;
+    using LayoutDst = Catlass::layout::RowMajor;
+    static constexpr auto quantPre = CopyL0CToGmQuantMode<ArchTag, ElementSrc, ElementDst,
+        ScaleGranularity::PER_TENSOR>::VALUE;
+    static constexpr auto reluEn = ReluEnable_;
+
+    struct Params {};
+    Params params;
+
+    CATLASS_DEVICE
+    CopyL0CToGm() = default;
+
+    CATLASS_DEVICE
+    CopyL0CToGm(Params const &params_) : params(params_) {};
+	
+    CATLASS_DEVICE
+    void operator()(AscendC::GlobalTensor<ElementDst> const &dst, AscendC::LocalTensor<ElementSrc> const &src, float scale,
+        LayoutDst const &dstLayout, LayoutSrc const &srcLayout, uint8_t unitFlag = 0)
+    {
+        AscendC::FixpipeParamsV220 intriParams;
+
+        // Fixpipe layout information
+        intriParams.nSize = dstLayout.shape(1);
+        intriParams.mSize = dstLayout.shape(0);
+        intriParams.srcStride = srcLayout.stride(3) / srcLayout.stride(0);
+        intriParams.dstStride = dstLayout.stride(0);
+
+        // Fixpipe auxiliary arguments
+        intriParams.quantPre = quantPre;
+        intriParams.reluEn = reluEn;
+        intriParams.unitFlag = unitFlag;
+        intriParams.deqScalar = static_cast<uint64_t>(*reinterpret_cast<int32_t*>(&scale));
+
+        // Call AscendC Fixpipe
+        AscendC::Fixpipe<ElementDst, ElementSrc, AscendC::CFG_ROW_MAJOR>(dst, src, intriParams);
+    }
+};
+
+template <
+    class ElementAccumulator_,
+    class ElementDst_,
+    bool ReluEnable_
+>
+struct CopyL0CToGm<Catlass::Arch::AtlasA2,
+                   ElementAccumulator_,
+                   Gemm::GemmType<ElementDst_, layout::RowMajor>,
+                   ScaleGranularity::PER_CHANNEL,
+                   ReluEnable_>
+{
+    using ArchTag = Catlass::Arch::AtlasA2;
+    using ElementDst = ElementDst_;
+    using ElementSrc = ElementAccumulator_;
+    using LayoutSrc = Catlass::layout::zN;
+    using LayoutDst = Catlass::layout::RowMajor;
+    static constexpr auto quantPre = CopyL0CToGmQuantMode<ArchTag, ElementSrc, ElementDst,
+        ScaleGranularity::PER_CHANNEL>::VALUE;
+    static constexpr auto reluEn = ReluEnable_;
+	
+    struct Params {};
+    Params params;
+
+    CATLASS_DEVICE
+    CopyL0CToGm() = default;
+
+    CATLASS_DEVICE
+    CopyL0CToGm(Params const &params_) : params(params_) {};
+	
+    CATLASS_DEVICE
+    void operator()(AscendC::GlobalTensor<ElementDst> const &dst, AscendC::LocalTensor<ElementSrc> const &src, AscendC::LocalTensor<uint64_t> const &scale,
+        LayoutDst const &dstLayout, LayoutSrc const &srcLayout, uint8_t unitFlag = 0)
+    {
+        AscendC::FixpipeParamsV220 intriParams;
+
+        // Fixpipe layout information
+        intriParams.nSize = dstLayout.shape(1);
+        intriParams.mSize = dstLayout.shape(0);
+        intriParams.srcStride = srcLayout.stride(3) / srcLayout.stride(0);
+        intriParams.dstStride = dstLayout.stride(0);
+
+        // Fixpipe auxiliary arguments
+        intriParams.quantPre = quantPre;
+        intriParams.reluEn = reluEn;
+        intriParams.unitFlag = unitFlag;
+
+        // Call AscendC Fixpipe
+        AscendC::SetFixPipeConfig<uint64_t, false>(scale, false);
+        AscendC::PipeBarrier<PIPE_FIX>();
+        AscendC::Fixpipe<ElementDst, ElementSrc, AscendC::CFG_ROW_MAJOR>(dst, src, intriParams);
+    }    
 };
 
 template <
