@@ -378,6 +378,7 @@ struct HybridSplitkGemmIdentityBlockSwizzle {
     GemmCoord tileMNK;
     GemmCoord loopsMNK;
     uint32_t splitkFactor = 1;
+    uint32_t splitkSliceIdx;
     uint32_t kIdxSliceStart;
     uint32_t kIdxSliceLen;
 
@@ -392,7 +393,7 @@ struct HybridSplitkGemmIdentityBlockSwizzle {
     {
         loopsMNK = CeilDiv(problemShape, tileMNK);
 
-        uint32_t splitkSliceIdx = AscendC::GetBlockIdx();
+        splitkSliceIdx = AscendC::GetBlockIdx();
 
         if (splitkSliceIdx < loopsMNK.k() % splitkFactor) {
             kIdxSliceStart = (loopsMNK.k() / splitkFactor + 1) * splitkSliceIdx;
@@ -412,7 +413,7 @@ struct HybridSplitkGemmIdentityBlockSwizzle {
     CATLASS_DEVICE 
     uint32_t GetSplitkSliceIdx() const
     {
-        return AscendC::GetBlockIdx();
+        return splitkSliceIdx;
     }
 
     CATLASS_DEVICE
