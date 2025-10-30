@@ -12,19 +12,24 @@ set(MSOPGEN_PROJECT_SOURCE_DIR ${CMAKE_BINARY_DIR}/basic_matmul_aclnn)
 set(MSOPGEN_CMAKE_BINARY_DIR ${MSOPGEN_PROJECT_SOURCE_DIR}/build_out)
 
 if(NOT EXISTS ${MSOPGEN_PROJECT_SOURCE_DIR})
+    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/tmp)
+    execute_process(
+        COMMAND chmod 755 ${CMAKE_BINARY_DIR}/tmp
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
     configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/op_kernel/CMakeLists.txt
-        ${MSOPGEN_PROJECT_SOURCE_DIR}/tmp/op_kernel/CMakeLists.txt
+        ${CMAKE_BINARY_DIR}/tmp/op_kernel/CMakeLists.txt
     )
+    file(COPY_FILE ${CMAKE_CURRENT_SOURCE_DIR}/catlass_basic_matmul.json ${CMAKE_BINARY_DIR}/tmp/catlass_basic_matmul.json)
     find_program(MSOPGEN NAMES msopgen
         HINTS ${ASCEND_HOME_PATH})
     add_custom_target(generated_msopgen_project
         COMMAND ${CMAKE_COMMAND} -E make_directory ${MSOPGEN_PROJECT_SOURCE_DIR}
-        COMMAND ${MSOPGEN} gen -i ${CMAKE_CURRENT_SOURCE_DIR}/catlass_basic_matmul.json -c ai_core-${NPU_MODEL} -lan cpp -out ${MSOPGEN_PROJECT_SOURCE_DIR}
+        COMMAND ${MSOPGEN} gen -i ${CMAKE_BINARY_DIR}/tmp/catlass_basic_matmul.json -c ai_core-${NPU_MODEL} -lan cpp -out ${MSOPGEN_PROJECT_SOURCE_DIR}
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/op_host ${MSOPGEN_PROJECT_SOURCE_DIR}/op_host
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/op_kernel ${MSOPGEN_PROJECT_SOURCE_DIR}/op_kernel
-        COMMAND ${CMAKE_COMMAND} -E copy ${MSOPGEN_PROJECT_SOURCE_DIR}/tmp/op_kernel/CMakeLists.txt ${MSOPGEN_PROJECT_SOURCE_DIR}/op_kernel
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${MSOPGEN_PROJECT_SOURCE_DIR}/tmp
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/tmp/op_kernel/CMakeLists.txt ${MSOPGEN_PROJECT_SOURCE_DIR}/op_kernel
         BYPRODUCTS ${MSOPGEN_PROJECT_SOURCE_DIR}
     )
 else()
