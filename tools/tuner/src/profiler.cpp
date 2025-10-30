@@ -10,6 +10,7 @@
  
 #include "profiler.h"
 #include <algorithm>
+#include <runtime/dev.h>
 #include "log.h"
 
 namespace {
@@ -383,6 +384,24 @@ int64_t ProfileDataHandler::GetAicpuFreq()
         return freq_;
     }
     return freq_;
+}
+
+bool ProfileDataHandler::SetDeviceId(int32_t deviceId)
+{
+    constexpr char const *VIS = "ASCEND_RT_VISIBLE_DEVICES";
+    int32_t convertedId = deviceId;
+    auto env = getenv(VIS);
+    if (env) {
+        auto error = rtGetVisibleDeviceIdByLogicDeviceId(deviceId, &convertedId);
+        if (error != RT_ERROR_NONE) {
+            LOGE("Call rtGetVisibleDeviceIdByLogicDeviceId failed, error: %d. Please disable %s or try again.",
+                 error, VIS);
+            return false;
+        }
+    }
+    deviceId_ = convertedId;
+    profiler_.SetDeviceId(convertedId);
+    return true;
 }
 
 } // namespace Catlass
