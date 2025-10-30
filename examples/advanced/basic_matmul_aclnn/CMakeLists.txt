@@ -26,7 +26,7 @@ if(NOT EXISTS ${MSOPGEN_PROJECT_SOURCE_DIR})
         HINTS ${ASCEND_HOME_PATH})
     add_custom_target(generated_msopgen_project
         COMMAND ${CMAKE_COMMAND} -E make_directory ${MSOPGEN_PROJECT_SOURCE_DIR}
-        COMMAND ${MSOPGEN} gen -i ${CMAKE_CURRENT_BINARY_DIR}/tmp/catlass_basic_matmul.json -c ai_core-${NPU_MODEL} -lan cpp -out ${MSOPGEN_PROJECT_SOURCE_DIR}
+        COMMAND ${MSOPGEN} gen -i ${CMAKE_CURRENT_BINARY_DIR}/tmp/catlass_basic_matmul.json -c ai_core-"${NPU_MODEL}" -lan cpp -out ${MSOPGEN_PROJECT_SOURCE_DIR}
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/op_host ${MSOPGEN_PROJECT_SOURCE_DIR}/op_host
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/op_kernel ${MSOPGEN_PROJECT_SOURCE_DIR}/op_kernel
         COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/tmp/op_kernel/CMakeLists.txt ${MSOPGEN_PROJECT_SOURCE_DIR}/op_kernel
