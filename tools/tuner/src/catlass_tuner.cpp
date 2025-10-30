@@ -25,9 +25,13 @@ CatlassTuner::CatlassTuner(CommandLineParser parser) : parser_(std::move(parser)
         if (deviceId_ == -1) {
             return;
         }
-        profileHandler_.SetDeviceId(deviceId_);
         metrics_.SetDeviceId(deviceId_);
     }
+    // 调优通道需要做device id映射
+    if (!profileHandler_.SetDeviceId(deviceId_)) {
+        return;
+    }
+
     if (parser_.HasKey("output")) {
         std::string_view output;
         GET_CHECK(parser_.Get<std::string_view>("output", output), "output");
