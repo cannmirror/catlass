@@ -367,6 +367,137 @@ struct GemmIdentityBlockSwizzleL1FullLoad {
     }
 };
 
+
+/// Block swizzleing function for hybrid splitk matmul
+template <uint32_t SwizzleOffset = 1, uint32_t SwizzleDirection = 0>
+struct HybridSplitkGemmIdentityBlockSwizzle {
+    /// Data members
+    static_assert(SwizzleDirection == 0 || SwizzleDirection == 1, "SwizzleDirection only support 0/1");
+
+    GemmCoord problemShape;
+    GemmCoord tileMNK;
+    GemmCoord loopsMNK;
+    uint32_t splitkFactor = 1;
+    uint32_t kIdxSliceStart;
+    uint32_t kIdxSliceLen;
+
+    /// Methods
+    CATLASS_DEVICE
+    HybridSplitkGemmIdentityBlockSwizzle() {}
+
+    /// Methods
+    CATLASS_DEVICE
+    HybridSplitkGemmIdentityBlockSwizzle(GemmCoord const &problemShape_, GemmCoord const &l1TileShape, uint32_t splitkFactor_)
+        : problemShape(problemShape_), tileMNK(l1TileShape), splitkFactor(splitkFactor_)
+    {
+        loopsMNK = CeilDiv(problemShape, tileMNK);
+
+        uint32_t splitkSliceIdx = AscendC::GetBlockIdx();
+
+        if (splitkSliceIdx < loopsMNK.k() % splitkFactor) {
+            kIdxSliceStart = (loopsMNK.k() / splitkFactor + 1) * splitkSliceIdx;
+            kIdxSliceLen = loopsMNK.k() / splitkFactor + 1;
+        } else {
+            kIdxSliceStart = splitkSliceIdx * (loopsMNK.k() / splitkFactor) + loopsMNK.k() % splitkFactor;
+            kIdxSliceLen = loopsMNK.k() / splitkFactor;
+        }
+    }
+
+    CATLASS_DEVICE
+    uint32_t GetSingleCoreLoops() const
+    {
+        return kIdxSliceLen * loopsMNK.m() * loopsMNK.n();
+    }
+
+    CATLASS_DEVICE 
+    uint32_t GetSplitkSliceIdx() const
+    {
+        return AscendC::GetBlockIdx();
+    }
+
+    CATLASS_DEVICE
+    bool IsAtomicAdd(uint32_t loopIdx)
+    {
+        uint32_t mnLoops = loopsMNK.m() * loopsMNK.n();
+        return (loopIdx / mnLoops) != 0;
+    }
+
+    CATLASS_DEVICE
+    GemmCoord GetBlockCoord(uint32_t loopIdx)
+    {
+        uint32_t mnLoops = loopsMNK.m() * loopsMNK.n();
+        uint32_t kIdx = kIdxSliceStart + loopIdx / mnLoops;
+        uint32_t innerIdx = loopIdx % mnLoops;
+
+        if constexpr (SwizzleDirection == 0) { // Zn
+            uint32_t tileBlockLoop = CeilDiv(loopsMNK.m(), SwizzleOffset);
+            uint32_t tileBlockIdx = innerIdx / (SwizzleOffset * loopsMNK.n());
+            uint32_t inTileBlockIdx = innerIdx % (SwizzleOffset * loopsMNK.n());
+            uint32_t tailOffset = loopsMNK.m() - (tileBlockLoop - 1) * SwizzleOffset;
+            uint32_t nRow = SwizzleOffset;
+
+            if (tileBlockLoop >= 2 && tileBlockIdx >= tileBlockLoop - 2 && tailOffset <= SwizzleOffset / 2) {
+                tileBlockLoop = (loopsMNK.m() - tailOffset) / SwizzleOffset;
+                tileBlockIdx = tileBlockLoop - 1;
+                nRow = SwizzleOffset + tailOffset;
+                inTileBlockIdx = innerIdx - SwizzleOffset * loopsMNK.n() * tileBlockIdx;
+            } else if (tileBlockIdx == tileBlockLoop - 1) {
+                nRow = loopsMNK.m() - SwizzleOffset * tileBlockIdx;
+            }
+
+            uint32_t nIdx = inTileBlockIdx / nRow;
+            if (tileBlockIdx % 2 == 1) {
+                nIdx = loopsMNK.n() - nIdx - 1;
+            }
+
+            uint32_t mIdx = tileBlockIdx * SwizzleOffset + inTileBlockIdx % nRow;
+            if (nIdx % 2 == 1) {
+                mIdx = tileBlockIdx * SwizzleOffset + (nRow - inTileBlockIdx % nRow - 1);
+            }
+            return GemmCoord{mIdx, nIdx, kIdx};
+        } else if constexpr (SwizzleDirection == 1) { // Nz
+            uint32_t tileBlockLoop = CeilDiv(loopsMNK.n(), SwizzleOffset);
+            uint32_t tileBlockIdx = innerIdx / (SwizzleOffset * loopsMNK.m());
+            uint32_t inTileBlockIdx = innerIdx % (SwizzleOffset * loopsMNK.m());
+            uint32_t tailOffset = loopsMNK.n() - (tileBlockLoop - 1) * SwizzleOffset;
+            uint32_t nCol = SwizzleOffset;
+
+            if (tileBlockLoop >= 2 && tileBlockIdx >= tileBlockLoop - 2 && tailOffset < SwizzleOffset / 2) {
+                tileBlockLoop = (loopsMNK.n() - tailOffset) / SwizzleOffset;
+                tileBlockIdx = tileBlockLoop - 1;
+                nCol = SwizzleOffset + tailOffset;
+                inTileBlockIdx = innerIdx - SwizzleOffset * loopsMNK.m() * tileBlockIdx;
+            } else if (tileBlockIdx == tileBlockLoop - 1) {
+                nCol = loopsMNK.n() - SwizzleOffset * tileBlockIdx;
+            }
+
+            uint32_t mIdx = inTileBlockIdx / nCol;
+            if (tileBlockIdx % 2 == 1) {
+                mIdx = loopsMNK.m() - mIdx - 1;
+            }
+
+            uint32_t nIdx = tileBlockIdx * SwizzleOffset + inTileBlockIdx % nCol;
+            if (mIdx % 2 == 1) {
+                nIdx = tileBlockIdx * SwizzleOffset + (nCol - inTileBlockIdx % nCol - 1);
+            }
+            return GemmCoord{mIdx, nIdx, kIdx};
+        }
+    }
+
+    CATLASS_DEVICE
+    GemmCoord GetActualBlockShape(GemmCoord &blockCoord)
+    {
+        uint32_t mActual = (blockCoord.m() == (loopsMNK.m() - 1)) ?
+            (problemShape.m() - blockCoord.m() * tileMNK.m()) : tileMNK.m();
+        uint32_t nActual = (blockCoord.n() == (loopsMNK.n() - 1)) ?
+            (problemShape.n() - blockCoord.n() * tileMNK.n()) : tileMNK.n();
+        uint32_t kActual = (blockCoord.k() == (loopsMNK.k() - 1)) ?
+            (problemShape.k() - (loopsMNK.k() - 1) * tileMNK.k()) : tileMNK.k();
+        return GemmCoord{mActual, nActual, kActual};
+    }
+};
+
+
 }  // namespace Catlass::Gemm::Block
 
 #endif  // CATLASS_GEMM_BLOCK_BLOCK_SWIZZLE_HPP
