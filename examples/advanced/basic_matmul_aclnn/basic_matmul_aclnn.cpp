@@ -78,7 +78,7 @@ static void Run(const Options &options)
     // aclnn call
     size_t sizeWorkspace = 0;
     aclOpExecutor *executor;
-    ACL_CHECK(aclnnCatlassBasicMatmulGetWorkspaceSize(tensorA, tensorB, 0, tensorC, &sizeWorkspace, &executor));
+    ACL_CHECK(aclnnCatlassBasicMatmulGetWorkspaceSize(tensorA, tensorB, tensorC, &sizeWorkspace, &executor));
     uint8_t *deviceWorkspace = nullptr;
     if (sizeWorkspace > 0) {
         ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST));

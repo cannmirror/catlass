@@ -40,13 +40,6 @@
                     "int32"
                 ]
             }
-        ],
-        "attr": [
-            {
-                "name": "cubeMathType",
-                "param_type": "required",
-                "type": "int"
-            }
         ]
     }
 ]
