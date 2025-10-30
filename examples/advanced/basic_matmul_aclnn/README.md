@@ -47,9 +47,7 @@ msopgen gen -i catlass_basic_matmul.json -c ai_core-<soc_version> -lan cpp -out 
     if ("${CMAKE_BUILD_TYPE}x" STREQUAL "Debugx")
         add_ops_compile_options(ALL OPTIONS -g -O0)
     endif()
-
     + add_ops_compile_options(ALL OPTIONS -I${CATLASS_INCLUDE_PATH})
-
     add_kernels_compile()
     ```
 
@@ -95,7 +93,6 @@ $ASCEND_HOME_PATH/opp/vendors/customize/op_api/lib/libcust_opapi.so
 project(basic_matmul_aclnn)
 cmake_minimum_required(VERSION 3.22)
 set(CATLASS_REPO_DIR <修改为实际环境上的catlass仓库路径>)
-message(${CATLASS_REPO_DIR})
 add_executable(basic_matmul_aclnn basic_matmul_aclnn.cpp)
 target_include_directories(basic_matmul_aclnn PRIVATE
     ${CATLASS_REPO_DIR}/examples/common
@@ -119,7 +116,7 @@ target_link_libraries(basic_matmul_aclnn PRIVATE ascendcl cust_opapi nnopbase)
 
 ```bash
 bash scripts/build.sh basic_matmul_aclnn
-cd output/run/
+cd output/run
 chmod +x ./custom_opp_*.run
 ./custom_opp_*.run
 export LD_LIBRARY_PATH=$ASCEND_HOME_PATH/opp/vendors/catlass/op_api/lib/:${LD_LIBRARY_PATH}
