@@ -131,34 +131,34 @@ struct Conv3dIdentityBlockSwizzle {
 template <uint32_t SwizzleOffset = 1, uint32_t SwizzleDirection = 0>
 struct Conv2dIdentityBlockSwizzle {
     /// Data members
-    Conv2d5HdCoord problemShape; // {Batch, Ho, Wo, Cout, Cin1}
-    HoWoCoutCoord tiles;
-    HoWoCoutCoord loops;
+    Conv2dCoord problemShape; // {Batch, Ho, Wo, Cout, Cin1}
+    Conv2dHoWoCoCoord tiles;
+    Conv2dHoWoCoCoord loops;
 
     /// Methods
     CATLASS_DEVICE
     Conv2dIdentityBlockSwizzle() {}
 
     CATLASS_DEVICE
-    Conv2dIdentityBlockSwizzle(Conv2d5HdCoord const &problemShape_, HoWoCoutCoord const &tiles_)
+    Conv2dIdentityBlockSwizzle(Conv2dCoord const &problemShape_, Conv2dHoWoCoCoord const &tiles_)
         : problemShape(problemShape_), tiles(tiles_) {
-        loops = CeilDiv(HoWoCoutCoord(problemShape.GetCoordHoWoCout()), tiles);      
+        loops = CeilDiv(Conv2dHoWoCoCoord(problemShape.GetHoWoCoCoord()), tiles);      
     }
 
     CATLASS_DEVICE
-    Conv2dIdentityBlockSwizzle(Conv2d5HdCoord const &problemShape_, HoWoCoutCoord const &tiles_,
-        HoWoCoutCoord const &loops_)
+    Conv2dIdentityBlockSwizzle(Conv2dCoord const &problemShape_, Conv2dHoWoCoCoord const &tiles_,
+        Conv2dHoWoCoCoord const &loops_)
         : problemShape(problemShape_), tiles(tiles_), loops(loops_) {}
 
     CATLASS_DEVICE
-    void Update(Conv2d5HdCoord const &problemShape_, HoWoCoutCoord const &tiles_) {
+    void Update(Conv2dCoord const &problemShape_, Conv2dHoWoCoCoord const &tiles_) {
         problemShape = problemShape_;
         tiles = tiles_;
-        loops = CeilDiv(HoWoCoutCoord(problemShape.GetCoordHoWoCout()), tiles);
+        loops = CeilDiv(Conv2dHoWoCoCoord(problemShape.GetHoWoCoCoord()), tiles);
     }
 
     CATLASS_DEVICE
-    void Update(Conv2d5HdCoord const &problemShape_, HoWoCoutCoord const &tiles_, HoWoCoutCoord const &loops_) {
+    void Update(Conv2dCoord const &problemShape_, Conv2dHoWoCoCoord const &tiles_, Conv2dHoWoCoCoord const &loops_) {
         problemShape = problemShape_;
         tiles = tiles_;
         loops = loops_;
@@ -180,10 +180,10 @@ struct Conv2dIdentityBlockSwizzle {
     }
 
     CATLASS_DEVICE
-    Conv2d5HdCoord GetBlockCoord(uint32_t taskIdx) {
+    Conv2dCoord GetBlockCoord(uint32_t taskIdx) {
         uint32_t outerIdx = this->GetBatchIdx(taskIdx);
         uint32_t innerIdx = taskIdx % GetCoreLoops();
-        if constexpr (SwizzleDirection == 0) { // howoCout (Zn)
+        if constexpr (SwizzleDirection == 0) { // HoWoCo
             uint32_t tileBlockLoop = CeilDiv(loops.howo(), SwizzleOffset);
             uint32_t tileBlockIdx = innerIdx / (SwizzleOffset * loops.cout());
             uint32_t inTileBlockIdx = innerIdx % (SwizzleOffset * loops.cout());
@@ -199,8 +199,8 @@ struct Conv2dIdentityBlockSwizzle {
             }
             uint32_t hoIdx = howoIdx / loops.wo();
             uint32_t woIdx = howoIdx % loops.wo();
-            return Conv2d5HdCoord{outerIdx, hoIdx, woIdx, coutIdx, 0};
-        } else if constexpr (SwizzleDirection == 1) { // coutHoWo (Nz)
+            return Conv2dCoord{outerIdx, hoIdx, woIdx, coutIdx, 0};
+        } else if constexpr (SwizzleDirection == 1) { // CoHoWo
             uint32_t tileBlockLoop = CeilDiv(loops.cout(), SwizzleOffset);
             uint32_t tileBlockIdx = innerIdx / (SwizzleOffset * loops.howo());
             uint32_t inTileBlockIdx = innerIdx % (SwizzleOffset * loops.howo());
@@ -216,12 +216,12 @@ struct Conv2dIdentityBlockSwizzle {
             }
             uint32_t hoIdx = howoIdx / loops.wo();
             uint32_t woIdx = howoIdx % loops.wo();
-            return Conv2d5HdCoord{outerIdx, hoIdx, woIdx, coutIdx, 0};
+            return Conv2dCoord{outerIdx, hoIdx, woIdx, coutIdx, 0};
         }
     }
 
     CATLASS_DEVICE
-    Conv2d5HdCoord GetActualBlockShape(Conv2d5HdCoord blockCoord) {
+    Conv2dCoord GetActualBlockShape(Conv2dCoord blockCoord) {
         uint32_t hoActual = (blockCoord.h() == loops.ho() - 1) ? 
             (problemShape.h() - blockCoord.h() * tiles.ho()) : tiles.ho();
         uint32_t woActual = (blockCoord.w() == loops.wo() - 1) ? 
@@ -229,7 +229,7 @@ struct Conv2dIdentityBlockSwizzle {
         uint32_t coutActual = (blockCoord.cout() == loops.cout() - 1) ? 
             (problemShape.cout() - blockCoord.cout() * tiles.cout()) : tiles.cout();
         uint32_t cin1Actual = problemShape.cin1();
-        return Conv2d5HdCoord{1, hoActual, woActual, coutActual, cin1Actual};
+        return Conv2dCoord{1, hoActual, woActual, coutActual, cin1Actual};
     }
 };
 }  // namespace Catlass::Conv::Block

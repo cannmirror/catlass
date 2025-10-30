@@ -16,7 +16,8 @@
 #include "catlass/detail/tag_to_layout.hpp"
 #include "catlass/conv/tile/copy_gm_to_l1.hpp"
 #include "catlass/conv/tile/copy_l0c_to_gm.hpp"
-#include "catlass/conv/tile/copy_l1_to_l0.hpp"
+#include "catlass/conv/tile/copy_l1_to_l0a.hpp"
+#include "catlass/conv/tile/copy_l1_to_l0b.hpp"
 #include "catlass/gemm/helper.hpp"
 
 namespace Catlass::Conv::Tile {

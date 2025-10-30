@@ -66,7 +66,7 @@ public:
     /// Returns the offset of a coordinate in linear memory.
     /// Assumes coordinate has convention (batch, c1, h, w, c0)
     CATLASS_HOST_DEVICE
-    LongIndex GetOffset(FmapCoord const &coord) const {
+    LongIndex GetOffset(Conv2dFmapCoord const &coord) const {
         return LongIndex(coord.batch()) * stride_[0] +
             LongIndex(coord.c1()) * stride_[1] + 
             LongIndex(coord.h()) * stride_[2] +
@@ -76,7 +76,7 @@ public:
 
     /// Returns the layout of a tile.
     CATLASS_HOST_DEVICE
-    NC1HWC0 GetTileLayout(FmapCoord const &tileShape) const {
+    NC1HWC0 GetTileLayout(Conv2dFmapCoord const &tileShape) const {
         return NC1HWC0(tileShape, stride());
     }
 
@@ -192,7 +192,7 @@ public:
     /// Returns the offset of a coordinate in linear memory.
     /// Assumes coordinate has convention (cin1, kh, kw, cout, c0)
     CATLASS_HOST_DEVICE
-    LongIndex GetOffset(FilterCoord const &coord) const {
+    LongIndex GetOffset(Conv2dFilterCoord const &coord) const {
         return LongIndex(coord.cin1()) * stride_[0] + 
             LongIndex(coord.kh()) * stride_[1] +
             LongIndex(coord.kw()) * stride_[2] +
@@ -202,7 +202,7 @@ public:
 
     /// Returns the layout of a tile.
     CATLASS_HOST_DEVICE
-    CI1KHKWCOCI0 GetTileLayout(FilterCoord const &tileShape) const {
+    CI1KHKWCOCI0 GetTileLayout(Conv2dFilterCoord const &tileShape) const {
         return CI1KHKWCOCI0(tileShape, stride());
     }
 

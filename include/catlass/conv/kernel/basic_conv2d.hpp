@@ -114,7 +114,7 @@ public:
         uint32_t loops = conv2dBlockScheduler.GetLoops();
         
         Arch::Resource<ArchTag> resource;
-        BlockConv2d blockConv2d(resource, params.problemShape.getConv2dConfigs());
+        BlockConv2d blockConv2d(resource, params.problemShape.getFilterParams());
 
         // Represent the full gm
         AscendC::GlobalTensor<ElementFmap> gmFmap;
@@ -126,8 +126,8 @@ public:
     
         for (uint32_t loopIdx = AscendC::GetBlockIdx(); loopIdx < loops; loopIdx += AscendC::GetBlockNum()) {
             // Compute block location
-            Conv2d5HdCoord blockCoord = conv2dBlockScheduler.GetBlockCoord(loopIdx);
-            Conv2d5HdCoord actualBlockShape = conv2dBlockScheduler.GetActualBlockShape(blockCoord);
+            Conv2dCoord blockCoord = conv2dBlockScheduler.GetBlockCoord(loopIdx);
+            Conv2dCoord actualBlockShape = conv2dBlockScheduler.GetActualBlockShape(blockCoord);
 
             uint8_t blockPadLeft = 0, blockPadRight = 0, blockPadTop = 0, blockPadBottom = 0;
             
@@ -161,13 +161,13 @@ public:
             }
             uint32_t wiActual = wiEnd - wiStart + 1;
 
-            Conv2d5HdCoord actualConv2dBlockShape(1, hiActual, wiActual, actualBlockShape.cout(), actualBlockShape.cin1());
+            Conv2dCoord actualConv2dBlockShape(1, hiActual, wiActual, actualBlockShape.cout(), actualBlockShape.cin1());
             uint8_t blockPadList[4] = {blockPadLeft, blockPadRight, blockPadTop, blockPadBottom};
 
             // Compute initial location in logical coordinates
-            FmapCoord offsetFmap{blockCoord.batch(), 0, (uint32_t)hiStart, (uint32_t)wiStart, 0}; // (Batch, Cin1, Hi, Wi, C0)
-            FilterCoord offsetFilter{0, 0, 0, blockCoord.cout() * FilterL1TileShape::Cout, 0}; // (Cin1, Kw, Kh, Cout, C0)
-            FmapCoord offsetOutput{blockCoord.batch(), blockCoord.cout() * FilterL1TileShape::Cout / C0, hoStart, woStart, 0}; // (Batch, Cout1, Ho, Wo, C0)
+            Conv2dFmapCoord offsetFmap{blockCoord.batch(), 0, (uint32_t)hiStart, (uint32_t)wiStart, 0}; // (Batch, Cin1, Hi, Wi, C0)
+            Conv2dFilterCoord offsetFilter{0, 0, 0, blockCoord.cout() * FilterL1TileShape::Cout, 0}; // (Cin1, Kw, Kh, Cout, C0)
+            Conv2dFmapCoord offsetOutput{blockCoord.batch(), blockCoord.cout() * FilterL1TileShape::Cout / C0, hoStart, woStart, 0}; // (Batch, Cout1, Ho, Wo, C0)
             int64_t gmOffsetFmap = params.layoutFmap.GetOffset(offsetFmap);
             int64_t gmOffsetFilter = params.layoutFilter.GetOffset(offsetFilter);
             int64_t gmOffsetOutput = params.layoutOutput.GetOffset(offsetOutput);

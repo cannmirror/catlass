@@ -23,7 +23,7 @@ template<class ElementFmap, class LayoutFmap,
          class ElementFilter, class LayoutFilter,
          class ElementGolden, class LayoutGolden>
 void ComputeConv2d(
-    const Conv2dParams &params,
+    const Conv2dFilterParams &params,
     const std::vector<ElementFmap> &dataFmap, const LayoutFmap &layoutFmap,
     const std::vector<ElementFilter> &dataFilter, const LayoutFilter &layoutFilter,
     std::vector<ElementGolden> &dataGolden, const LayoutGolden &layoutGolden)
