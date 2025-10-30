@@ -14,13 +14,12 @@
 #define K_MAX_SHAPE_DIM 0
 #endif
 
-#include "catlass/conv/kernel/basic_conv2d.hpp"
-
 #include <iostream>
 #include <vector>
 
 #include "catlass/arch/arch.hpp"
 #include "catlass/catlass.hpp"
+#include "catlass/conv/kernel/basic_conv2d.hpp"
 #include "catlass/conv/block/block_conv.hpp"
 #include "catlass/conv/block/block_swizzle.hpp"
 #include "catlass/conv/device/device_conv.hpp"
