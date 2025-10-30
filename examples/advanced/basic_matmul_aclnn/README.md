@@ -70,6 +70,7 @@ msopgen gen -i catlass_basic_matmul.json -c ai_core-<soc_version> -lan cpp -out 
     {
         // ...
     }
+    ```
 
 ## 4. 编译、部署
 
