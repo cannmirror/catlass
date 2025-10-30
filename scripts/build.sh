@@ -210,7 +210,7 @@ case "$TARGET" in
                     "${CMAKE_OPTIONS[@]}"
             fi
         fi
-        cmake --build "$BUILD_DIR" --target "$TARGET" -j
+        cmake --build "$BUILD_DIR" --target "$TARGET" -j --verbose
         cmake --install "$BUILD_DIR" --component "$TARGET"
         echo -e "${INFO}Target '$TARGET' built successfully${NC}"
         ;;
