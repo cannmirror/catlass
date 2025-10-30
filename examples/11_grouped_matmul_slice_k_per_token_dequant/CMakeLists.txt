@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(grouped_matmul_slice_k_per_token_dequant.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(11_grouped_matmul_slice_k_per_token_dequant dav-c220 grouped_matmul_slice_k_per_token_dequant.cpp)
+catlass_example_add_executable(11_grouped_matmul_slice_k_per_token_dequant mix grouped_matmul_slice_k_per_token_dequant.cpp)

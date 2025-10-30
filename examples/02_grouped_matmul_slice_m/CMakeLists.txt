@@ -9,5 +9,5 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(grouped_matmul_slice_m.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(02_grouped_matmul_slice_m dav-c220-cube grouped_matmul_slice_m.cpp)
+catlass_example_add_executable(02_grouped_matmul_slice_m cube grouped_matmul_slice_m.cpp)
 target_compile_definitions(02_grouped_matmul_slice_m PRIVATE L2_CACHE_HINT)

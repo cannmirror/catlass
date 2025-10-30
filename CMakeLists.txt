@@ -8,7 +8,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # ----------------------------------------------------------------------------
 
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.22)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(ASCEND_CMAKE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
@@ -25,6 +25,11 @@ set(CATLASS_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
 
 if(NOT DEFINED CMAKE_BUILD_TYPE OR NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release")
+endif()
+
+if(NOT DEFINED CATLASS_BISHENG_ARCH OR NOT CATLASS_BISHENG_ARCH)
+    message(WARNING "CATLASS_BISHENG_ARCH is not defined, use default value \"a2\"")
+    set(CATLASS_BISHENG_ARCH a2)
 endif()
 
 # Compile options for secure compile

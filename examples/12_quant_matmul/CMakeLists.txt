@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(quant_matmul.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(12_quant_matmul dav-c220 quant_matmul.cpp)
+catlass_example_add_executable(12_quant_matmul mix quant_matmul.cpp)
