@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(basic_conv2d.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(99_basic_conv2d cube basic_conv2d.cpp)
+catlass_example_add_executable(33_basic_conv2d cube basic_conv2d.cpp)

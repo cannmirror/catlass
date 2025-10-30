@@ -89,8 +89,8 @@ public:
     using LayoutFilterInL0 = typename CopyL1ToL0B::LayoutDst;
     using LayoutOutputInL0 = layout::zN;
 
-    using L1FmapAlignHelper = Conv::helper::L1AlignHelper<ElementFmap, LayoutFmap>;
-    using L1FilterAlignHelper = Conv::helper::L1AlignHelper<ElementFilter, LayoutFilter>;
+    using L1FmapAlignHelper = Gemm::helper::L1AlignHelper<ElementFmap, LayoutFmap>;
+    using L1FilterAlignHelper = Gemm::helper::L1AlignHelper<ElementFilter, LayoutFilter>;
 
     static constexpr bool ENABLE_UNIT_FLAG = DispatchPolicy::ENABLE_UNIT_FLAG;
     static constexpr uint32_t MAX_STAGES = 2;

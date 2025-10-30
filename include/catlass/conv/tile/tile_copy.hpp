@@ -37,7 +37,7 @@ struct TileCopy {
     using ElementFmap = typename FmapType::Element;
     using ElementFilter = typename FilterType::Element;
     using ElementAccumulator =
-        typename Conv::helper::ElementAccumulatorSelector<ElementFmap, ElementFilter>::ElementAccumulator;
+        typename Gemm::helper::ElementAccumulatorSelector<ElementFmap, ElementFilter>::ElementAccumulator;
 
     using CopyGmToL1A = Conv::Tile::CopyGmToL1<ArchTag, FmapType>;
     using CopyGmToL1B = Conv::Tile::CopyGmToL1<ArchTag, FilterType>;
