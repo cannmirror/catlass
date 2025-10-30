@@ -26,7 +26,6 @@
 #include "catlass/conv/dispatch_policy.hpp"
 #include "catlass/conv_coord.hpp"
 #include "catlass/gemm/gemm_type.hpp"
-#include "catlass/layout/conv2d.hpp"
 #include "catlass/layout/layout.hpp"
 #include "catlass/status.hpp"
 
