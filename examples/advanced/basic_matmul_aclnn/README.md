@@ -126,7 +126,6 @@ cd output/bin
 # 可执行文件名 |矩阵m轴|n轴|k轴|Device ID
 # Device ID可选，默认为0
 ./basic_matmul_aclnn 256 512 1024 0
-
 ```
 
 执行结果如下，说明精度比对成功。

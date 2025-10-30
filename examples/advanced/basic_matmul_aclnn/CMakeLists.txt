@@ -30,7 +30,8 @@ if(NOT EXISTS ${MSOPGEN_PROJECT_SOURCE_DIR})
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/op_host ${MSOPGEN_PROJECT_SOURCE_DIR}/op_host
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/op_kernel ${MSOPGEN_PROJECT_SOURCE_DIR}/op_kernel
         COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/tmp/op_kernel/CMakeLists.txt ${MSOPGEN_PROJECT_SOURCE_DIR}/op_kernel
-        COMMAND sed -i "s/customize/catlass/g" ${MSOPGEN_PROJECT_SOURCE_DIR}/CMakePresets.json
+        # uncomment this line to change the vendor name to "catlass" to avoid conflict
+        # COMMAND sed -i "s/customize/catlass/g" ${MSOPGEN_PROJECT_SOURCE_DIR}/CMakePresets.json
         BYPRODUCTS ${MSOPGEN_PROJECT_SOURCE_DIR}
     )
 else()
