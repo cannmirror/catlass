@@ -140,9 +140,9 @@ void Run(Options const &options)
     size_t sizeFilter = lenFilter * sizeof(fp16_t);
     size_t sizeOutput = lenOutput * sizeof(fp16_t);
 
-    using LayoutFmap = layout::Fmap;
-    using LayoutFilter = layout::Filter;
-    using LayoutOutput = layout::Fmap;
+    using LayoutFmap = layout::NC1HWC0;
+    using LayoutFilter = layout::CI1KHKWCOCI0;
+    using LayoutOutput = layout::NC1HWC0;
     LayoutFmap layoutFmap{batch, cin1, hi, wi, c0};
     LayoutFilter layoutFilter{cin1, kh, kw, cout, c0};
     LayoutOutput layoutOutput{batch, cout1, ho, wo, c0};

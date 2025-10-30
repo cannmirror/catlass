@@ -109,7 +109,7 @@ public:
     static constexpr uint32_t L0B_PINGPONG_BUF_SIZE = L0B_SIZE / L0B_STAGES;
 
     // Check LayoutOutput
-    static_assert(std::is_same_v<LayoutOutput, layout::Fmap>, "LayoutOutput only support Fmap yet!");
+    static_assert(std::is_same_v<LayoutOutput, layout::NC1HWC0>, "LayoutOutput only support NC1HWC0 yet!");
 
     // Check L0TileShape
     static constexpr uint32_t L0B_TILE_SIZE = L0TileShape::K * L0TileShape::N * sizeof(ElementFilter);

@@ -28,9 +28,9 @@ struct CopyL1ToL0A {
 };
 
 template<class ArchTag, class Element>
-struct CopyL1ToL0A<ArchTag, Catlass::Gemm::GemmType<Element, layout::Fmap, AscendC::TPosition::A1>>{
+struct CopyL1ToL0A<ArchTag, Catlass::Gemm::GemmType<Element, layout::NC1HWC0, AscendC::TPosition::A1>>{
     using LayoutDst = layout::zZ;
-    using LayoutSrc = layout::Fmap;
+    using LayoutSrc = layout::NC1HWC0;
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 / sizeof(Element);
     static constexpr uint32_t ELE_NUM_PER_FRACTAL = BYTE_PER_FRACTAL / sizeof(Element);
@@ -89,9 +89,9 @@ struct CopyL1ToL0B {
 };
 
 template<class ArchTag, class Element>
-struct CopyL1ToL0B<ArchTag, Catlass::Gemm::GemmType<Element, layout::Filter, AscendC::TPosition::A1>>{
+struct CopyL1ToL0B<ArchTag, Catlass::Gemm::GemmType<Element, layout::CI1KHKWCOCI0, AscendC::TPosition::A1>>{
     using LayoutDst = layout::nZ;
-    using LayoutSrc = layout::Filter;
+    using LayoutSrc = layout::CI1KHKWCOCI0;
 
     static constexpr uint32_t ELE_NUM_PER_C0 =  BYTE_PER_C0 / sizeof(Element);
     static constexpr uint32_t ELE_NUM_PER_FRACTAL = BYTE_PER_FRACTAL / sizeof(Element);

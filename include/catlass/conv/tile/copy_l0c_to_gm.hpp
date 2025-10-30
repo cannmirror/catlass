@@ -63,7 +63,7 @@ template <
 >
 struct CopyL0CToGm<Catlass::Arch::AtlasA2,
                    ElementAccumulator_,
-                   Gemm::GemmType<ElementDst_, layout::Fmap>,
+                   Gemm::GemmType<ElementDst_, layout::NC1HWC0>,
                    ScaleGranularity::NO_QUANT,
                    ReluEnable_>
 {
@@ -71,7 +71,7 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
     using ElementDst = ElementDst_;
     using ElementSrc = ElementAccumulator_;
     using LayoutSrc = Catlass::layout::zN;
-    using LayoutDst = Catlass::layout::Fmap;
+    using LayoutDst = Catlass::layout::NC1HWC0;
     static constexpr auto quantPre = CopyL0CToGmQuantMode<ArchTag, ElementSrc, ElementDst,
         ScaleGranularity::NO_QUANT>::VALUE;
     static constexpr auto reluEn = ReluEnable_;

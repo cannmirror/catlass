@@ -72,16 +72,17 @@ struct L1AlignHelper<Element, layout::nZ> {
 };
 
 template<class Element>
-struct L1AlignHelper<Element, layout::Fmap> {
+struct L1AlignHelper<Element, layout::NC1HWC0> {
     static constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 / sizeof(Element);
     static constexpr uint32_t HOWO_ALIGNED = C0_NUM_PER_FRACTAL;
 };
 
 template<class Element>
-struct L1AlignHelper<Element, layout::Filter> {
+struct L1AlignHelper<Element, layout::CI1KHKWCOCI0> {
     static constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 / sizeof(Element);
     static constexpr uint32_t COUT_ALIGNED = C0_NUM_PER_FRACTAL;
 };
+
 
 template<class ElementA, class ElementB>
 struct ElementAccumulatorSelector {
@@ -151,8 +152,8 @@ struct L1ATypeSelector<Gemm::GemmType<Element, layout::NDC1HWC0>> {
 };
 
 template<class Element>
-struct L1ATypeSelector<Gemm::GemmType<Element, layout::Fmap>> {
-    using L1AType = Gemm::GemmType<Element, layout::Fmap, AscendC::TPosition::A1>;
+struct L1ATypeSelector<Gemm::GemmType<Element, layout::NC1HWC0>> {
+    using L1AType = Gemm::GemmType<Element, layout::NC1HWC0, AscendC::TPosition::A1>;
 };
 
 template<class GmBType>
@@ -197,8 +198,8 @@ struct L1BTypeSelector<Gemm::GemmType<Element, layout::KDC1KHKWN1N0C0>> {
 };
 
 template<class Element>
-struct L1BTypeSelector<Gemm::GemmType<Element, layout::Filter>> {
-    using L1BType = Gemm::GemmType<Element, layout::Filter, AscendC::TPosition::A1>;
+struct L1BTypeSelector<Gemm::GemmType<Element, layout::CI1KHKWCOCI0>> {
+    using L1BType = Gemm::GemmType<Element, layout::CI1KHKWCOCI0, AscendC::TPosition::A1>;
 };
 
 template<class GmBiasType, class ElementAccumulator>

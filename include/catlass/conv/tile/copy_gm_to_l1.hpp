@@ -30,9 +30,9 @@ struct CopyGmToL1 {
 
 /// Gm to L1A
 template <class ArchTag, class Element>
-struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::Fmap, AscendC::TPosition::GM>> {
-    using LayoutDst = layout::Fmap; // L1
-    using LayoutSrc = layout::Fmap; // GM
+struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::NC1HWC0, AscendC::TPosition::GM>> {
+    using LayoutDst = layout::NC1HWC0; // L1
+    using LayoutSrc = layout::NC1HWC0; // GM
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 / sizeof(Element);
 
@@ -74,9 +74,9 @@ struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::Fmap, AscendC::TPosit
 
 /// Gm to L1B
 template <class ArchTag, class Element>
-struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::Filter, AscendC::TPosition::GM>> {
-    using LayoutDst = layout::Filter; // L1
-    using LayoutSrc = layout::Filter; // GM
+struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::CI1KHKWCOCI0, AscendC::TPosition::GM>> {
+    using LayoutDst = layout::CI1KHKWCOCI0; // L1
+    using LayoutSrc = layout::CI1KHKWCOCI0; // GM
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 / sizeof(Element);
 

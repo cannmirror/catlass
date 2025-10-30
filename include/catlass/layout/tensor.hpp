@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef CATLASS_LAYOUT_CONV2D_HPP
-#define CATLASS_LAYOUT_CONV2D_HPP
+#ifndef CATLASS_LAYOUT_TENSOR_HPP
+#define CATLASS_LAYOUT_TENSOR_HPP
 
 #include "catlass/catlass.hpp"
 #include "catlass/detail/alignment.hpp"
@@ -17,8 +17,7 @@
 
 namespace Catlass::layout {
 
-/// Mapping function for input map
-struct Fmap { // (Batch, C1, H, W, C0)
+struct NC1HWC0 { // (Batch, C1, H, W, C0)
     /// Logical rank of tensor
     static constexpr int RANK = 5;
 
@@ -37,7 +36,7 @@ struct Fmap { // (Batch, C1, H, W, C0)
 public:
     /// Ctor
     CATLASS_HOST_DEVICE
-    Fmap(Index batch = 0, Index c1 = 0, Index h = 0, Index w = 0, Index c0 = 0)
+    NC1HWC0(Index batch = 0, Index c1 = 0, Index h = 0, Index w = 0, Index c0 = 0)
         : shape_(MakeCoord(batch, c1, h, w, c0))
     {
         LongIndex strideBatch = c1 * h * w * c0;
@@ -49,19 +48,19 @@ public:
     }
 
     CATLASS_HOST_DEVICE
-    Fmap(Index batch, Index c1, Index h, Index w, Index c0,
+    NC1HWC0(Index batch, Index c1, Index h, Index w, Index c0,
         LongIndex strideBatch, LongIndex strideC1, LongIndex strideH, LongIndex strideW, LongIndex strideC0)
         : shape_(MakeCoord(batch, c1, h, w, c0)), 
         stride_(MakeCoord(strideBatch, strideC1, strideH, strideW, strideC0)) {}
 
     CATLASS_HOST_DEVICE
-    Fmap(Shape shape, Stride stride) : shape_(shape), stride_(stride) {}
+    NC1HWC0(Shape shape, Stride stride) : shape_(shape), stride_(stride) {}
 
     /// Make the layout of a coordinate (batch, c1, h, w, c0)
     template <class Element>
     CATLASS_HOST_DEVICE
-    static Fmap MakeLayout(Index batch, Index c1, Index h, Index w, Index c0) {
-        return Fmap(batch, c1, h, w, c0);
+    static NC1HWC0 MakeLayout(Index batch, Index c1, Index h, Index w, Index c0) {
+        return NC1HWC0(batch, c1, h, w, c0);
     }
 
     /// Returns the offset of a coordinate in linear memory.
@@ -77,8 +76,8 @@ public:
 
     /// Returns the layout of a tile.
     CATLASS_HOST_DEVICE
-    Fmap GetTileLayout(FmapCoord const &tileShape) const {
-        return Fmap(tileShape, stride());
+    NC1HWC0 GetTileLayout(FmapCoord const &tileShape) const {
+        return NC1HWC0(tileShape, stride());
     }
 
     /// Returns the shape of the layout
@@ -143,8 +142,7 @@ private:
     Stride stride_;
 };
 
-/// Mapping function for filter map
-struct Filter { // (Cin1, Kh, Kw, Cout, C0)
+struct CI1KHKWCOCI0 { // (Cin1, Kh, Kw, Cout, C0)
     /// Logical rank of tensor
     static constexpr int RANK = 5;
 
@@ -163,7 +161,7 @@ struct Filter { // (Cin1, Kh, Kw, Cout, C0)
 public:
     /// Ctor
     CATLASS_HOST_DEVICE
-    Filter(Index cin1 = 0, Index kh = 0, Index kw = 0, Index cout = 0, Index c0 = 0)
+    CI1KHKWCOCI0(Index cin1 = 0, Index kh = 0, Index kw = 0, Index cout = 0, Index c0 = 0)
         : shape_(MakeCoord(cin1, kh, kw, cout, c0))
     {
         LongIndex strideCin1 = kh * kw * cout * c0;
@@ -175,20 +173,20 @@ public:
     }
 
     CATLASS_HOST_DEVICE
-    Filter(Index cin1, Index kh, Index kw, Index cout, Index c0,
+    CI1KHKWCOCI0(Index cin1, Index kh, Index kw, Index cout, Index c0,
         LongIndex strideCin1, LongIndex strideKh, LongIndex strideKw,
         LongIndex strideCout, LongIndex strideC0)
         : shape_(MakeCoord(cin1, kh, kw, cout, c0)), 
         stride_(MakeCoord(strideCin1, strideKh, strideKw, strideCout, strideC0)) {}
 
     CATLASS_HOST_DEVICE
-    Filter(Shape shape, Stride stride) : shape_(shape), stride_(stride) {}
+    CI1KHKWCOCI0(Shape shape, Stride stride) : shape_(shape), stride_(stride) {}
 
     /// Make the layout of a coordinate (cin1, h, w, c0)
     template <class Element>
     CATLASS_HOST_DEVICE
-    static Filter MakeLayout(Index cin1, Index kh, Index kw, Index cout, Index c0) {
-        return Filter(cin1, kh, kw, cout, c0);
+    static CI1KHKWCOCI0 MakeLayout(Index cin1, Index kh, Index kw, Index cout, Index c0) {
+        return CI1KHKWCOCI0(cin1, kh, kw, cout, c0);
     }
 
     /// Returns the offset of a coordinate in linear memory.
@@ -204,8 +202,8 @@ public:
 
     /// Returns the layout of a tile.
     CATLASS_HOST_DEVICE
-    Filter GetTileLayout(FilterCoord const &tileShape) const {
-        return Filter(tileShape, stride());
+    CI1KHKWCOCI0 GetTileLayout(FilterCoord const &tileShape) const {
+        return CI1KHKWCOCI0(tileShape, stride());
     }
 
     /// Returns the shape of the layout
@@ -272,4 +270,4 @@ private:
 
 }  // namespace Catlass::layout
 
-#endif  // CATLASS_LAYOUT_CONV2D_HPP
+#endif  // CATLASS_LAYOUT_TENSOR_HPP
