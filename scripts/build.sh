@@ -182,29 +182,6 @@ function build_mstuner_catlass() {
     echo -e "${INFO}mstuner_catlass built successfully${NC}"
 }
 
-function build_msopgen() {
-    echo -e "${INFO}Building msopgen example...${NC}"
-    MSOPGEN_EXAMPLE_PATH=$EXAMPLES_DIR/103_msopgen
-    MSOPGEN_EXAMPLE_GEN_PATH=$EXAMPLES_DIR/103_msopgen/catlass_basic_matmul
-    if [[ ! -d $MSOPGEN_EXAMPLE_GEN_PATH ]]; then
-        msopgen gen -i $MSOPGEN_EXAMPLE_PATH/catlass_basic_matmul.json -c ai_core-$(get_npu_model) -lan cpp -out $MSOPGEN_EXAMPLE_GEN_PATH
-        cp -rf $MSOPGEN_EXAMPLE_PATH/op_host $MSOPGEN_EXAMPLE_GEN_PATH
-        cp -rf $MSOPGEN_EXAMPLE_PATH/op_kernel $MSOPGEN_EXAMPLE_GEN_PATH
-    fi
-    if [[ $CLEAN && -d $MSOPGEN_EXAMPLE_GEN_PATH/build_out ]]; then
-        rm -rf $MSOPGEN_EXAMPLE_GEN_PATH/build_out
-    fi
-    cd $MSOPGEN_EXAMPLE_GEN_PATH
-    bash build.sh
-    MSOPGEN_OPP_RUN_FILE=$(find $MSOPGEN_EXAMPLE_GEN_PATH/build_out -type f -name "custom_opp*.run" 2>/dev/null | head -n 1)
-    if [ -z $MSOPGEN_OPP_RUN_FILE ]; then
-        echo "Error: No custom opp run package found!"
-        exit 1
-    fi
-    mkdir -p $OUTPUT_DIR/run
-    cp -f $MSOPGEN_OPP_RUN_FILE $OUTPUT_DIR/run/
-}
-
 # 执行构建
 case "$TARGET" in
     python_extension)
@@ -215,9 +192,6 @@ case "$TARGET" in
         ;;
     mstuner_catlass)
         build_mstuner_catlass
-        ;;
-    103_msopgen)
-        build_msopgen
         ;;
     *)
         echo -e "${INFO}Building target: $TARGET...${NC}"

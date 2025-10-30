@@ -135,12 +135,12 @@ public:
     explicit CatlassBasicMatmul(const char *name)
         : OpDef(name)
     {
-        this->Input("mat2")
+        this->Input("self")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_INT8})
             .Format({ge::FORMAT_ND, ge::FORMAT_ND})
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND});
-        this->Input("self")
+        this->Input("mat2")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_INT8})
             .Format({ge::FORMAT_ND, ge::FORMAT_ND})

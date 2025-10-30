@@ -115,6 +115,7 @@ foreach(EXAMPLE
 )
     add_subdirectory(${EXAMPLE})
 endforeach()
-
+# Advanded examples
 add_subdirectory(shared_lib)
 add_subdirectory(python_extension)
+add_subdirectory(advanced/basic_matmul_aclnn)
