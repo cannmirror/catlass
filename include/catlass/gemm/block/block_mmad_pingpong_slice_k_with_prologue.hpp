@@ -385,7 +385,7 @@ protected:
                 if constexpr (HAS_PROLOGUE_A)  {
                     int64_t gmOffsetA_ = (hasNextBlock && ldk == kLoop - 1) ? gmOffsetNextA : gmOffsetA;
                     int64_t gmOffsetWA_ = (static_cast<bool>(crossCoreBufferIndexAIV) ^ 
-                        (isFirstBlock && ldk == 0)) ? gmOffsetWB : gmOffsetWB + gmOffsetWBDelta; 
+                        (isFirstBlock && ldk == 0)) ? gmOffsetWA : gmOffsetWA + gmOffsetWADelta; 
 
                     LayoutA layoutWA(mShape_, kActual_, srcAStride);
                     LayoutA layoutDstA(mShape_, kActualAligned_);
