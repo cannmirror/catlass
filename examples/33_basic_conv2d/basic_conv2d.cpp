@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This file is a part of the CANN Open Software.
  * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
@@ -14,12 +14,10 @@
 #define K_MAX_SHAPE_DIM 0
 #endif
 
-#include <iostream>
-#include <vector>
+#include "catlass/conv/kernel/basic_conv2d.hpp"
 
 #include "catlass/arch/arch.hpp"
 #include "catlass/catlass.hpp"
-#include "catlass/conv/kernel/basic_conv2d.hpp"
 #include "catlass/conv/block/block_conv.hpp"
 #include "catlass/conv/block/block_swizzle.hpp"
 #include "catlass/conv/device/device_conv.hpp"
@@ -51,7 +49,7 @@ struct Options {
 
     int Parse(int argc, const char **argv)
     {
-        enum ArgsIndex {
+        enum class ArgsIndex {
             BATCH_INDEX = 1,
             HI_INDEX,
             WI_INDEX,
@@ -71,31 +69,32 @@ struct Options {
             ARGS_MAX
         };
 
-        if (argc > ARGS_MAX || argc <= DILATIONW_INDEX) {
+        if (argc > static_cast<uint32_t>(ArgsIndex::ARGS_MAX)
+            || argc <= static_cast<uint32_t>(ArgsIndex::DILATIONW_INDEX)) {
             std::cerr << HELPER << std::endl;
             return 0;
         }
 
-        dataSizes[0] = std::atoi(argv[BATCH_INDEX]);
-        dataSizes[1] = std::atoi(argv[HI_INDEX]);
-        dataSizes[2] = std::atoi(argv[WI_INDEX]);
-        dataSizes[3] = std::atoi(argv[CIN_INDEX]);
-        dataSizes[4] = std::atoi(argv[COUT_INDEX]);
-        filterSizes[0] = std::atoi(argv[KH_INDEX]);
-        filterSizes[1] = std::atoi(argv[KW_INDEX]);
-        pads[0] = std::atoi(argv[PADLEFT_INDEX]);
-        pads[1] = std::atoi(argv[PADRIGHT_INDEX]);
-        pads[2] = std::atoi(argv[PADTOP_INDEX]);
-        pads[3] = std::atoi(argv[PADBOTTOM_INDEX]);
-        strides[0] = std::atoi(argv[STRIDEH_INDEX]);
-        strides[1] = std::atoi(argv[STRIDEW_INDEX]);
-        dilations[0] = std::atoi(argv[DILATIONH_INDEX]);
-        dilations[1] = std::atoi(argv[DILATIONW_INDEX]);
+        dataSizes[0] = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::BATCH_INDEX)]);
+        dataSizes[1] = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::HI_INDEX)]);
+        dataSizes[2] = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::WI_INDEX)]);
+        dataSizes[3] = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::CIN_INDEX)]);
+        dataSizes[4] = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::COUT_INDEX)]);
+        filterSizes[0] = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::KH_INDEX)]);
+        filterSizes[1] = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::KW_INDEX)]);
+        pads[0] = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::PADLEFT_INDEX)]);
+        pads[1] = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::PADRIGHT_INDEX)]);
+        pads[2] = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::PADTOP_INDEX)]);
+        pads[3] = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::PADBOTTOM_INDEX)]);
+        strides[0] = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::STRIDEH_INDEX)]);
+        strides[1] = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::STRIDEW_INDEX)]);
+        dilations[0] = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::DILATIONH_INDEX)]);
+        dilations[1] = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::DILATIONW_INDEX)]);
 
         problemParams = Catlass::Conv2dParams::MakeConv2dParams(dataSizes, filterSizes, pads, strides, dilations);
 
-        if (argc == ARGS_MAX) {
-            deviceId = std::atoi(argv[DEVICE_ID_INDEX]);
+        if (argc == static_cast<uint32_t>(ArgsIndex::ARGS_MAX) {
+            deviceId = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::DEVICE_ID_INDEX)]);
         }
         return 0;
     }

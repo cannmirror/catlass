@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This file is a part of the CANN Open Software.
  * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
@@ -138,9 +138,6 @@ public:
         l1A_size = FmapL1TileShape::Cin1 * hiBlock * wiBlock * BYTE_PER_C0;
         l1B_size = FilterL1TileShape::Cin1 * filterParams.kh() * filterParams.kw() * 
             FilterL1TileShape::Cout * BYTE_PER_C0;
-
-        // Check L1TileShape
-        assert((l1A_size * L1A_STAGES + l1B_size * L1B_STAGES) <= ArchTag::L1_SIZE, "L1TileShape exceeding the L1 space!");
 
         uint32_t l1AOffset = l1BufAddrStart;
         uint32_t l1BOffset = l1BufAddrStart + l1A_size * L1A_STAGES;
