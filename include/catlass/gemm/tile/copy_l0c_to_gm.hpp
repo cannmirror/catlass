@@ -270,10 +270,7 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
     static constexpr auto reluEn = ReluEnable_;
 
     struct Params {
-        union {
-            float f32[2];
-            uint64_t s64;
-        } scalarUnion{};
+        float scale = 1.0;
 
         CATLASS_HOST_DEVICE
         Params() = default;
@@ -281,10 +278,10 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
         CATLASS_HOST_DEVICE
         Params(float scalar)
         {
-            scalarUnion.f32[0] = scalar;
-            scalarUnion.f32[1] = 0;
+            scale = scalar;
         }
     };
+    Params params;
 
     CATLASS_DEVICE
     CopyL0CToGm() = default;
@@ -306,7 +303,7 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
 
         // Fixpipe auxiliary arguments
         intriParams.quantPre = quantPre;
-        intriParams.deqScalar = params.scalarUnion.s64;
+        intriParams.deqScalar = static_cast<uint64_t>(*reinterpret_cast<int32_t*>(&params.scale));
         intriParams.reluEn = reluEn;
         intriParams.unitFlag = unitFlag;
 

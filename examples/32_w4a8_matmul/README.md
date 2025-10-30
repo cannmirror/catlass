@@ -9,7 +9,7 @@
 ```
 ## 功能介绍
 - 提供了W4A8量化模式下的matmul实现
-- A矩阵为int8类型, B矩阵为int4类型, 经过矩阵乘和随路转换最终得到的结果矩阵为half类型
+- A矩阵int8类型，B矩阵int4类型，对B矩阵cast成int8后，矩阵乘法结果int32，通过per tensor量化为half类型输出
 ## 使用示例
 - 获取代码之后编译相应的算子可执行文件，可参考[quickstart](../../docs/quickstart.md#算子编译)   
 

@@ -118,7 +118,6 @@ struct TileCastInt4ToInt8 {
             taskOffsetSrc += (tilesNum % AscendC::GetSubBlockNum()) * tileStrideSrc;
             taskOffsetDst += (tilesNum % AscendC::GetSubBlockNum()) * tileStrideDst;
         }
-        // uint32_t tilesPerLoop = COMPUTE_LEN / tileLenRoundInt8;
         uint32_t tilesPerLoop = 32;
         uint32_t loops = CeilDiv(tilesPerAiv, tilesPerLoop);
         uint32_t pingpong = 0;
@@ -179,7 +178,6 @@ protected:
     AscendC::LocalTensor<ElementSrc> ubInTensorList[STAGES];
     AscendC::LocalTensor<ElementDst> ubOutTensorList[STAGES];
     AscendC::LocalTensor<half> ubWorkspaceList[STAGES];
-    AscendC::LocalTensor<AscendC::int4b_t> int4_workspace[STAGES];
 
     int32_t ubEventList[STAGES];
 };
