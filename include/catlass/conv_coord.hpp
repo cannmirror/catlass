@@ -948,7 +948,7 @@ private:
     Conv2dFilterCoord filterShape; // {Cin1, Kh, Kw, Cout, C0}
     Conv2dFmapCoord outputShape; // {Batch, Cout1, Ho, Wo, C0}
     Conv2dFilterParams configs; // {Ks, Pads, Strides, Dilations}
-    Conv2dCoord problemShape; // {Batch, Ho, Wo, Cout, Cin1}
+    Conv2dCoord postIm2colShape; // {Batch, Ho, Wo, Cout, Cin1}
 public:
     /// Default ctor
     CATLASS_HOST_DEVICE
@@ -968,7 +968,7 @@ public:
         Index ho = (hi + padTop + padBottom - dilationH * (kh - 1) - 1) / strideH + 1;
         Index wo = (wi + padLeft + padRight - dilationW * (kw - 1) - 1) / strideW + 1;
         outputShape = MakeCoord(batch, cout1, ho, wo, C0);
-        problemShape = MakeCoord(batch, ho, wo, cout, filterShape.cin1());
+        postIm2colShape = MakeCoord(batch, ho, wo, cout, filterShape.cin1());
     }
 
     CATLASS_HOST_DEVICE
@@ -997,8 +997,8 @@ public:
     }
 
     CATLASS_HOST_DEVICE
-    Conv2dCoord const &getproblemShape() const {
-        return this->problemShape;
+    Conv2dCoord const &getPostIm2colShape() const {
+        return this->postIm2colShape;
     }
 
     CATLASS_HOST_DEVICE
