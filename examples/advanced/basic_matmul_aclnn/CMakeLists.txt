@@ -8,28 +8,29 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # ----------------------------------------------------------------------------
 
-set(MSOPGEN_PROJECT_SOURCE_DIR ${CMAKE_BINARY_DIR}/basic_matmul_aclnn)
-set(MSOPGEN_CMAKE_BINARY_DIR ${MSOPGEN_PROJECT_SOURCE_DIR}/build_out)
+set(MSOPGEN_PROJECT_SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/msopgen)
+set(MSOPGEN_CMAKE_CURRENT_BINARY_DIR ${MSOPGEN_PROJECT_SOURCE_DIR}/build_out)
 
 if(NOT EXISTS ${MSOPGEN_PROJECT_SOURCE_DIR})
-    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/tmp)
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/tmp)
     execute_process(
-        COMMAND chmod 755 ${CMAKE_BINARY_DIR}/tmp
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        COMMAND chmod 755 ${CMAKE_CURRENT_BINARY_DIR}/tmp
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
     configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/op_kernel/CMakeLists.txt
-        ${CMAKE_BINARY_DIR}/tmp/op_kernel/CMakeLists.txt
+        ${CMAKE_CURRENT_BINARY_DIR}/tmp/op_kernel/CMakeLists.txt
     )
-    file(COPY_FILE ${CMAKE_CURRENT_SOURCE_DIR}/catlass_basic_matmul.json ${CMAKE_BINARY_DIR}/tmp/catlass_basic_matmul.json)
+    file(COPY_FILE ${CMAKE_CURRENT_SOURCE_DIR}/catlass_basic_matmul.json ${CMAKE_CURRENT_BINARY_DIR}/tmp/catlass_basic_matmul.json)
     find_program(MSOPGEN NAMES msopgen
         HINTS ${ASCEND_HOME_PATH})
     add_custom_target(generated_msopgen_project
         COMMAND ${CMAKE_COMMAND} -E make_directory ${MSOPGEN_PROJECT_SOURCE_DIR}
-        COMMAND ${MSOPGEN} gen -i ${CMAKE_BINARY_DIR}/tmp/catlass_basic_matmul.json -c ai_core-${NPU_MODEL} -lan cpp -out ${MSOPGEN_PROJECT_SOURCE_DIR}
+        COMMAND ${MSOPGEN} gen -i ${CMAKE_CURRENT_BINARY_DIR}/tmp/catlass_basic_matmul.json -c ai_core-${NPU_MODEL} -lan cpp -out ${MSOPGEN_PROJECT_SOURCE_DIR}
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/op_host ${MSOPGEN_PROJECT_SOURCE_DIR}/op_host
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/op_kernel ${MSOPGEN_PROJECT_SOURCE_DIR}/op_kernel
-        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/tmp/op_kernel/CMakeLists.txt ${MSOPGEN_PROJECT_SOURCE_DIR}/op_kernel
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/tmp/op_kernel/CMakeLists.txt ${MSOPGEN_PROJECT_SOURCE_DIR}/op_kernel
+        COMMAND sed -i "s/customize/catlass/g" ${MSOPGEN_PROJECT_SOURCE_DIR}/CMakePresets.json
         BYPRODUCTS ${MSOPGEN_PROJECT_SOURCE_DIR}
     )
 else()
@@ -38,14 +39,18 @@ else()
     )
 endif()
 
-# if(BUILD_MSOPGEN_RUN_PACKAGE)
+execute_process(COMMAND grep -i ^id= /etc/os-release OUTPUT_VARIABLE TEMP)
+string(REGEX REPLACE "\n|id=|ID=|\"" "" SYSTEM_NAME ${TEMP})
+set(SYSTEM_INFO "${SYSTEM_NAME}_${CMAKE_SYSTEM_PROCESSOR}")
+set(PACKAGE_NAME "custom_opp_${SYSTEM_INFO}.run")
+
 add_custom_target(basic_matmul_aclnn_run_package
-    COMMAND ${MSOPGEN_PROJECT_SOURCE_DIR}/build.sh
+    COMMAND bash -c "${MSOPGEN_PROJECT_SOURCE_DIR}/build.sh"
     WORKING_DIRECTORY ${MSOPGEN_PROJECT_SOURCE_DIR}
-    BYPRODUCTS ${MSOPGEN_CMAKE_BINARY_DIR}/custom_opp_ubuntu.run
+    BYPRODUCTS
+    "${MSOPGEN_CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}"
 )
 add_dependencies(basic_matmul_aclnn_run_package generated_msopgen_project)
-# endif()
 
 add_executable(basic_matmul_aclnn basic_matmul_aclnn.cpp)
 add_dependencies(basic_matmul_aclnn basic_matmul_aclnn_run_package)
@@ -54,18 +59,13 @@ target_include_directories(basic_matmul_aclnn PRIVATE
     ${ASCEND_HOME_PATH}/include/aclnn
     ${ASCEND_HOME_PATH}/include/experiment/runtime
     ${ASCEND_HOME_PATH}/include/experiment/msprof
-    ${MSOPGEN_CMAKE_BINARY_DIR}/autogen)
+    ${MSOPGEN_CMAKE_CURRENT_BINARY_DIR}/autogen)
 target_link_directories(basic_matmul_aclnn PRIVATE
-    ${MSOPGEN_CMAKE_BINARY_DIR}/op_host)
+    ${MSOPGEN_CMAKE_CURRENT_BINARY_DIR}/op_host)
 target_link_libraries(basic_matmul_aclnn PRIVATE cust_opapi)
 
-execute_process(COMMAND grep -i ^id= /etc/os-release OUTPUT_VARIABLE TEMP)
-string(REGEX REPLACE "\n|id=|ID=|\"" "" SYSTEM_NAME ${TEMP})
-set(SYSTEM_INFO "${SYSTEM_NAME}_${CMAKE_SYSTEM_PROCESSOR}")
-set(PACKAGE_NAME "custom_opp_${SYSTEM_INFO}.run")
-
 install(
-    FILES "${MSOPGEN_CMAKE_BINARY_DIR}/${PACKAGE_NAME}"
+    FILES "${MSOPGEN_CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}"
     DESTINATION run
     COMPONENT basic_matmul_aclnn
 )
@@ -74,3 +74,9 @@ install(TARGETS basic_matmul_aclnn
     RUNTIME DESTINATION bin/advanced
     COMPONENT basic_matmul_aclnn
 )
+
+install(CODE "message(STATUS \"Before executing example for aclnn interfaces, \")" COMPONENT basic_matmul_aclnn)
+install(CODE "message(STATUS \"1. Install ${CMAKE_INSTALL_PREFIX}/run/${PACKAGE_NAME}. \")" COMPONENT basic_matmul_aclnn)
+install(CODE "message(STATUS \"2. Follow installation logs to set environment variables. \")" COMPONENT basic_matmul_aclnn)
+
+
