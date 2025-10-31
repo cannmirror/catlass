@@ -88,7 +88,7 @@ void OptimizedMatmulImpl(const uint32_t blockNum, aclrtStream stream, const Kern
     constexpr PaddingTag paddingTagB = (std::is_same_v<LayoutB, layout::zN> || std::is_same_v<LayoutB, layout::nZ>)
                                            ? PaddingTag::NO_PADDING
                                            : PaddingTag::PADDING_BLOCK_ND;
-    tatic const uint32_t COMPUTE_LENGTH_A = 96 * 1024 / sizeof(ElementA);
+    static const uint32_t COMPUTE_LENGTH_A = 96 * 1024 / sizeof(ElementA);
     using PaddingBuilderA = Catlass::Gemm::Kernel::PaddingBuilder<
         paddingTagA, ArchTag, ElementA, LayoutA, COMPUTE_LENGTH_A>;
     using GlobalPaddingA = PaddingBuilderA::Padding;
