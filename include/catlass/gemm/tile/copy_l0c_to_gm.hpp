@@ -269,7 +269,18 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
         ScaleGranularity::PER_TENSOR>::VALUE;
     static constexpr auto reluEn = ReluEnable_;
 
-    struct Params {};
+    struct Params {
+        float scale = 1.0;
+
+        CATLASS_HOST_DEVICE
+        Params() = default;
+
+        CATLASS_HOST_DEVICE
+        Params(float scalar)
+        {
+            scale = scalar;
+        }
+    };
     Params params;
 
     CATLASS_DEVICE
@@ -277,9 +288,9 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
 
     CATLASS_DEVICE
     CopyL0CToGm(Params const &params_) : params(params_) {};
-	
+
     CATLASS_DEVICE
-    void operator()(AscendC::GlobalTensor<ElementDst> const &dst, AscendC::LocalTensor<ElementSrc> const &src, float scale,
+    void operator()(AscendC::GlobalTensor<ElementDst> const &dst, AscendC::LocalTensor<ElementSrc> const &src,
         LayoutDst const &dstLayout, LayoutSrc const &srcLayout, uint8_t unitFlag = 0)
     {
         AscendC::FixpipeParamsV220 intriParams;
@@ -292,9 +303,9 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
 
         // Fixpipe auxiliary arguments
         intriParams.quantPre = quantPre;
+        intriParams.deqScalar = static_cast<uint64_t>(*reinterpret_cast<int32_t*>(&params.scale));
         intriParams.reluEn = reluEn;
         intriParams.unitFlag = unitFlag;
-        intriParams.deqScalar = static_cast<uint64_t>(*reinterpret_cast<int32_t*>(&scale));
 
         // Call AscendC Fixpipe
         AscendC::Fixpipe<ElementDst, ElementSrc, AscendC::CFG_ROW_MAJOR>(dst, src, intriParams);
