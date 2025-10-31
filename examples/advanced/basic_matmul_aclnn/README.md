@@ -1,6 +1,6 @@
 # basic_mamtul_aclnn example
 
-aclnn接口是CANN软件栈一直沿用的接口，msOpGen工具是CANN提供可以生成该接口工程框架的工具，便于用户编写一个具有aclnn接口的算子，并使能CANN软件栈上的各种功能。该样例提供catlass算子模板接入msOpGen工程的示例代码与注意事项，并提供catlass example风格的调用示例。
+aclnn接口是CANN软件栈一直沿用的接口，msOpGen工具是CANN提供可以生成该接口工程框架的工具，便于用户编写一个具有aclnn接口的算子，并使能CANN软件栈上的各种功能。该样例提供CATLASS算子模板接入msOpGen工程的示例代码与注意事项，并提供CATLASS example风格的调用示例。
 
 下面以basic_matmul接入为例进行示例，利用msOpGen工具接入该算子模板。
 
@@ -21,6 +21,8 @@ msopgen gen -i catlass_basic_matmul.json -c ai_core-<soc_version> -lan cpp -out 
 ```
 
 - 其中`soc_version`可通过`npu-smi info`查看，形如`Ascendxxxyyy`。
+- 需保证输入的json配置文件（上例中的`catlass_basic_matmul.json`）具有644的权限
+- 需保证输出的文件路径（上例中的`catlass_basic_matmul`）具有755的权限
 
 ## 2. 编写Host代码
 
@@ -40,7 +42,7 @@ msopgen gen -i catlass_basic_matmul.json -c ai_core-<soc_version> -lan cpp -out 
 [op_kernel/catlass_basic_matmul.cpp](./op_kernel/catlass_basic_matmul.cpp)
 **注意事项**
 
-- 由于需要引入catlass的头文件，我们需要增加编译选项。在`op_kernel/CMakeList.txt`中增加算子编译选项。其中`${CATLASS_INCLUDE_PATH}`是catlass代码仓下的`include`文件夹的路径，需根据环境实际情况进行配置。
+- 我们需要增加编译选项来引入CATLASS的头文件。在`op_kernel/CMakeList.txt`中增加算子编译选项。其中`${CATLASS_INCLUDE_PATH}`是CATLASS代码仓下的`include`文件夹的路径，需根据环境实际情况进行配置。
 
     ```diff
     # set custom compile options
@@ -92,7 +94,7 @@ $ASCEND_HOME_PATH/opp/vendors/customize/op_api/lib/libcust_opapi.so
 ```cmake
 project(basic_matmul_aclnn)
 cmake_minimum_required(VERSION 3.22)
-set(CATLASS_REPO_DIR <修改为实际环境上的catlass仓库路径>)
+set(CATLASS_REPO_DIR <修改为实际环境上的CATLASS仓库路径>)
 add_executable(basic_matmul_aclnn basic_matmul_aclnn.cpp)
 target_include_directories(basic_matmul_aclnn PRIVATE
     ${CATLASS_REPO_DIR}/examples/common
@@ -101,10 +103,10 @@ target_include_directories(basic_matmul_aclnn PRIVATE
     $ENV{ASCEND_HOME_PATH}/include/aclnn
     $ENV{ASCEND_HOME_PATH}/include/experiment/runtime
     $ENV{ASCEND_HOME_PATH}/include/experiment/msprof
-    $ENV{ASCEND_HOME_PATH}/opp/vendors/catlass/op_api/include)
+    $ENV{ASCEND_HOME_PATH}/opp/vendors/customize/op_api/include)
 target_link_directories(basic_matmul_aclnn PRIVATE
     $ENV{ASCEND_HOME_PATH}/lib64
-    $ENV{ASCEND_HOME_PATH}/opp/vendors/catlass/op_api/lib/)
+    $ENV{ASCEND_HOME_PATH}/opp/vendors/customize/op_api/lib/)
 target_link_libraries(basic_matmul_aclnn PRIVATE ascendcl cust_opapi nnopbase)
 ```
 
