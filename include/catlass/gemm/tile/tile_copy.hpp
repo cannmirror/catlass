@@ -16,12 +16,14 @@
 #include "catlass/detail/tag_to_layout.hpp"
 #include "tla/tensor.hpp"
 #include "catlass/gemm/tile/copy_gm_to_l1.hpp"
+#include "catlass/gemm/tile/copy_l1_to_fp.hpp"
 #include "catlass/gemm/tile/copy_l0c_to_gm.hpp"
 #include "catlass/gemm/tile/copy_l1_to_l0a.hpp"
 #include "catlass/gemm/tile/copy_l1_to_l0b.hpp"
 #include "catlass/gemm/tile/copy_l1_to_bt.hpp"
 #include "catlass/gemm/tile/copy_gm_to_ub.hpp"
 #include "catlass/gemm/tile/copy_ub_to_gm.hpp"
+#include "catlass/gemm/tile/cast_int4_to_int8.hpp"
 #include "catlass/gemm/tile/cast_int8_to_fp16.hpp"
 #include "catlass/gemm/helper.hpp"
 
@@ -53,6 +55,47 @@ struct TileCopy {
     using CopyL1ToL0B = Gemm::Tile::CopyL1ToL0B<
         ArchTag, typename helper::L1BTypeSelector<BType>::L1BType>;
     using CopyL0CToGm = Gemm::Tile::CopyL0CToGm<ArchTag, ElementAccumulator, CType>;
+    using BiasTypeSelector = helper::L1BiasTypeSelector<BiasType, ElementAccumulator>;
+    using CopyGmToL1Bias = std::conditional_t<std::is_same_v<BiasType, void>,
+        void,
+        Gemm::Tile::CopyGmToL1<ArchTag,
+            typename BiasTypeSelector::GMBiasType,
+            typename BiasTypeSelector::L1BiasType>>;
+    using CopyL1ToBT = std::conditional_t<std::is_same_v<BiasType, void>,
+        void,
+        Gemm::Tile::CopyL1ToBT<ArchTag,
+            typename BiasTypeSelector::L1BiasType,
+            typename BiasTypeSelector::L0BiasType>>;
+};
+
+template <
+    class ArchTag,
+    class AType,
+    class BType,
+    class CType,
+    class PrologueA_,
+    class PrologueB_,
+    class BiasType = void
+>
+struct TileCopyWithPrologueDeqPerTensor {
+    using ElementA = typename AType::Element;
+    using ElementB = typename BType::Element;
+
+    using ElementAccumulator =
+        typename Gemm::helper::ElementAccumulatorSelector<ElementA, ElementB>::ElementAccumulator;
+
+    using CopyGmToL1A = Gemm::Tile::CopyGmToL1<ArchTag, AType>;
+    using CopyGmToL1B = Gemm::Tile::CopyGmToL1<ArchTag, BType>;
+
+    using PrologueA = PrologueA_;
+    using PrologueB = PrologueB_;
+
+    using CopyL1ToL0A = Gemm::Tile::CopyL1ToL0A<
+        ArchTag, typename helper::L1ATypeSelector<AType>::L1AType>;
+    using CopyL1ToL0B = Gemm::Tile::CopyL1ToL0B<
+        ArchTag, typename helper::L1BTypeSelector<BType>::L1BType>;
+    using CopyL0CToGm = Gemm::Tile::CopyL0CToGm<
+        ArchTag, ElementAccumulator, CType, Tile::ScaleGranularity::PER_TENSOR>;
     using BiasTypeSelector = helper::L1BiasTypeSelector<BiasType, ElementAccumulator>;
     using CopyGmToL1Bias = std::conditional_t<std::is_same_v<BiasType, void>,
         void,
@@ -324,6 +367,37 @@ struct ReluTileCopy : public TileCopy<ArchTag, AType, BType, CType, BiasType> {
     using ElementAccumulator = typename TileCopy<ArchTag, AType, BType, CType, BiasType>::ElementAccumulator;
     using CopyL0CToGm = Gemm::Tile::CopyL0CToGm<ArchTag, ElementAccumulator, CType,
         Catlass::Gemm::Tile::ScaleGranularity::NO_QUANT, true>;
+};
+
+// fixpipe开启随路量化
+template <
+    /// Tag indicating architecture
+    class ArchTag,
+    /// GemmType for A matrix operand
+    class AType,
+    /// GemmType type for B matrix operand
+    class BType,
+    /// GemmType type for C matrix operand
+    class CType,
+    /// GemmType type for Bias operand
+    class BiasType = void,
+    /// GemmType type for Bias operand
+    ScaleGranularity SCALE_GRANU = ScaleGranularity::PER_TENSOR
+>
+struct QuantTileCopy : public TileCopy<ArchTag, AType, BType, CType, BiasType> {
+    // 重写 CopyL0CToGm
+    using ElementAccumulator = typename TileCopy<ArchTag, AType, BType, CType, BiasType>::ElementAccumulator;
+    using CopyL0CToGm = Gemm::Tile::CopyL0CToGm<ArchTag, ElementAccumulator, CType, SCALE_GRANU, false>;
+
+    using CopyGmToL1Scale = Gemm::Tile::CopyGmToL1<ArchTag,
+        Gemm::GemmType<uint64_t, layout::VectorLayout, AscendC::TPosition::GM>,
+        Gemm::GemmType<uint64_t, layout::VectorLayout, AscendC::TPosition::A1>
+    >;
+
+    using CopyL1ToFP = Gemm::Tile::CopyL1ToFP<ArchTag,
+        Gemm::GemmType<uint64_t, layout::VectorLayout, AscendC::TPosition::A1>,
+        Gemm::GemmType<uint64_t, layout::VectorLayout, AscendC::TPosition::C2PIPE2GM>
+    >;
 };
 
 } // namespace Catlass::Gemm::Tile
