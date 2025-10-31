@@ -11,7 +11,7 @@
 ## 使用示例
 因为GroupedMatmul参数较多，所以该示例直接在代码中承载输出参数列表`groupList`, 通过`golden::GenerateGroupList`来生成随机切分的序列。
 相关输入配置具体详见[grouped_matmul_slice_m.cpp](grouped_matmul_slice_m.cpp)。
-如果需要输入grouplist配置(例如通过tensorList方式构造输入)，可以参考python_extension中相应实现
+如果需要输入grouplist配置（例如通过tensorList方式构造输入），可以参考python_extension中相应实现
 
 example使用
 - 获取代码之后编译相应的算子可执行文件，可参考[quickstart](../../docs/quickstart.md#算子编译)

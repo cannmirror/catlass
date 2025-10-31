@@ -4,7 +4,7 @@ DispatchPolicy是BlockMmad的一个重要模板参数，各个DispatchPolicy定�
 - MmadAtlasA2Preload
 - MmadAtlasA2PreloadAsync
 - MmadAtlasA2PreloadAsyncWithCallBack
-## MmadAtlassA2PingPong
+## MmadAtlasA2PingPong
 功能：在A2架构上采用L1和L0A/B Buffer上pingpong Buffer。
 
 参数说明：
@@ -22,7 +22,7 @@ struct MmadAtlasA2PingPong {
 
 当前使用该DispatchPolicy的examples有`00_basic_matmul`、`01_batched_matmul`、`03_matmul_add`、`04_padding_matmul`、`09_split_matmul`。
 
-## MmadAtlassA2Preload
+## MmadAtlasA2Preload
 功能：在A2架构上采用L1和L0A/B Buffer上pingpong Buffer，同时支持shufflek策略与block间的预加载。
 
 参数说明：
@@ -42,7 +42,7 @@ struct MmadAtlasA2Preload {
 
 当前使用该DispatchPolicy的examples有`06_optimized_matmul`。
 
-## MmadAtlassA2PreloadAsync
+## MmadAtlasA2PreloadAsync
 功能：在A2架构上采用L1 Buffer和L0A/L0B/L0C Buffer上的nBuffer，同时支持shufflek策略、block间的预加载以及group间的预加载。
 
 参数说明：
@@ -69,8 +69,8 @@ struct MmadAtlasA2PreloadAsync {
 
 当前使用该DispatchPolicy的examples有`02_grouped_matmul_slice_m`、`05_grouped_matmul_slice_k`、`11_grouped_matmul_slice_k_per_token_dequant`。
 
-## MmadAtlassA2PreloadAsyncWithCallback
-功能：在A2架构上采用L1 Buffer和L0A/L0B/L0C Buffer上的nBuffer，同时支持shufflek策略、block间的预加载以及group间的预加载。同时支持用户将aic和aiv之间的同步命令以callback的形式传入block层，由block层决定调用的时机。
+## MmadAtlasA2PreloadAsyncWithCallback
+功能：在A2架构上采用L1 Buffer和L0A/L0B/L0C Buffer上的nBuffer，同时支持shufflek策略、block间的预加载以及group间的预加载。同时支持用户将aic和aiv之间的同步命令以callback的形式传入Block层，由Block层决定调用的时机。
 
 参数说明：
 - `PRELOAD_STAGES`：用于表示经过PRELOAD_STAGES次GM到L1的数据读取后，启动L1到L0的数据搬运和Mmad计算，取值要求小于L1_STAGES。

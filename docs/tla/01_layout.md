@@ -13,16 +13,16 @@ TLA以元组[`tla::tuple`](../../include/tla/tuple.hpp)为起始，tla::tuple �
 
 ### IntTuple
 
-TLA 还定义了[`IntTuple`](../../include/tla/int_tuple.hpp)概念。IntTuple 既可作为一个整数，也可作为一个 Tuple 类型。这个递归定义允许我们构建任意嵌套的 Layout。
+TLA 还定义了[`IntTuple`](../../include/tla/int_tuple.hpp)概念。`IntTuple`既可作为一个整数，也可作为一个`Tuple`类型。这个递归定义允许我们构建任意嵌套的 Layout。
 
 以下任何一个都是 `IntTuple` 的有效模板参数：
-* `int{2}`: 运行时整数，或者称之为动态整数，就是 C++ 的正常整数类型比如 int size_t 等等，只要是 std::is_integral<T> 的都是。
+* `int{2}`: 运行时整数，或者称之为动态整数，就是 C++ 的正常整数类型比如`int`/`size_t`等等，只要是`std::is_integral<T>`的都是。
 
-* `Int<3>{}`： 编译期整数，或称之为静态整数。TLA 通过 tla::C<Value> 来定义兼容的静态整数类型，使得这些整数的计算能在编译期内完成。TLA 将别名 _1、_2、_3等定义为 Int<1>、Int<2>、Int<3>等类型。更多信息可查看[`integral_constant`](../../include/tla/numeric/integral_constant.hpp)。
+* `Int<3>{}`： 编译期整数，或称之为静态整数。TLA 通过 `tla::C<Value>` 来定义兼容的静态整数类型，使得这些整数的计算能在编译期内完成。TLA 将别名 _1、_2、_3等定义为`Int<1>`、`Int<2>`、`Int<3>`等类型。更多信息可查看[`integral_constant`](../../include/tla/numeric/integral_constant.hpp)。
 
 * 带有任何模板参数的 IntTuple，比如 `make_tuple(int{2}, Int<3>{})`。
 
-TLA 不仅将 `IntTuple` 用在了 Layout 上，还会在很多其他的地方比如 `Shape` 和 `Stride` 等用到它，详见
+TLA 不仅将 `IntTuple` 用在了`Layout`上，还会在很多其他的地方比如 `Shape` 和 `Stride` 等用到它，详见
 [`include/tla/layout.hpp`](../../include/tla/layout.hpp)。
 
 `IntTuple` 的相关 API 操作：
@@ -53,7 +53,7 @@ TLA 不仅将 `IntTuple` 用在了 Layout 上，还会在很多其他的地方�
 
 此外，为了方便使用，还定义了一些函数：
 
-* `get<I0,I1,。..,IN>(x) := get<IN>(...(get<I1>(get<I0>(x)))...)`： 获取第 `I0` 个单元的第 `I1` 个单元的 ... 的第 `IN` 个单元。
+* `get<I0,I1,...,IN>(x) := get<IN>(...(get<I1>(get<I0>(x)))...)`： 获取第 `I0` 个单元的第 `I1` 个单元的 ... 的第 `IN` 个单元。
 
 * `rank<I...>(x)  := rank(get<I...>(x))`： 获取第 `I...` 个单元维度。
 

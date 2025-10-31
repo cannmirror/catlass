@@ -34,7 +34,7 @@ for (int block_m = 0; block_m < MatmulM; block_m += BlockTileM) {
 } // block_m
 ```
 
-前两重嵌套的 `for`循环对应于多个AICore上的并行性。代码上并不将它们显示地表达为两重for循环，而是通过BlockIdx来区分不同核心处理的数据块。
+前两重嵌套的 `for`循环对应于多个AICore上的并行性。代码上并不将它们显式地表达为两重for循环，而是通过BlockIdx来区分不同核心处理的数据块。
 
 在两重嵌套的 `for`循环内部，将全局内存分片，然后将分片搬运到更“局部”的内存（如L1 Buffer或L0 Buffer）并执行MMAD计算。这些分片拷贝和分片MMAD计算的迭代通常是完全静态的，并且完全展开。
 
@@ -65,7 +65,7 @@ CATLASS使用以下组件表达上述循环嵌套，这些组件针对数据类�
 
 
 ```c++
-// 第一步: 创建所需的特化block层mmad
+// 第一步: 创建所需的特化Block层mmad
 // 参数
 using DispatchPolicy = Gemm::MmadAtlasA2Pingpong<true>;
 using L1TileShape = GemmShape<128, 256, 256>;
@@ -81,7 +81,7 @@ using BlockMmad = Gemm::Block::BlockMmad<DispatchPolicy,
     BType,
     CType>;
 
-// 第二步：指定block层的后处理类型（可选）
+// 第二步：指定Block层的后处理类型（可选）
 using BlockEpilogue = void;
 
 // 第三步：指定计算时的数据走位方式
@@ -211,14 +211,14 @@ class BasicMatmul;
 注：无状态指调用者管理着内核的状态。例如，上述描述的设备API。内核仅接收输入和输出参数 (`Params`).
 
 
-其中 *Block Mmad* 代表局部数据块上的矩阵乘加运算，*Block Epilogue* 代表mmad之后的运算,例如`C := beta * C + alpha * A * B`中的 `beta * C` 。
+其中 *Block Mmad* 代表局部数据块上的矩阵乘加运算，*Block Epilogue* 代表mmad之后的运算，例如`C := beta * C + alpha * A * B`中的 `beta * C` 。
 
 
 
 ## Device API
 
 Device层是Host侧调用的入口，在这一层屏蔽调用Device侧函数的差异。用户定义完Kernel结构之后放入Device层模板，便可以执行算子。
-```
+```cpp
 using BlockMmad = Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType>;
 using BlockEpilogue = void;
 using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<>;

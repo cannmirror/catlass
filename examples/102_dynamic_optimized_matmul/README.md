@@ -29,7 +29,7 @@ examples/102_dynamic_optimized_matmul
 工程默认编译成静态库，如果想编译成动态库，请把CMakeLists.txt中的`STATIC`改为`SHARED`，并手动export动态库路径。
 工程编译前会调用python脚本生成代码，具体包括调用各模板的外围代码，以及launch_map.h(包含tilingKey和具体Kernel的映射关系)
 如果需要进行批量性能测试，请注释掉精度比较代码，由于精度比较使用cpu算golden，耗时较长。
-DynamicOptimizedMamtul根据shape动态确定Tiling参数，并尽力选择最好的模板进行计算，尽力获取最优性能，但是不保证是最优性能。
+DynamicOptimizedMatmul根据shape动态确定Tiling参数，并尽力选择最好的模板进行计算，尽力获取最优性能，但是不保证是最优性能。
 ## 使用示例
 - 获取代码之后编译相应的算子可执行文件，可参考[quickstart](../../docs/quickstart.md#算子编译)
 - 执行算子

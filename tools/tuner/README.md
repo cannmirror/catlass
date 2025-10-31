@@ -104,10 +104,10 @@ mstuner_catlass 支持以下命令。
 | --C           | --C=fp16:row                  | / | 通过指定矩阵C的数据类型与内存排布过滤算子。                    |
 | --group_count | --group_count=128             | 128 | 指定grouped_matmul类算子的group数量。                          |
 
-当搜索空间配置并生成了多种A、B、C的数据类型与内存排布时，支持通过`--A/--B/--C=数据类型:内存排布`命令对算子进行过滤。
+当搜索空间配置并生成了多种A、B、C的数据类型与内存排布时，支持通过`--A/--B/--C=<数据类型>:<内存排布>`命令对算子进行过滤。
 - 数据类型支持`u8, int8, int32, fp16, bf16, fp32`。
 - 内存排布支持`row, column, nZ, zN, zZ, padding_row_major, padding_column_major, nN`。
-- 要求输入`<data:layout>`的格式，输入样例如：`fp16:row`，`fp32:zZ`。
+- 要求输入`<data:layout>`的格式，如`fp16:row`，`fp32:zZ`。
 注意：不指定`--output`时，不会落盘算子性能数据。
 
 ### 搜索空间配置

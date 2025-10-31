@@ -6,7 +6,7 @@ AscendC算子调测API是AscendC提供的调试能力，可进行kernel内部的
 
 ## 使用示例
 
-下面以对`00_basic_matmul`为例，进行`AscendC算子调测API`的使用说明。
+下面以`00_basic_matmul`为例，进行`AscendC算子调测API`的使用说明。
 
 ### 插入调试代码
 

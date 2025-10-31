@@ -19,7 +19,7 @@ source /usr/local/Ascend/ascend-toolkit/set_env.sh
 ### Kernel层算子定义
 Kernel层模板由Block层组件构成。这里首先定义三个Block层组件。
 `<class BlockMmad_, class BlockEpilogue_, class BlockScheduler_>`。
-1. `BlockMmad_`为block层mmad计算接口，定义方式如下：
+1. `BlockMmad_`为Block层mmad计算接口，定义方式如下：
 ```c++
 using DispatchPolicy = Catlass::Gemm::MmadAtlasA2Pingpong<true>; //流水排布使用
 using L1TileShape = Catlass::GemmShape<128, 256, 256>; // L1基本块
@@ -35,7 +35,7 @@ using BlockMmad = Catlass::Gemm::Block::BlockMmad<DispatchPolicy,
     BType,
     CType>;
 ```
-2. `BlockEpilogue_`为block层后处理，本文构建基础matmul，不涉及后处理，这里传入void。
+2. `BlockEpilogue_`为Block层后处理，本文构建基础matmul，不涉及后处理，这里传入void。
 ```c++
 using BlockEpilogue = void;
 ```

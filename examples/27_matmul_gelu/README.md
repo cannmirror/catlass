@@ -45,7 +45,7 @@ Gelu(x) =0.5∗x∗(1+Tanh(\sqrt {2/π}∗(x+0.044715∗x^3 )))
 $$
 让$Z=\sqrt {2/π}∗(x+0.044715∗x^3)$，代入上式化简得：
 $$
-Gelu(x) =x∗Sigmod( 2Z )
+Gelu(x) =x∗Sigmoid( 2Z )
 $$
 再次展开，并取近似：$\sqrt {8/π}\approx 1.595769$，有:
 $$
