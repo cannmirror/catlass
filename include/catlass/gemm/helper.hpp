@@ -71,6 +71,19 @@ struct L1AlignHelper<Element, layout::nZ> {
     static constexpr uint32_t N_ALIGNED = C0_NUM_PER_FRACTAL;
 };
 
+template<class Element>
+struct L1AlignHelper<Element, layout::NC1HWC0> {
+    static constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 / sizeof(Element);
+    static constexpr uint32_t HOWO_ALIGNED = C0_NUM_PER_FRACTAL;
+};
+
+template<class Element>
+struct L1AlignHelper<Element, layout::CI1KHKWCOCI0> {
+    static constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 / sizeof(Element);
+    static constexpr uint32_t COUT_ALIGNED = C0_NUM_PER_FRACTAL;
+};
+
+
 template<class ElementA, class ElementB>
 struct ElementAccumulatorSelector {
     static_assert(DEPENDENT_FALSE<ElementA>,
@@ -138,6 +151,11 @@ struct L1ATypeSelector<Gemm::GemmType<Element, layout::NDC1HWC0>> {
     using L1AType = Gemm::GemmType<Element, layout::NDC1HWC0, AscendC::TPosition::A1>;
 };
 
+template<class Element>
+struct L1ATypeSelector<Gemm::GemmType<Element, layout::NC1HWC0>> {
+    using L1AType = Gemm::GemmType<Element, layout::NC1HWC0, AscendC::TPosition::A1>;
+};
+
 template<class GmBType>
 struct L1BTypeSelector {
     static_assert(DEPENDENT_FALSE<GmBType>,
@@ -177,6 +195,11 @@ struct L1BTypeSelector<Gemm::GemmType<Element, layout::PaddingColumnMajor>> {
 template<class Element>
 struct L1BTypeSelector<Gemm::GemmType<Element, layout::KDC1KHKWN1N0C0>> {
     using L1BType = Gemm::GemmType<Element, layout::nZ, AscendC::TPosition::A1>;
+};
+
+template<class Element>
+struct L1BTypeSelector<Gemm::GemmType<Element, layout::CI1KHKWCOCI0>> {
+    using L1BType = Gemm::GemmType<Element, layout::CI1KHKWCOCI0, AscendC::TPosition::A1>;
 };
 
 template<class GmBiasType, class ElementAccumulator>

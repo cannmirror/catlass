@@ -86,4 +86,24 @@ constexpr auto CeilDiv(T const &dividend, U const &divisor)
     }
 }
 
+template <class T, class U>
+CATLASS_HOST_DEVICE
+constexpr auto Max(T const &a, U const &b) {
+    if (a > b) {
+        return a;
+    } else {
+        return b;
+    }
+}
+
+template <class T, class U>
+CATLASS_HOST_DEVICE
+constexpr auto Min(T const &a, U const &b) {
+    if (a < b) {
+        return a;
+    } else {
+        return b;
+    }
+}
+
 #endif  // CATLASS_ALIGNMENT_HPP
