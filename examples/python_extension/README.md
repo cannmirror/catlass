@@ -54,6 +54,7 @@ output/python_extension
 
 - 必须：
   - `pybind11`
+  - `gcc` *版本为9.0+*
   - `torch`*建议使用2.1+*
   - `torch-npu`*配套`torch`和`CANN`的最新版本，可在[Ascend/pytorch](https://gitcode.com/ascend/pytorch)查询*
 - 可选：

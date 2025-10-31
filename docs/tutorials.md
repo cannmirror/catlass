@@ -1,12 +1,12 @@
-# Catlass 算子模板库开发者体验说明文档
+# CATLASS 算子模板库开发者体验说明文档
 
 ## 项目介绍
 
-Transformer架构中矩阵乘法（GEMM, General Matrix Multiplication）计算占据较高比重，其性能优化对提升整体计算效率至关重要。针对GEMM类算子编程，不同场景不同优化点的实现变种众多，且在算法演进和创新过程中会诞生大量新的定制化开发诉求，难以事先预备枚举。直接基于硬件能力定制开发GEMM类算子面临着开发难度大，开发周期长的问题。为此，昇腾CANN推出Catlass算子模板库，采用分层模块化设计，将GEMM计算解耦为可灵活组合的数据分块策略和计算单元配置等组件，实现快速搭建拼装的开发范式。
+Transformer架构中矩阵乘法（GEMM, General Matrix Multiplication）计算占据较高比重，其性能优化对提升整体计算效率至关重要。针对GEMM类算子编程，不同场景不同优化点的实现变种众多，且在算法演进和创新过程中会诞生大量新的定制化开发诉求，难以事先预备枚举。直接基于硬件能力定制开发GEMM类算子面临着开发难度大，开发周期长的问题。为此，昇腾CANN推出CATLASS算子模板库，采用分层模块化设计，将GEMM计算解耦为可灵活组合的数据分块策略和计算单元配置等组件，实现快速搭建拼装的开发范式。
 
-Catlass算子模板库通过提供可复用的模板、基础组件和典型算子实践案例，面向昇腾硬件亲和性优化，使开发者能够基于模块化组装快速完成计算流水线编排。开发者可以根据具体硬件特性和计算需求灵活定制计算内核，在确保高性能的同时，显著提升开发效率。
+CATLASS算子模板库通过提供可复用的模板、基础组件和典型算子实践案例，面向昇腾硬件亲和性优化，使开发者能够基于模块化组装快速完成计算流水线编排。开发者可以根据具体硬件特性和计算需求灵活定制计算内核，在确保高性能的同时，显著提升开发效率。
 
-Catlass算子模板库采用分层抽象的设计理念，通过分析硬件架构特性和GEMM计算需求，将整体实现划分为多个层次。该设计通过模板化方式提取各层共性逻辑，同时保留必要的差异化扩展能力，使得不同层级的软件抽象能够精准对应到特定硬件结构和计算流水阶段。算法框架中的特定步骤会延迟到子类实现，使得子类能够在不改变算法整体结构的情况下，灵活重定义其中的某些关键步骤。
+CATLASS算子模板库采用分层抽象的设计理念，通过分析硬件架构特性和GEMM计算需求，将整体实现划分为多个层次。该设计通过模板化方式提取各层共性逻辑，同时保留必要的差异化扩展能力，使得不同层级的软件抽象能够精准对应到特定硬件结构和计算流水阶段。算法框架中的特定步骤会延迟到子类实现，使得子类能够在不改变算法整体结构的情况下，灵活重定义其中的某些关键步骤。
 
 ## 算子实现分层模块化设计
 
@@ -34,7 +34,7 @@ Catlass算子模板库采用分层抽象的设计理念，通过分析硬件架�
 source /usr/local/Ascend/ascend-toolkit/set_env.sh
 ```
 
-git clone下载Catlass算子模板库源码
+git clone下载CATLASS算子模板库源码
 
 ```bash
 git clone https://gitcode.com/cann/catlass.git
@@ -42,7 +42,7 @@ git clone https://gitcode.com/cann/catlass.git
 
 需要依赖组件：
 CANN 8.2.RC1.alpha002及之后版本
-cmake >= 3.15
+cmake >= 3.22
 
 ### 代码实现
 
@@ -284,7 +284,7 @@ foreach(EXAMPLE
 
 #### 编译
 
-在catlass目录下(请仔细核对执行目录)，执行`bash scripts/build.sh basic_matmul`命令即可进行编译。出现`[INFO]Target 'basic_matmul' built successfully`表示编译成功
+在catlass目录下（请仔细核对执行目录），执行`bash scripts/build.sh basic_matmul`命令即可进行编译。出现`[INFO]Target 'basic_matmul' built successfully`表示编译成功
 
 #### 执行
 
@@ -296,7 +296,7 @@ foreach(EXAMPLE
 #### 性能测试
 
 在`catlass/output/bin`目录下执行`msprof op ./basic_matmul 128 256 4096 0`命令即可调用msprof工具对算子进行性能测试。
-执行完毕后会在同目录下生成“OPPROF_xxxx”文件夹，进入该文件夹，查看`OpBasicInfo.csv`文件，其中`“Task Duration(us)”`表示该算子执行的耗时。
+执行完毕后会在同目录下生成“OPPROF_xxxx”文件夹，进入该文件夹，查看`OpBasicInfo.csv`文件，其中`Task Duration(us)`表示该算子执行的耗时。
 
 #### tiling调优
 
@@ -342,11 +342,11 @@ using L0TileShape = GemmShape<128, 256, 64>;
 + #include "catlass/gemm/kernel/splitk_matmul.hpp"
 ```
 
-SplitK Matmul在Basic Matmul的基础上扩展，对Matmul的K方向进行切分，从而增加基本任务块数量，充分利用计算资源。需要将原来的kernel层头文件中的`#include "catlass/gemm/kernel/basic_matmul.hpp"`更换为`#include "catlass/gemm/kernel/splitk_matmul.hpp"`，其他组件和BasicMamtul相同。
+SplitK Matmul在Basic Matmul的基础上扩展，对Matmul的K方向进行切分，从而增加基本任务块数量，充分利用计算资源。需要将原来的kernel层头文件中的`#include "catlass/gemm/kernel/basic_matmul.hpp"`更换为`#include "catlass/gemm/kernel/splitk_matmul.hpp"`，其他组件和BasicMatmul相同。
 
 #### 更改Kernel配置（此处仅供说明，请使用下面完整代码进行实验）
 
-SplitK Matmul先利用Cube Core算出各个基本块的部分和，然后由Vector Core进行累加，为了不损失精度，累加过程采用`float`类型。由于对K轴进行了切分，SplitkMatmul的BlockScheduler是定制化的，BlockScheduler组件决定基本块的遍历方式，SplitkMatmul需要拆分K轴进行遍历，所以需要定制化BlockScheduler，实际开发可基于BasicMamtul的BlockScheduler进行修改，缩短开发时间。
+SplitK Matmul先利用Cube Core算出各个基本块的部分和，然后由Vector Core进行累加，为了不损失精度，累加过程采用`float`类型。由于对K轴进行了切分，SplitkMatmul的BlockScheduler是定制化的，BlockScheduler组件决定基本块的遍历方式，SplitkMatmul需要拆分K轴进行遍历，所以需要定制化BlockScheduler，实际开发可基于BasicMatmul的BlockScheduler进行修改，缩短开发时间。
 
 ```cpp
 using AType = Gemm::GemmType<half, LayoutA>;
@@ -939,5 +939,5 @@ msprof op ./grouped_matmul 128 32768 1280 4096 0
 
 ### 切换配置，观察性能变化
 
-以上代码中有两种配置策略，分别是配置一和配置二，配置一为通常的简单配置，配置二为优化配置，增加了`Preload，ShuffleK`两个优化措施，两者使用不同的block层实现，展示了模板库可按需组装搭配各组件的特性。
+以上代码中有两种配置策略，分别是配置一和配置二，配置一为通常的简单配置，配置二为优化配置，增加了`Preload`/`ShuffleK`两个优化措施，两者使用不同的Block层实现，展示了模板库可按需组装搭配各组件的特性。
 分别采用配置一和配置二测试同一组shape，例如下面的shape：group_count=64,m=49152,n=1280,k=4096。观察配置一和配置二的性能差别。（**请找到上面代码中的配置一和配置二，使用一个配置时注释另一个**）

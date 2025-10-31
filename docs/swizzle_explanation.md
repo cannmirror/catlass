@@ -21,6 +21,7 @@ SwizzleOffset=3、SwizzleDirection=0
 ```c++
  using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
 ```
+
 ![图1](./images/swizzle30.png)
 
 ## 示例3
@@ -30,6 +31,7 @@ SwizzleOffset=3、SwizzleDirection=1
 ```c++
  using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
 ```
+
 ![图1](./images/swizzle31.png)
 
 ## Swizzle策略选择

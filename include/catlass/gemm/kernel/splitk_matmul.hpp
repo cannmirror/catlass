@@ -72,12 +72,12 @@ struct ReduceAdd {
         uint64_t elementCount, uint32_t splitkFactor)
     {
         // The vec mte processes 256 bytes of data at a time.
-        constexpr uint32_t ELE_PER_VECOTR_BLOCK = 256 / sizeof(ElementAccumulator);
+        constexpr uint32_t ELE_PER_VECTOR_BLOCK = 256 / sizeof(ElementAccumulator);
         uint32_t aivNum = AscendC::GetBlockNum() * AscendC::GetSubBlockNum();
         uint32_t aivId = AscendC::GetBlockIdx();
         uint64_t taskPerAiv =
-            (elementCount / aivNum + ELE_PER_VECOTR_BLOCK - 1) / ELE_PER_VECOTR_BLOCK * ELE_PER_VECOTR_BLOCK;
-        if (taskPerAiv == 0) taskPerAiv = ELE_PER_VECOTR_BLOCK;
+            (elementCount / aivNum + ELE_PER_VECTOR_BLOCK - 1) / ELE_PER_VECTOR_BLOCK * ELE_PER_VECTOR_BLOCK;
+        if (taskPerAiv == 0) taskPerAiv = ELE_PER_VECTOR_BLOCK;
         uint32_t tileLen;
         if (taskPerAiv > COMPUTE_LENGTH) {
             tileLen = COMPUTE_LENGTH;
