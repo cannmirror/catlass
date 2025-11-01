@@ -192,6 +192,14 @@ public:
         }
     }
 
+    CATLASS_DEVICE
+    void UpdateParams(Params const &params_ = {}) {
+        params = params_;
+        prologueA.UpdateParams(params_.prologueA);
+        prologueB.UpdateParams(params_.prologueB);
+        copyL0CToGm.UpdateParams(params_.copyL0CToGm);
+    }
+
     template <class T = PrologueA, class U = PrologueB>
     CATLASS_DEVICE
     std::enable_if_t<!std::is_void_v<T> && !std::is_void_v<U>, void> Prologue(
