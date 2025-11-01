@@ -18,7 +18,7 @@
 namespace Catlass {
 namespace Library {
 
-template <typename Operator_>
+template <typename Operator_, typename Description_>
 class GemmOperationBase : public Operation {
 public:
     using Operator = Operator_;
@@ -88,16 +88,16 @@ public:
 protected:
     virtual void BuildArgs(void *argsPtr, void *configPtr) = 0;
 
-    GemmOperationDescription description_;
+    Description_ description_;
     OperatorArguments args_{};
     Operator op_;
 };
 
 /********************* basic matmul *********************/
 template <typename Operator_>
-class BasicMatmulGemmOperation : public GemmOperationBase<Operator_> {
+class BasicMatmulGemmOperation : public GemmOperationBase<Operator_, GemmOperationDescription> {
 public:
-    BasicMatmulGemmOperation(char const *name = "") : GemmOperationBase<Operator_>(name)
+    BasicMatmulGemmOperation(char const *name = "") : GemmOperationBase<Operator_, GemmOperationDescription>(name)
     {
         this->description_.gemmKind = GemmKind::BasicMatmul;
     }
@@ -123,9 +123,9 @@ private:
 
 /********************* grouped matmul *********************/
 template <typename Operator_>
-class GroupedMatmulGemmOperation : public GemmOperationBase<Operator_> {
+class GroupedMatmulGemmOperation : public GemmOperationBase<Operator_, GemmOperationDescription> {
 public:
-    GroupedMatmulGemmOperation(char const *name = "") : GemmOperationBase<Operator_>(name)
+    GroupedMatmulGemmOperation(char const *name = "") : GemmOperationBase<Operator_, GemmOperationDescription>(name)
     {
         this->description_.gemmKind = GemmKind::GroupedMatmul;
     }
@@ -157,6 +157,55 @@ private:
     }
 };
 /********************* grouped matmul end *********************/
+
+
+/********************* quant matmul *********************/
+template <typename Operator_>
+class QuantMatmulGemmOperation : public GemmOperationBase<Operator_, QuantMatmulGemmOperationDescription> {
+public:
+    using Operator = Operator_;
+    using OperatorArguments = typename Operator::Arguments;
+    using OperatorKernel = typename Operator::Kernel;
+
+    using ElementD = typename OperatorKernel::ElementD;
+    using ElementScale = typename OperatorKernel::ElementScale;
+    using ElementPerTokenScale = typename OperatorKernel::ElementPerTokenScale;
+    using LayoutD = typename OperatorKernel::LayoutD;
+    using LayoutScale = typename OperatorKernel::LayoutScale;
+    using LayoutPerTokenScale = typename OperatorKernel::LayoutPerTokenScale;
+    QuantMatmulGemmOperation(char const *name = "") : GemmOperationBase<Operator_, QuantMatmulGemmOperationDescription>(name)
+    {
+        this->description_.gemmKind = GemmKind::QuantMatmul;
+        this->description_.Scale = MakeTensorDescription<ElementScale, LayoutScale>();
+        this->description_.PerTokenScale = MakeTensorDescription<ElementPerTokenScale, LayoutPerTokenScale>();
+    }
+    
+private:
+    virtual void BuildArgs(void *argsPtr, void *configPtr) override
+    {
+        QuantMatmulGemmArguments *arguments = (QuantMatmulGemmArguments *)argsPtr;
+        QuantMatmulGemmConfiguration *config = (QuantMatmulGemmConfiguration *)configPtr;
+
+        this->args_.problemShape = arguments->problemShape;
+        this->args_.aicCoreNum = arguments->aicCoreNum;
+        this->args_.ptrA = arguments->ptrA;
+        this->args_.ptrB = arguments->ptrB;
+        this->args_.ptrD = arguments->ptrC;  // D is output tensor by quant matmaul
+        this->args_.ptrScale = arguments->ptrScale;
+        this->args_.ptrPerTokenScale = arguments->ptrPerTokenScale;
+    }
+
+    virtual Status Run(
+        aclrtStream stream,
+        uint32_t blockDim,
+        uint64_t fftsAddr
+    ) override
+    {
+        return this->op_.Run(stream, blockDim, fftsAddr);
+    }
+private:
+};
+/********************* quant matmul end *********************/
 
 }
 }
