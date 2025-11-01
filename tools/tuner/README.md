@@ -74,6 +74,7 @@ bash scripts/build.sh -DCATLASS_LIBRARY_KERNELS=catlass_gemm_basic_matmul_fp16xR
 
 - basic_matmul
 - grouped_matmul
+- quant_matmul
 
 除直接使用上述命令外，编译也可通过cmake命令完成。
 
@@ -221,4 +222,4 @@ mstuner_catlass支持在 `tools/library/scripts/search_space.py`文件中对算�
       ]
   ```
 
-类似的，`grouped_matmul`算子的搜索空间配置位于函数`register_gemm_grouped_matmul_operation`中，支持自定义配置。
+类似的，`grouped_matmul`算子的搜索空间配置位于函数`register_gemm_grouped_matmul_operation`中，支持自定义配置，`quant_matmul`算子的搜索空间配置位于函数`register_gemm_quant_matmul_operation`中，支持自定义配置。
