@@ -228,6 +228,11 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
     CopyL0CToGm(Params const &params_) : params(params_) {};
 
     CATLASS_DEVICE
+    void UpdateParams(Params const &params_) {
+        params = params_;
+    }
+
+    CATLASS_DEVICE
     void operator()(AscendC::GlobalTensor<ElementDst> const &dst, AscendC::LocalTensor<ElementSrc> const &src,
         LayoutDst const &dstLayout, LayoutSrc const &srcLayout, uint8_t unitFlag = 0)
     {
@@ -290,6 +295,11 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
     CopyL0CToGm(Params const &params_) : params(params_) {};
 
     CATLASS_DEVICE
+    void UpdateParams(Params const &params_) {
+        params = params_;
+    }
+
+    CATLASS_DEVICE
     void operator()(AscendC::GlobalTensor<ElementDst> const &dst, AscendC::LocalTensor<ElementSrc> const &src,
         LayoutDst const &dstLayout, LayoutSrc const &srcLayout, uint8_t unitFlag = 0)
     {
@@ -340,6 +350,11 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
 
     CATLASS_DEVICE
     CopyL0CToGm(Params const &params_) : params(params_) {};
+
+    CATLASS_DEVICE
+    void UpdateParams(Params const &params_) {
+        params = params_;
+    }
 	
     CATLASS_DEVICE
     void operator()(AscendC::GlobalTensor<ElementDst> const &dst, AscendC::LocalTensor<ElementSrc> const &src, AscendC::LocalTensor<uint64_t> const &scale,
@@ -395,6 +410,11 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
     CopyL0CToGm(Params const &params_) : params(params_) {};
 
     CATLASS_DEVICE
+    void UpdateParams(Params const &params_) {
+        params = params_;
+    }
+
+    CATLASS_DEVICE
     void operator()(AscendC::GlobalTensor<ElementDst> const &dst, AscendC::LocalTensor<ElementSrc> const &src,
         LayoutDst const &dstLayout, LayoutSrc const &srcLayout, uint8_t unitFlag = 0)
     {
@@ -448,6 +468,11 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
 
     CATLASS_DEVICE
     CopyL0CToGm(Params const &params_) : params(params_) {};
+
+    CATLASS_DEVICE
+    void UpdateParams(Params const &params_) {
+        params = params_;
+    }
 
     CATLASS_DEVICE
     void operator()(AscendC::GlobalTensor<ElementDst> const &dst, AscendC::LocalTensor<ElementSrc> const &src,
