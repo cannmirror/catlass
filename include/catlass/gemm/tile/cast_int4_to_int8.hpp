@@ -89,6 +89,9 @@ struct TileCastInt4ToInt8 {
     }
 
     CATLASS_DEVICE
+    void UpdateParams(Params const &params_ = {}) {}
+
+    CATLASS_DEVICE
     void operator()(
         AscendC::GlobalTensor<ElementDst> const &gmDst, LayoutDst const &layoutDst,
         AscendC::GlobalTensor<ElementSrc> const &gmSrc, LayoutSrc const &layoutSrc
