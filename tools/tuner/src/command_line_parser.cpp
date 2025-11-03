@@ -48,7 +48,12 @@ ERROR_CODE CommandLineParser::Get<int64_t>(const std::string& key, int64_t &targ
     }
 
     try {
-        target = std::stoll(it->second);
+        char* endChar = nullptr;
+        long long value = std::strtoll(it->second.c_str(), &endChar, 10);
+        if (*endChar != '\0') {
+            return ERROR_CODE::CAST_FAILED;
+        }
+        target = value;
     } catch (...) {
         return ERROR_CODE::CAST_FAILED;
     }
@@ -69,7 +74,12 @@ ERROR_CODE CommandLineParser::Get<uint64_t>(const std::string& key, uint64_t &ta
         return ERROR_CODE::EXPECT_UNSIGNED_INTEGER;
     }
     try {
-        target = std::stoull(it->second);
+        char* endptr = nullptr;
+        unsigned long long value = std::strtoull(it->second.c_str(), &endptr, 10);
+        if (*endptr != '\0') {
+            return ERROR_CODE::CAST_FAILED;
+        }
+        target = value;
     } catch (...) {
         return ERROR_CODE::CAST_FAILED;
     }
@@ -117,7 +127,11 @@ ERROR_CODE CommandLineParser::Get<double>(const std::string& key, double &target
     }
 
     try {
-        target = std::stod(it->second);
+        char *endChar;
+        target = std::strtod(it->second.c_str(), &endChar);
+        if (*endChar != '\0') {
+            return ERROR_CODE::CAST_FAILED;
+        }
     } catch (...) {
         return ERROR_CODE::CAST_FAILED;
     }
@@ -135,7 +149,11 @@ ERROR_CODE CommandLineParser::Get<float>(const std::string& key, float &target)
     }
 
     try {
-        target = std::stof(it->second);
+        char* endChar;
+        target = std::strtof(it->second.c_str(), &endChar);
+        if (*endChar != '\0') {
+            return ERROR_CODE::CAST_FAILED;
+        }
     } catch (...) {
         return ERROR_CODE::CAST_FAILED;
     }

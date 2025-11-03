@@ -161,7 +161,8 @@ bool MkdirRecursively(std::string_view path)
         if (!IsExist(cur)) {
             if ((!std::filesystem::create_directory(cur, ec) && ec) ||
                 chmod(cur.c_str(), SAVE_DIR_AUTHORITY) != 0) {
-                LOGE("Create dir %.*s failed: %s", static_cast<int>(cur.size()), cur.data(), ec.message().c_str());
+                std::string filteredCur = ReplaceInvalidChars(cur);
+                LOGE("Create dir %s failed: %s", filteredCur.c_str(), ec.message().c_str());
                 return false;
             }
         }
