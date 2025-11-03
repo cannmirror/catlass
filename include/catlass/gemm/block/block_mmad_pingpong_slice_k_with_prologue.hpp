@@ -218,7 +218,8 @@ public:
         GemmCoord const &blockCoord, GemmCoord const &nextBlockCoord, 
         GemmCoord const &actualBlockShape, GemmCoord const &nextActualBlockShape,
         GemmCoord const &problemShape,
-        bool isFirstBlock, bool hasNextBlock
+        bool isFirstBlock, bool hasNextBlock,
+        uint32_t &bufferIndex
     )
     {
         PrologueImpl(
@@ -227,7 +228,7 @@ public:
             gmDstC, gmSrcC, layoutSrcC,
             blockCoord, nextBlockCoord,
             actualBlockShape, nextActualBlockShape, problemShape,
-            isFirstBlock, hasNextBlock, true
+            isFirstBlock, hasNextBlock, bufferIndex
         );
 
         // 原初始化算法：
@@ -305,7 +306,7 @@ protected:
         GemmCoord problemShape,
         bool const isFirstBlock, 
         bool const hasNextBlock,
-        bool const doEpCast
+        uint32_t &bufferIndex
     )
     {
         // 当前任务块 Current block
@@ -344,13 +345,11 @@ protected:
         //     gmOffsetWBDelta = params.splitkLength * (params.nScalar * L1TileShape::N);
         // }
 
-        if (doEpCast) {
-            MatrixCoord offsetC{blockCoord.m() * (L1TileShape::M * params.mScalar), 
-                            blockCoord.n() * (L1TileShape::N * params.nScalar)};        
-            gmOffsetC = layoutSrcC.GetOffset(offsetC);
-            gmOffsetWC = (AscendC::GetBlockIdx() / AIVPERCORE) * 
-                    (params.mScalar * L1TileShape::M) * (params.nScalar * L1TileShape::N);
-        }
+        MatrixCoord offsetC{blockCoord.m() * (L1TileShape::M * params.mScalar), 
+                        blockCoord.n() * (L1TileShape::N * params.nScalar)};        
+        gmOffsetC = layoutSrcC.GetOffset(offsetC);
+        gmOffsetWC = (AscendC::GetBlockIdx() / AIVPERCORE) * 
+                (params.mScalar * L1TileShape::M) * (params.nScalar * L1TileShape::N);
 
         uint32_t srcAStride = layoutSrcA.stride(
             std::is_same_v<LayoutA, Catlass::layout::RowMajor> ? 0:1);
@@ -410,14 +409,14 @@ protected:
                 LayoutB layoutDstB(kActualAligned_, actualBlockShape.n());
 
                 prologueA(
-                    gmDstA[gmOffsetWA + crossCoreBufferIndexAIV * gmOffsetWADelta],
+                    gmDstA[gmOffsetWA + (1 - crossCoreBufferIndexAIV) * gmOffsetWADelta],
                     layoutDstA,
                     gmSrcA[gmOffsetA],
                     layoutWA,
                     bufferIndex
                 );
                 prologueB(
-                    gmDstB[gmOffsetWB + crossCoreBufferIndexAIV * gmOffsetWBDelta],
+                    gmDstB[gmOffsetWB + (1 - crossCoreBufferIndexAIV) * gmOffsetWBDelta],
                     layoutDstB,
                     gmSrcB[gmOffsetB],
                     layoutWB,
@@ -495,19 +494,16 @@ protected:
                 }
                 Catlass::Arch::CrossCoreWaitFlag(flag4);
 
-                if (doEpCast) {
-                    Catlass::layout::RowMajor layoutBlockC(
-                        actualBlockShape.m(), actualBlockShape.n(), params.nScalar * L1TileShape::N);
-                    Catlass::layout::RowMajor layoutBlockDstC(
-                        problemShape.m(), problemShape.n());
-                    prologueB.EpCastFp32ToFp16(
-                        gmDstC[gmOffsetC],
-                        layoutBlockDstC,
-                        gmSrcC[gmOffsetWC],
-                        layoutBlockC,
-                        bufferIndexForCast
-                    );
-                }
+                Catlass::layout::RowMajor layoutBlockC(
+                    actualBlockShape.m(), actualBlockShape.n(), params.nScalar * L1TileShape::N);
+                Catlass::layout::RowMajor layoutBlockDstC(
+                    problemShape.m(), problemShape.n());
+                prologueB.EpCastFp32ToFp16(
+                    gmDstC[gmOffsetC],
+                    layoutBlockDstC,
+                    gmSrcC[gmOffsetWC],
+                    layoutBlockC
+                );
             }
                 crossCoreBufferIndexAIV = 1 - crossCoreBufferIndexAIV;
             } // end: for-loop (ldk)
@@ -901,7 +897,7 @@ protected:
 
     // Buffer index (for prologue)
     uint32_t bufferIndex{0};
-    uint32_t bufferIndexForCast{0};
+    // uint32_t bufferIndexForCast{0};
 
     Tile::PrologueTraits<PrologueA> prologueA;
     Tile::PrologueTraits<PrologueB> prologueB;

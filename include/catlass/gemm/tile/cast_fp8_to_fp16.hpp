@@ -198,7 +198,7 @@ struct TileCastFp8ToFp16Dequant {
             );
             AscendC::DataCopyPad(gmDst[dstProcessOffset], outputBuffer[bufferIndex], dataCopyParams);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EventIdBuffer[bufferIndex]);
-            bufferIndex += (bufferIndex + 1) % BUFFER_NUM;
+            bufferIndex = (bufferIndex + 1) % BUFFER_NUM;
         }
     }
 
@@ -208,8 +208,7 @@ struct TileCastFp8ToFp16Dequant {
     CATLASS_DEVICE
     void EpCastFp32ToFp16 (
         AscendC::GlobalTensor<half> gmDst, LayoutRowMajor layoutDst,
-        AscendC::GlobalTensor<float> gmSrc, LayoutRowMajor layoutSrc,
-        uint32_t &bufferIndexForCast
+        AscendC::GlobalTensor<float> gmSrc, LayoutRowMajor layoutSrc
     )
     {
         AscendC::LocalTensor<float> ubInTensor[BUFFER_NUM];
@@ -413,7 +412,7 @@ private:
     AscendC::LocalTensor<half> workspace[BUFFER_NUM];
     AscendC::TEventID EventIdBuffer[BUFFER_NUM] = {EVENT_ID0, EVENT_ID1};
     AscendC::TEventID EventIdBufferForCast[BUFFER_NUM] = {EVENT_ID2, EVENT_ID3};
-    // uint32_t bufferIndexForCast{0};
+    uint32_t bufferIndexForCast{0};
 
     Params params;
 };

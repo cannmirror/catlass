@@ -228,7 +228,8 @@ public:
                 blockCoord, nextBlockCoord,
                 actualBlockShape, nextActualBlockShape,
                 params.problemShape,
-                isFirstBlock, hasNextBlock
+                isFirstBlock, hasNextBlock,
+                bufferIndex
             );
             
         }
@@ -300,6 +301,7 @@ protected:
 
     // uint32_t crossCoreBufferIndexAIC{0};
     // uint32_t crossCoreBufferIndexAIV{0};
+    uint32_t bufferIndex{0};
     
 };
 
