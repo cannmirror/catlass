@@ -20,5 +20,8 @@ bash "$BUILD_SCRIPT_PATH" --clean --enable_mssanitizer catlass_examples || exit 
 # ascendc_dump
 bash "$BUILD_SCRIPT_PATH" --clean --enable_ascendc_dump catlass_examples || exit 1
 
-# example test
+# msopgen package build
+bash "$BUILD_SCRIPT_PATH" --clean basic_matmul_aclnn || exit 1
+
+# example test. Do not replace or the test will fail.
 bash "$BUILD_SCRIPT_PATH" --clean catlass_examples || exit 1

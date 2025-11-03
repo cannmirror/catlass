@@ -12,7 +12,7 @@ set(CATLASS_EXAMPLES_COMMON_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/common)
 
 add_custom_target(catlass_examples)
 
-# Arch specific compile options
+# arch specific compile options
 if(CATLASS_BISHENG_ARCH STREQUAL "a2" OR CATLASS_BISHENG_ARCH STREQUAL "a3")
     set(CCE_AICORE_ARCH_BASE dav-c220)
     add_compile_options(
@@ -23,7 +23,7 @@ if(CATLASS_BISHENG_ARCH STREQUAL "a2" OR CATLASS_BISHENG_ARCH STREQUAL "a3")
     )
 endif()
 
-# Common compile options
+# common compile options
 add_compile_options(
     $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-macro-redefined>
     $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-ignored-attributes>
@@ -31,7 +31,7 @@ add_compile_options(
     "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-addr-transform>"
 )
 
-# Compile options for debug features
+# compile options for debug features
 if(DEFINED ENABLE_PRINT AND ENABLE_PRINT)
     add_compile_options($<$<COMPILE_LANGUAGE:ASCEND>:--cce-enable-print>)
 endif()
@@ -77,6 +77,7 @@ if(DEFINED ENABLE_ASCENDC_DUMP AND ENABLE_ASCENDC_DUMP)
     link_libraries(ascend_dump)
 endif()
 
+# regular examples
 foreach(EXAMPLE
     00_basic_matmul
     01_batched_matmul
@@ -116,6 +117,7 @@ foreach(EXAMPLE
 )
     add_subdirectory(${EXAMPLE})
 endforeach()
-
+# advanded examples
 add_subdirectory(shared_lib)
 add_subdirectory(python_extension)
+add_subdirectory(advanced/basic_matmul_aclnn)
