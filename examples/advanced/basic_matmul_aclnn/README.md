@@ -121,7 +121,7 @@ bash scripts/build.sh basic_matmul_aclnn
 cd output/run
 chmod +x ./custom_opp_*.run
 ./custom_opp_*.run
-export LD_LIBRARY_PATH=$ASCEND_HOME_PATH/opp/vendors/catlass/op_api/lib/:${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=$ASCEND_HOME_PATH/opp/vendors/customize/op_api/lib/:${LD_LIBRARY_PATH}
 cd output/bin
 # 可执行文件名 |矩阵m轴|n轴|k轴|Device ID
 # Device ID可选，默认为0
