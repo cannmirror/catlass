@@ -100,6 +100,11 @@ struct EpilogueAtlasA2Gemv {
 struct EpilogueAtlasA2Visitor {
     using ArchTag = Arch::AtlasA2;
 };
+
+// For AtlasA2, Epilogue with Preload MMAD Visitor
+struct EpilogueAtlasA2PreloadVisitor {
+    using ArchTag = Arch::AtlasA2;
+};
 ///////////////////////////
 }  // namespace Catlass::Epilogue
 

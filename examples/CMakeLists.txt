@@ -117,6 +117,7 @@ foreach(EXAMPLE
     35_col_broadcast_reduction_evt
     35_scalar_broadcast_reduction_evt
     36_softmax_multi_evt
+    12_quant_matmul_evt
     102_dynamic_optimized_matmul
 )
     add_subdirectory(${EXAMPLE})

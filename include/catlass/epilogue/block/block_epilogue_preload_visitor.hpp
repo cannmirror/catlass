@@ -1,5 +1,5 @@
-#ifndef CATLASS_EPILOGUE_BLOCK_EPILOGUE_VISITOR_HPP
-#define CATLASS_EPILOGUE_BLOCK_EPILOGUE_VISITOR_HPP
+#ifndef CATLASS_EPILOGUE_BLOCK_EPILOGUE_PRELOAD_VISITOR_HPP
+#define CATLASS_EPILOGUE_BLOCK_EPILOGUE_PRELOAD_VISITOR_HPP
 
 #include "catlass/catlass.hpp"
 #include "catlass/arch/resource.hpp"
@@ -16,7 +16,7 @@ template <
     class EVT_
 >
 class BlockEpilogue<
-    EpilogueAtlasA2Visitor,
+    EpilogueAtlasA2PreloadVisitor,
     CType_,
     ComputeLength_,
     EVT_
@@ -80,14 +80,14 @@ public:
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventMTE3V[0]);
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventMTE3V[1]);
 
-        AscendC::PipeBarrier<PIPE_ALL>();
-        Arch::CrossCoreBarrier<0x0, PIPE_MTE3>();
+        // AscendC::PipeBarrier<PIPE_ALL>();
+        // Arch::CrossCoreBarrier<0x0, PIPE_MTE3>();
 
-        uint32_t ub_offset0 = 0;
-        auto callbacks0 = evt.get_callbacks(
-            resource_, ub_offset0, COMPUTE_LENGTH
-        );
-        callbacks0.end_epilogue();
+        // uint32_t ub_offset0 = 0;
+        // auto callbacks0 = evt.get_callbacks(
+        //     resource_, ub_offset0, COMPUTE_LENGTH
+        // );
+        // callbacks0.end_epilogue();
     }
 
     CATLASS_DEVICE
@@ -96,9 +96,13 @@ public:
         GemmCoord const& blockCoordMNK,
         GemmCoord const& actualBlockShapeMNK,
         AscendC::GlobalTensor<ElementC> const& gmBlockC,
-        layout::RowMajor const& layoutBlockC
+        layout::RowMajor const& layoutBlockC, Callback &&callback = Callback{}
     )
     {
+        if (actualBlockShapeMNK.k() == 0) {
+            return;
+        }
+        callback();
         MatrixCoord blockShape = blockShapeMNK.GetCoordMN();
         MatrixCoord blockCoord = blockCoordMNK.GetCoordMN();
         MatrixCoord actualBlockShape = actualBlockShapeMNK.GetCoordMN();
@@ -233,4 +237,4 @@ private:
 
 } // namespace Catlass::Epilogue::Block
 
-#endif // CATLASS_EPILOGUE_BLOCK_EPILOGUE_VISITOR_HPP
+#endif // CATLASS_EPILOGUE_BLOCK_EPILOGUE_PRELOAD_VISITOR_HPP

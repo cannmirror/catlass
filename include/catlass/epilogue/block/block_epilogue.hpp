@@ -40,4 +40,5 @@ class BlockEpilogue {
 #include "catlass/epilogue/block/block_epilogue_online_softmax_no_mask.hpp"
 #include "catlass/epilogue/block/block_epilogue_rescale_o_no_split_row.hpp"
 #include "catlass/epilogue/block/block_epilogue_visitor.hpp"
+#include "catlass/epilogue/block/block_epilogue_preload_visitor.hpp"
 #endif  // CATLASS_EPILOGUE_BLOCK_BLOCK_EPILOGUE_HPP
