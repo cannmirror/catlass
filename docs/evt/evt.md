@@ -172,6 +172,18 @@ sequenceDiagram
     Note over M2_prev,M3_curr: callbacks1 使用独立事件ID与UB区，流水独立并行
 ```
 
+### compute_length 说明
+
+- 定义：单次在 UB 内参与计算的元素数量。它决定了每个子块在“拷贝 → 计算 → 回写”流水中的 tile 大小。
+- 作用：影响 UB 空间切分，从而可能影响性能。
+- 约束：需满足 UB 容量限制。
+  - 实现中可以提供检查，越界将编译期报错。
+- 例：D=C+X中，computeLength = ArchTag::UB_SIZE / 3 / 2 / sizeof(elementType);
+- 解释：
+  - `/3`：访问中需要申请C、X、D三段UB空间；
+  - `/2`：双缓存
+  - `/sizeof(elementType)`：按元素数量计量而非字节，可能会有混合类型的EVT。
+
 block_epilogue计算粒度与AIC矩阵乘相同，根据compute_length计算出最大tile_shape，以tile_shape为粒度迭代进行C子块的处理，每个节点以隐含的tile_shape大小的row_major layout的形式在UB进行传递。
 
 - 构造 `BlockEpilogue(resource, {evt_params})` 时，分配事件ID并设置初始 flag（允许 MTE2 搬入与 V 写出）；

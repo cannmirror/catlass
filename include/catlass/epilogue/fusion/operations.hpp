@@ -75,6 +75,52 @@ struct Plus {
     }
 };
 
+// 乘法操作符
+template <typename T>
+struct Mul {
+    CATLASS_DEVICE
+    void operator()(
+        AscendC::LocalTensor<T>& dst,
+        AscendC::LocalTensor<T> const& src0,
+        AscendC::LocalTensor<T> const& src1,
+        uint32_t compute_length
+    ) const {
+        AscendC::Mul(dst, src0, src1, compute_length);
+    }
+};
+
+// 乘法操作符
+template <typename T>
+struct Mul3 {
+    CATLASS_DEVICE
+    void operator()(
+        AscendC::LocalTensor<T>& dst,
+        AscendC::LocalTensor<T> const& src0,
+        AscendC::LocalTensor<T> const& src1,
+        AscendC::LocalTensor<T> const& src2,
+        uint32_t compute_length
+    ) const {
+        AscendC::Mul(dst, src0, src1, compute_length);
+        AscendC::PipeBarrier<PIPE_V>();
+        AscendC::Mul(dst, dst, src2, compute_length);
+    }
+};
+
+// 加法操作符
+template <typename T>
+struct PlusRelu {
+    CATLASS_DEVICE
+    void operator()(
+        AscendC::LocalTensor<T>& dst,
+        AscendC::LocalTensor<T> const& src0,
+        AscendC::LocalTensor<T> const& src1,
+        uint32_t compute_length
+    ) const {
+        AscendC::Add(dst, src0, src1, compute_length);
+        AscendC::Relu(dst, dst, compute_length);
+    }
+};
+
 // 最大值操作符
 template <typename T>
 struct Maximum {
