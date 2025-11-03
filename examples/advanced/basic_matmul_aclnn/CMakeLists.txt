@@ -12,31 +12,36 @@ set(MSOPGEN_PROJECT_SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/msopgen)
 set(MSOPGEN_CMAKE_CURRENT_BINARY_DIR ${MSOPGEN_PROJECT_SOURCE_DIR}/build_out)
 
 if(NOT EXISTS ${MSOPGEN_PROJECT_SOURCE_DIR})
+    # create tmp directory
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/tmp)
+    # msopgen can only generate to a directory with 755 permission
     execute_process(
         COMMAND chmod 755 ${CMAKE_CURRENT_BINARY_DIR}/tmp
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
-    configure_file(
-        ${CMAKE_CURRENT_SOURCE_DIR}/op_kernel/CMakeLists.txt
-        ${CMAKE_CURRENT_BINARY_DIR}/tmp/op_kernel/CMakeLists.txt
-    )
+    # copy json configuration file
     file(COPY_FILE ${CMAKE_CURRENT_SOURCE_DIR}/catlass_basic_matmul.json ${CMAKE_CURRENT_BINARY_DIR}/tmp/catlass_basic_matmul.json)
+    # msopgen can only generate from a 644 json configuration file
+    execute_process(
+        COMMAND chmod 644 ${CMAKE_CURRENT_BINARY_DIR}/tmp/catlass_basic_matmul.json
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
     find_program(MSOPGEN NAMES msopgen
         HINTS ${ASCEND_HOME_PATH})
     add_custom_target(generated_msopgen_project
         COMMAND ${CMAKE_COMMAND} -E make_directory ${MSOPGEN_PROJECT_SOURCE_DIR}
         COMMAND ${MSOPGEN} gen -i ${CMAKE_CURRENT_BINARY_DIR}/tmp/catlass_basic_matmul.json -c ai_core-${NPU_MODEL} -lan cpp -out ${MSOPGEN_PROJECT_SOURCE_DIR}
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/op_host ${MSOPGEN_PROJECT_SOURCE_DIR}/op_host
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/op_kernel ${MSOPGEN_PROJECT_SOURCE_DIR}/op_kernel
-        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/tmp/op_kernel/CMakeLists.txt ${MSOPGEN_PROJECT_SOURCE_DIR}/op_kernel
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/op_host/catlass_basic_matmul.cpp ${MSOPGEN_PROJECT_SOURCE_DIR}/op_host
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/op_host/catlass_basic_matmul_tiling.h ${MSOPGEN_PROJECT_SOURCE_DIR}/op_host
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/op_kernel/catlass_basic_matmul.cpp ${MSOPGEN_PROJECT_SOURCE_DIR}/op_kernel
+        COMMAND ${CMAKE_COMMAND} -E echo "add_ops_compile_options\\(ALL OPTIONS -I${CATLASS_INCLUDE_DIR}\\)" >> ${MSOPGEN_PROJECT_SOURCE_DIR}/op_kernel/CMakeLists.txt
         # uncomment this line to change the vendor name to "catlass" to avoid conflict
         # COMMAND sed -i "s/customize/catlass/g" ${MSOPGEN_PROJECT_SOURCE_DIR}/CMakePresets.json
         BYPRODUCTS ${MSOPGEN_PROJECT_SOURCE_DIR}
     )
 else()
     add_custom_target(generated_msopgen_project
-        COMMENT "msopgen project directory already exists"
+        COMMENT "msOpGen project directory already exists"
     )
 endif()
 
