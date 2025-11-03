@@ -142,6 +142,12 @@ bool GroupedGemmOpConfig::InitConfig(CommandLineParser &parser)
             invalid_ = true;
             return false;
         }
+        constexpr uint32_t GROUP_COUNT_MAX_LIMIT = 65535U;
+        if (config_.groupCount > GROUP_COUNT_MAX_LIMIT) {
+            LOGE("The --group_count should be not larger than %u", GROUP_COUNT_MAX_LIMIT);
+            invalid_ = true;
+            return false;
+        }
     }
     groupList_ = GenGroupList<int32_t>(config_.groupCount, config_.m);
     return true;
