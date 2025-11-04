@@ -269,6 +269,7 @@ bool CommonMatmulB16Handler(TilingParams &params, PlatformInfo& platformInfo)
 
 bool PaddingCommonMatmulB16Handler(TilingParams &params, PlatformInfo& platformInfo)
 {
+    GetPaddingTag(params, platformInfo);
     uint8_t kernelSerial = 2;
     if (params.paddingTagA || params.paddingTagB || params.paddingTagC) {
         params.tilingKey.SetTilingKey(kernelSerial, 
