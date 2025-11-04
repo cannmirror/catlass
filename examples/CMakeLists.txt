@@ -68,7 +68,7 @@ include_directories(
     ${CATLASS_INCLUDE_DIR}
 )
 link_directories(${ASCEND_HOME_PATH}/lib64)
-link_libraries(ascendcl dl tiling_api platform c_sec nnopbase)
+link_libraries(dl tiling_api platform c_sec nnopbase ascendcl)
 
 if(DEFINED ENABLE_ASCENDC_DUMP AND ENABLE_ASCENDC_DUMP)
     add_compile_definitions(ENABLE_ASCENDC_DUMP)
