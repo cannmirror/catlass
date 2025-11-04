@@ -18,7 +18,7 @@
 #include "catlass/layout/layout.hpp"
 #include "catlass/gemm/block/block_mmad.hpp"
 #include "catlass/gemm/block/block_swizzle.hpp"
-#include "catlass/gemm/kernel/dynamic_padding_matmul.hpp"
+#include "catlass/gemm/kernel/dynamic_padding_common_matmul.hpp"
 #include "catlass/gemm/gemm_type.hpp"
 
 using PaddingTag = Catlass::Gemm::Kernel::PaddingTag;
