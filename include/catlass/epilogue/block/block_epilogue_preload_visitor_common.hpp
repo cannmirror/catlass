@@ -83,11 +83,11 @@ public:
         // AscendC::PipeBarrier<PIPE_ALL>();
         // Arch::CrossCoreBarrier<0x0, PIPE_MTE3>();
 
-        uint32_t ub_offset0 = 0;
-        auto callbacks0 = evt.get_callbacks(
-            resource_, ub_offset0, COMPUTE_LENGTH
-        );
-        callbacks0.end_epilogue();
+        // uint32_t ub_offset0 = 0;
+        // auto callbacks0 = evt.get_callbacks(
+        //     resource_, ub_offset0, COMPUTE_LENGTH
+        // );
+        // callbacks0.end_epilogue();
     }
 
     CATLASS_DEVICE
@@ -135,92 +135,39 @@ public:
         uint32_t rows = actualSubblockShape.row();
         uint32_t cols = actualSubblockShape.column();
 
-        // 预加载阶段：先加载前2个tile
-        if (cols <= COMPUTE_LENGTH) {
-            // 列宽 <= COMPUTE_LENGTH，按行分块
-            uint32_t colsAligned = RoundUp<BYTE_PER_C0>(cols);
-            uint32_t maxRowsPerTile = COMPUTE_LENGTH / colsAligned;
-            if (maxRowsPerTile == 0) maxRowsPerTile = 1;  // 防止除零
+        // 遍历所有 tile，实现双缓冲流水
+        uint32_t ubListId = 0;  // 0或1，交替使用
+        
+        for (uint32_t r = 0; r < rows; ) {
+            auto& cbs = ((ubListId & 1) ? callbacks1 : callbacks0);
 
-            // 预加载tile 0到buffer 0
-            uint32_t r0 = 0;
-            uint32_t remainRows0 = rows - r0;
-            uint32_t tileRows0 = (remainRows0 < maxRowsPerTile) ? remainRows0 : maxRowsPerTile;
-            MatrixCoord tileShape0{tileRows0, cols};
-            MatrixCoord localTileOffset0{r0, 0};
-            MatrixCoord globalTileOffset0 = blockOffset + subblockOffset + localTileOffset0;
-            uint32_t calCount0 = tileRows0 * colsAligned;
-            MatrixCoord alignedTileShape0{tileShape0.row(), colsAligned};
-            load_tile(callbacks0, gmSubblockC, layoutSubblockC, globalTileOffset0, localTileOffset0, 
-                     tileShape0, alignedTileShape0, calCount0, 0);
-
-            // 预加载tile 1到buffer 1（如果存在）
-            uint32_t r1 = r0 + tileRows0;
-            uint32_t tileRows1 = 0;
-            MatrixCoord tileShape1, localTileOffset1, globalTileOffset1, alignedTileShape1;
-            uint32_t calCount1;
-            bool hasTile1 = (r1 < rows);
-            if (hasTile1) {
-                uint32_t remainRows1 = rows - r1;
-                tileRows1 = (remainRows1 < maxRowsPerTile) ? remainRows1 : maxRowsPerTile;
-                tileShape1 = MatrixCoord{tileRows1, cols};
-                localTileOffset1 = MatrixCoord{r1, 0};
-                globalTileOffset1 = blockOffset + subblockOffset + localTileOffset1;
-                calCount1 = tileRows1 * colsAligned;
-                alignedTileShape1 = MatrixCoord{tileShape1.row(), colsAligned};
-                load_tile(callbacks1, gmSubblockC, layoutSubblockC, globalTileOffset1, localTileOffset1, 
-                         tileShape1, alignedTileShape1, calCount1, 1);
-            }
-
-            // 主循环：计算当前tile，同时加载下一个tile
-            uint32_t rCompute = r0;  // 当前要计算的tile的开始行
-            uint32_t rLoad = hasTile1 ? (r1 + tileRows1) : rows;  // 下一个要加载的tile的开始行（如果没有tile1，则设为rows表示没有更多tile）
-            uint32_t tileIndex = 0;  // 当前处理的tile索引
-
-            while (rCompute < rows) {
-                uint32_t ubListId = tileIndex & 1;
-                auto& cbs = ((ubListId & 1) ? callbacks1 : callbacks0);
-
-                // 计算当前要处理的tile参数
-                uint32_t remainRowsCurr = rows - rCompute;
-                uint32_t tileRowsCurr = (remainRowsCurr < maxRowsPerTile) ? remainRowsCurr : maxRowsPerTile;
-                MatrixCoord tileShapeCurr{tileRowsCurr, cols};
-                MatrixCoord localTileOffsetCurr{rCompute, 0};
-                MatrixCoord globalTileOffsetCurr = blockOffset + subblockOffset + localTileOffsetCurr;
-                uint32_t calCountCurr = tileRowsCurr * colsAligned;
-                MatrixCoord alignedTileShapeCurr{tileShapeCurr.row(), colsAligned};
-
-                // 计算当前tile
-                compute_tile(cbs, gmSubblockC, layoutSubblockC, globalTileOffsetCurr, localTileOffsetCurr, 
-                            tileShapeCurr, alignedTileShapeCurr, calCountCurr, ubListId);
-
-                // 存储当前tile
-                store_tile(cbs, gmSubblockC, layoutSubblockC, globalTileOffsetCurr, localTileOffsetCurr, 
-                          tileShapeCurr, alignedTileShapeCurr, calCountCurr, ubListId);
-
-                // 如果还有下一个tile，加载它（使用同一个buffer）
-                if (rLoad < rows) {
-                    uint32_t remainRowsNext = rows - rLoad;
-                    uint32_t tileRowsNext = (remainRowsNext < maxRowsPerTile) ? remainRowsNext : maxRowsPerTile;
-                    MatrixCoord tileShapeNext{tileRowsNext, cols};
-                    MatrixCoord localTileOffsetNext{rLoad, 0};
-                    MatrixCoord globalTileOffsetNext = blockOffset + subblockOffset + localTileOffsetNext;
-                    uint32_t calCountNext = tileRowsNext * colsAligned;
-                    MatrixCoord alignedTileShapeNext{tileShapeNext.row(), colsAligned};
-                    load_tile(cbs, gmSubblockC, layoutSubblockC, globalTileOffsetNext, localTileOffsetNext, 
-                             tileShapeNext, alignedTileShapeNext, calCountNext, ubListId);
-                    rLoad += tileRowsNext;
-                }
-
-                rCompute += tileRowsCurr;
-                tileIndex++;
-            }
-        } else {
-            // 列宽 > COMPUTE_LENGTH，需要列分块，每次处理1行
-            // 对于这种情况，暂时保持原有逻辑
-            uint32_t ubListId = 0;
-            for (uint32_t r = 0; r < rows; ) {
-                auto& cbs = ((ubListId & 1) ? callbacks1 : callbacks0);
+            // 检查是否需要列分块
+            if (cols <= COMPUTE_LENGTH) {
+                // 列宽 <= COMPUTE_LENGTH，可以处理完整行宽
+                uint32_t colsAligned = RoundUp<BYTE_PER_C0>(cols);
+                uint32_t maxRowsPerTile = COMPUTE_LENGTH / colsAligned;
+                if (maxRowsPerTile == 0) maxRowsPerTile = 1;  // 防止除零
+                
+                uint32_t remainRows = rows - r;
+                uint32_t tileRows = (remainRows < maxRowsPerTile) ? remainRows : maxRowsPerTile;
+                
+                MatrixCoord tileShape{tileRows, cols};
+                MatrixCoord localTileOffset{r, 0};
+                // 计算全局绝对坐标
+                MatrixCoord globalTileOffset = blockOffset + subblockOffset + localTileOffset;
+                uint32_t calCount = tileRows * colsAligned;
+                
+                // 计算对齐的 tile shape
+                MatrixCoord alignedTileShape{
+                    tileShape.row(),
+                    colsAligned
+                };
+                
+                // 统一流水：执行一次 tile 的 Load-Compute-Store
+                run_tile(cbs, gmSubblockC, layoutSubblockC, globalTileOffset, localTileOffset, tileShape, alignedTileShape, calCount, ubListId);
+                r += tileRows;
+            } else { //应该暂时都用不到
+                // 列宽 > COMPUTE_LENGTH，需要列分块，每次处理1行
                 for (uint32_t c = 0; c < cols; ) {
                     uint32_t remainCols = cols - c;
                     uint32_t tileCols = (remainCols < COMPUTE_LENGTH) ? remainCols : COMPUTE_LENGTH;
@@ -229,31 +176,31 @@ public:
 
                     MatrixCoord tileShape{1, tileCols};
                     MatrixCoord localTileOffset{r, c};
+                    // 计算全局绝对坐标
                     MatrixCoord globalTileOffset = blockOffset + subblockOffset + localTileOffset;
-                    uint32_t calCount = tileCols;
+                    uint32_t calCount = tileCols;  // 1行 * tileCols列
                     
+                    // 计算对齐的 tile shape
                     MatrixCoord alignedTileShape{
                         tileShape.row(),
                         colsAligned
                     };
                     
-                    load_tile(cbs, gmSubblockC, layoutSubblockC, globalTileOffset, localTileOffset, 
-                             tileShape, alignedTileShape, calCount, ubListId);
-                    compute_tile(cbs, gmSubblockC, layoutSubblockC, globalTileOffset, localTileOffset, 
-                               tileShape, alignedTileShape, calCount, ubListId);
-                    store_tile(cbs, gmSubblockC, layoutSubblockC, globalTileOffset, localTileOffset, 
-                              tileShape, alignedTileShape, calCount, ubListId);
+                    // 统一流水：执行一次 tile 的 Load-Compute-Store
+                    run_tile(cbs, gmSubblockC, layoutSubblockC, globalTileOffset, localTileOffset, tileShape, alignedTileShape, calCount, ubListId);
                     c += tileCols;
                 }
-                r += 1;
-                ubListId = 1 - ubListId;
+                
+                r += 1;  // 处理完一行
             }
+
+            ubListId = 1 - ubListId; // Buffer 轮转
         }
     }
 
 private:
     template <class Callbacks>
-    CATLASS_DEVICE void load_tile(
+    CATLASS_DEVICE void run_tile(
         Callbacks& cbs,
         AscendC::GlobalTensor<ElementC> const& gmSubblockC,
         layout::RowMajor const& layoutSubblockC,
@@ -267,39 +214,13 @@ private:
         AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventVMTE2[ubListId]);
         cbs.visit(gmSubblockC, layoutSubblockC, globalTileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, Epilogue::Fusion::VisitStage::LOAD);
         AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventMTE2V[ubListId]);
-    }
 
-    template <class Callbacks>
-    CATLASS_DEVICE void compute_tile(
-        Callbacks& cbs,
-        AscendC::GlobalTensor<ElementC> const& gmSubblockC,
-        layout::RowMajor const& layoutSubblockC,
-        MatrixCoord const& globalTileOffset,
-        MatrixCoord const& localTileOffset,
-        MatrixCoord const& actualTileShape,
-        MatrixCoord const& alignedTileShape,
-        uint32_t calCount,
-        uint32_t ubListId
-    ) {
         AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventMTE2V[ubListId]);
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventMTE3V[ubListId]);
         cbs.visit(gmSubblockC, layoutSubblockC, globalTileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, Epilogue::Fusion::VisitStage::COMPUTE);
         AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventVMTE2[ubListId]);
         AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(eventVMTE3[ubListId]);
-    }
 
-    template <class Callbacks>
-    CATLASS_DEVICE void store_tile(
-        Callbacks& cbs,
-        AscendC::GlobalTensor<ElementC> const& gmSubblockC,
-        layout::RowMajor const& layoutSubblockC,
-        MatrixCoord const& globalTileOffset,
-        MatrixCoord const& localTileOffset,
-        MatrixCoord const& actualTileShape,
-        MatrixCoord const& alignedTileShape,
-        uint32_t calCount,
-        uint32_t ubListId
-    ) {
         AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(eventVMTE3[ubListId]);
         cbs.visit(gmSubblockC, layoutSubblockC, globalTileOffset, localTileOffset, actualTileShape, alignedTileShape, calCount, Epilogue::Fusion::VisitStage::STORE);
         AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(eventMTE3V[ubListId]);

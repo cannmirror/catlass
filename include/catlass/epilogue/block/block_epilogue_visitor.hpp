@@ -80,8 +80,8 @@ public:
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventMTE3V[0]);
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(eventMTE3V[1]);
 
-        AscendC::PipeBarrier<PIPE_ALL>();
-        Arch::CrossCoreBarrier<0x0, PIPE_MTE3>();
+        // AscendC::PipeBarrier<PIPE_ALL>();
+        // Arch::CrossCoreBarrier<0x0, PIPE_MTE3>();
 
         uint32_t ub_offset0 = 0;
         auto callbacks0 = evt.get_callbacks(

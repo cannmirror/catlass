@@ -87,14 +87,14 @@ struct VisitorColBroadcast : VisitorImpl<> {
 
             if (stage == VisitStage::LOAD) {
                 // GM load 使用 actualTileShape 的行数，列为 1
-                auto layoutUbCol = layout::RowMajor{actualRows, 1, alignedCols};
+                auto layoutUbCol = layout::RowMajor{1, actualRows};
                 using CopyGm2UbT = Epilogue::Tile::CopyGm2Ub<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>>;
                 CopyGm2UbT copyGm2Ub{};
 
                 AscendC::GlobalTensor<Element> gmCol;
                 gmCol.SetGlobalBuffer((__gm__ Element*)(params_ptr->ptr_col));
                 auto gmTile = gmCol[params_ptr->layout.GetOffset(MatrixCoord{globalTileOffset.row(), 0})];
-                auto layoutSrc = params_ptr->layout.GetTileLayout(MatrixCoord{actualRows, 1});
+                auto layoutSrc = params_ptr->layout.GetTileLayout(MatrixCoord{1, actualRows});
                 copyGm2Ub(ubOut, gmTile, layoutUbCol, layoutSrc); // writes first column of ubOut per row
             }
             if (stage == VisitStage::COMPUTE) {
@@ -102,8 +102,8 @@ struct VisitorColBroadcast : VisitorImpl<> {
                 // 此处从偏移r读取，然后复制到按alignedCols对齐的一整行
                 AscendC::SetFlag<AscendC::HardEvent::V_S>(0);
                 AscendC::WaitFlag<AscendC::HardEvent::V_S>(0);
-                for (uint32_t r = 0; r < actualRows; ++r) {
-                    Element v = ubOut.GetValue(r * alignedCols);
+                for (int r = actualRows-1; r >= 0; --r) {
+                    Element v = ubOut.GetValue(r);
                     AscendC::Duplicate<Element>(ubOut[r * alignedCols], v, actualCols);
                 }
             }
