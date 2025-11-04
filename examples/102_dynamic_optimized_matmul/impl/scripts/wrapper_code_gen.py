@@ -23,5 +23,5 @@ if __name__ == "__main__":
 
     os.makedirs(Config.WRAPPER_CODE_PATH, exist_ok=True)
     CommonMatmulTemplate.gen_code("CommonMatmulKernel", "common_matmul_kernel", 0, "half", kernel_info)
-    PaddingMatmulTemplate.gen_code("PaddingMatmulKernel", "padding_matmul_kernel", 2, "half", kernel_info)
+    PaddingMatmulTemplate.gen_code("PaddingCommonMatmulKernel", "padding_common_matmul_kernel", 2, "half", kernel_info)
     LaunchMapTemplate.gen_code(kernel_info)

@@ -31,7 +31,7 @@ void {launch_kernel_func_name}(aclrtStream& stream, uint64_t fftsAddr,
     constexpr PaddingTag paddingTagA = {padding_tag_a};
     constexpr PaddingTag paddingTagB = {padding_tag_b};
     constexpr PaddingTag paddingTagC = {padding_tag_c};
-    LaunchPaddingMatmulKernel<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
+    LaunchPaddingCommonMatmulKernel<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
         paddingTagA, paddingTagB, paddingTagC>(
         stream, fftsAddr, dA, dB, dC, dW, dTilingParams, tilingParams);
 }}
@@ -47,7 +47,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
     constexpr PaddingTag paddingTagA = {padding_tag_a};
     constexpr PaddingTag paddingTagB = {padding_tag_b};
     constexpr PaddingTag paddingTagC = {padding_tag_c};
-    return PaddingMatmulKernelGetWorkspaceSize<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
+    return PaddingCommmonMatmulKernelGetWorkspaceSize<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
         paddingTagA, paddingTagB, paddingTagC>(tilingParams);
 }}
 """
@@ -65,7 +65,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
             )
         )
         for l_tag_a, l_tag_b, p_tag_a, p_tag_b, p_tag_c in combinations:
-            # kernel_fun_name can be PaddingMatmulKernelHalfLayout00
+            # kernel_fun_name can be PaddingCommonMatmulHalfLayout00
             kernel_func_name = (
                 kernel_name
                 + dtype.capitalize()
@@ -81,9 +81,9 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
             kernel_info[
                 Config.get_tiling_key(kernel_serial, dtype, l_tag_a, l_tag_b, 0, p_tag_a, p_tag_b, p_tag_c)
             ] = kernel_func_name
-            # launch_kernel_fun_name can be LaunchPaddingMatmulKernelHalfLayout00
+            # launch_kernel_fun_name can be LaunchPaddingCommonMatmulHalfLayout00
             launch_kernel_func_name = "Launch" + kernel_func_name
-            # get_workspace_fun_name can be PaddingMatmulKernelHalfLayout00GetWorkspaceSize
+            # get_workspace_fun_name can be PaddingCommonMatmulHalfLayout00GetWorkspaceSize
             get_workspace_func_name = (
                 kernel_name
                 + dtype.capitalize()
@@ -96,7 +96,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
                 + str(p_tag_c)
                 + "GetWorkspaceSize"
             )
-            # file name can be padding_matmul_kernel_half_layout_00.cpp
+            # file name can be padding_common_matmul_kernel_half_layout_00.cpp
             file_name = (
                 base_file_name
                 + "_"

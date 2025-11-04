@@ -41,7 +41,7 @@ struct TileCopyDynamicOptimized : public Catlass::Gemm::Tile::TileCopy<ArchTag, 
 
 template <class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC,
     PaddingTag paddingTagA, PaddingTag paddingTagB,  PaddingTag paddingTagC>
-[[bisheng::core_ratio(1, 2)]] CATLASS_GLOBAL void PaddingMatmulKernel(uint64_t fftsAddr, __gm__ uint8_t *__restrict__ gmA,
+[[bisheng::core_ratio(1, 2)]] CATLASS_GLOBAL void PaddingCommonMatmulKernel(uint64_t fftsAddr, __gm__ uint8_t *__restrict__ gmA,
     __gm__ uint8_t *__restrict__ gmB, __gm__ uint8_t *__restrict__ gmC, __gm__ uint8_t *__restrict__ gmWA,
     __gm__ uint8_t *__restrict__ gmWB, __gm__ uint8_t *__restrict__ gmWC, __gm__ uint8_t *__restrict__ tilingData)
 {
@@ -151,7 +151,7 @@ template <class ElementA, class LayoutA, class ElementB, class LayoutB, class El
     if (problemShape.m() > problemShape.n()) {
         using BlockScheduler = typename Catlass::Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
         // kernel level
-        using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingMatmul<
+        using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingCommonMatmul<
             PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingC>;
         typename MatmulKernel::Params params{
             problemShape, l1TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC, gmWA, gmWB, gmWC};
@@ -161,7 +161,7 @@ template <class ElementA, class LayoutA, class ElementB, class LayoutB, class El
     } else {
         using BlockScheduler = typename Catlass::Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
         // kernel level
-        using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingMatmul<
+        using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingCommonMatmul<
             PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingC>;
         typename MatmulKernel::Params params{
             problemShape, l1TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC, gmWA, gmWB, gmWC};
@@ -173,7 +173,7 @@ template <class ElementA, class LayoutA, class ElementB, class LayoutB, class El
 
 template <class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC,
     PaddingTag paddingTagA, PaddingTag paddingTagB,  PaddingTag paddingTagC>
-void LaunchPaddingMatmulKernel(aclrtStream &stream, uint64_t fftsAddr, uint8_t *dA, uint8_t *dB, uint8_t *dC,
+void LaunchPaddingCommonMatmulKernel(aclrtStream &stream, uint64_t fftsAddr, uint8_t *dA, uint8_t *dB, uint8_t *dC,
     uint8_t *dW, uint8_t *dTilingParams, TilingParams &tilingParams)
 {
     using ArchTag = Catlass::Arch::AtlasA2;
@@ -215,13 +215,13 @@ void LaunchPaddingMatmulKernel(aclrtStream &stream, uint64_t fftsAddr, uint8_t *
         dWC = dW + sizeWA + sizeWB;
     }
 
-    PaddingMatmulKernel<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC, paddingTagA, paddingTagB, paddingTagC>
+    PaddingCommonMatmulKernel<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC, paddingTagA, paddingTagB, paddingTagC>
         <<<tilingParams.blockDim, nullptr, stream>>>(fftsAddr, dA, dB, dC, dWA, dWB, dWC, dTilingParams);
 }
 
 template <class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC,
     PaddingTag paddingTagA, PaddingTag paddingTagB,  PaddingTag paddingTagC>
-size_t PaddingMatmulKernelGetWorkspaceSize(TilingParams &tilingParams)
+size_t PaddingCommonMatmulKernelGetWorkspaceSize(TilingParams &tilingParams)
 {
     using ArchTag = Catlass::Arch::AtlasA2;
     using PaddingBuilderA = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagA, ArchTag, ElementA, LayoutA>;
