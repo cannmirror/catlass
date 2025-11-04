@@ -47,7 +47,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
     constexpr PaddingTag paddingTagA = {padding_tag_a};
     constexpr PaddingTag paddingTagB = {padding_tag_b};
     constexpr PaddingTag paddingTagC = {padding_tag_c};
-    return PaddingCommmonMatmulKernelGetWorkspaceSize<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
+    return PaddingCommonMatmulKernelGetWorkspaceSize<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
         paddingTagA, paddingTagB, paddingTagC>(tilingParams);
 }}
 """
