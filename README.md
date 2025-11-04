@@ -51,7 +51,7 @@ catlass
  
 | NPU 平台 | CANN | 支撑CATLASS的CANN版本 | 
 | -------- | --- | --- | 
-| `Atlas A2 训练系列产品`/`Atlas 800I A2 推理产品`/`A200I A2 Box 异构组件` | 
+| `Atlas A2 训练系列产品`/ <br>`Atlas 800I A2 推理产品`/ <br>`A200I A2 Box 异构组件` | 
 | `Atlas 800T A2 训练服务器` | 
 | `Atlas 900 A2 PoD 集群基础单元` | 
 | `Atlas 200T A2 Box16 异构子框` | 
