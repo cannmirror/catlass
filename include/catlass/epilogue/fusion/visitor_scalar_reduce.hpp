@@ -112,7 +112,7 @@ struct VisitorScalarReduce : VisitorImpl<> {
             if (stage == VisitStage::COMPUTE) {
                 // 使用策略化的计算逻辑
                 ScalarReduceCompute<ReduceFn, Element, Strategy>::compute(
-                    ubScalar, ubWork, input, params_ptr->identity, actualRows, actualCols);
+                    ubScalar, ubWork, input, params_ptr->identity, actualRows, actualCols, alignedCols);
             }
 
             if (stage == VisitStage::STORE) {

@@ -307,15 +307,14 @@ struct RowReduceCompute {
         AscendC::Duplicate(ubReduce, identity, alignedCols);
         if (actualRows > 0) {
             // 第一行：直接复制
-            AscendC::DataCopy(ubReduce, input, actualCols);
+            AscendC::DataCopy(ubReduce, input, alignedCols);
         }
-        
         // 后续行：规约操作
         for (uint32_t r = 1; r < actualRows; ++r) {
             AscendC::PipeBarrier<PIPE_V>();
             // 使用函数对象，无需特化三次
             ReduceOp<ReduceFn, Element>::row_reduce(
-                ubReduce, ubReduce, input[r * alignedCols], actualCols);
+                ubReduce, ubReduce, input[r * alignedCols], alignedCols);
         }
     }
     
@@ -353,8 +352,7 @@ struct ColReduceCompute {
     {
         // Reduce each row of the tile over columns to a scalar
         for (uint32_t r = 0; r < actualRows; ++r) {
-            // 使用函数对象，无需特化三次
-            auto dst = ubRowReduce[r*alignedCols];
+            auto dst = ubRowReduce[r];
             ReduceOp<ReduceFn, Element>::vector_reduce(
                 dst, input[r * alignedCols], ubWork, actualCols);
         }
@@ -368,10 +366,10 @@ struct ColReduceCompute {
         layout::RowMajor const& layout)
     {
         auto gmTile = gmOut[layout.GetOffset(MatrixCoord{globalTileOffset.row(), 0})];
-        auto layoutUbCol = layout::RowMajor{actualTileShape.row(), 1, actualTileShape.column()};
+        auto layoutUbCol = layout::RowMajor::MakeLayoutInUb<Element>(MatrixCoord{1u, actualTileShape.row()});
         using CopyUb2GmT = Epilogue::Tile::CopyUb2Gm<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>>;
         CopyUb2GmT copyUb2Gm{};
-        auto layoutDst = layout.GetTileLayout(MatrixCoord{actualTileShape.row(), 1u});
+        auto layoutDst = layout.GetTileLayout(MatrixCoord{1u, actualTileShape.row()});
         
         AtomicSetter<ReduceFn, Element>::set();
         copyUb2Gm(gmTile, ubRowReduce, layoutDst, layoutUbCol);
@@ -390,11 +388,29 @@ struct ScalarReduceCompute {
         AscendC::LocalTensor<Element> const& input,
         Element const& identity,
         uint32_t actualRows,
-        uint32_t actualCols)
+        uint32_t actualCols,
+        uint32_t alignedCols)
     {
-        AscendC::Duplicate(ubScalar, identity, actualRows * actualCols);
-        // 使用函数对象，无需特化三次
-        ReduceOp<ReduceFn, Element>::vector_reduce(ubScalar, input, ubWork, actualRows * actualCols);
+        if (alignedCols == actualCols) {
+            AscendC::Duplicate(ubScalar, identity, actualRows * alignedCols);
+            // 使用函数对象，无需特化三次
+            ReduceOp<ReduceFn, Element>::vector_reduce(ubScalar, input, ubWork, actualRows * alignedCols);
+        } else {
+            // 初始化 reduce buffer 为 identity
+            AscendC::Duplicate(ubScalar, identity, alignedCols);
+            if (actualRows > 0) {
+                // 第一行：直接复制
+                AscendC::DataCopy(ubScalar, input, alignedCols);
+            }
+            // 后续行：规约操作
+            for (uint32_t r = 1; r < actualRows; ++r) {
+                AscendC::PipeBarrier<PIPE_V>();
+                // 使用函数对象，无需特化三次
+                ReduceOp<ReduceFn, Element>::row_reduce(
+                    ubScalar, ubScalar, input[r * alignedCols], alignedCols);
+            }
+            ReduceOp<ReduceFn, Element>::vector_reduce(ubScalar, ubScalar, ubWork, alignedCols);
+        }
     }
     
     CATLASS_DEVICE static void store(
