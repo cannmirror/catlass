@@ -222,4 +222,75 @@ bool GroupedGemmOpConfig::InitArgument(Library::Operation *op)
     return true;
 }
 
+bool GroupedSliceMGemmOpConfig::InitConfig(CommandLineParser &parser)
+{
+    // m/n/k 为通用参数，在父类中解析
+    bool res = GemmOpConfig::InitConfig(parser);
+    if (!res) {
+        return false;
+    }
+    config_.m = m_;
+    config_.n = n_;
+    config_.k = k_;
+
+    // 特殊参数获取
+    if (!parser.HasKey("group_count")) {
+        config_.groupCount = 128;
+    } else {
+        GET_CHECK(parser.Get<decltype(config_.groupCount)>("group_count", config_.groupCount), "group_count");
+        if (config_.groupCount == 0) {
+            LOGE("The --group_count should be a positive integer");
+            // 获取失败时需要标注 invalid_ 位，跳过本类型算子的运行
+            invalid_ = true;
+            return false;
+        }
+        constexpr uint32_t GROUP_COUNT_MAX_LIMIT = 65535U;
+        if (config_.groupCount > GROUP_COUNT_MAX_LIMIT) {
+            LOGE("The --group_count should be not larger than %u", GROUP_COUNT_MAX_LIMIT);
+            invalid_ = true;
+            return false;
+        }
+    }
+    return true;
+}
+
+bool GroupedSliceMGemmOpConfig::InitArgument(Library::Operation *op)
+{
+    auto &mdesp = static_cast<const Library::GemmOperationDescription &>(op->GetDescription());
+    ArgumentSize argSize{};
+    // 安全校验，和计算 device 侧内存空间占用，公式和 examples 内是一致的，可以对照看一下
+    if (!SafeMul<uint32_t>({config_.m, config_.k}, argSize.lenA) ||
+        !SafeMul<uint32_t>({config_.k, config_.n, config_.groupCount}, argSize.lenB) ||
+        !SafeMul<uint32_t>({config_.m, config_.n}, argSize.lenC) ||
+        !SafeMul<size_t>({argSize.lenA, LibraryHelper::GetDataTypeSize(mdesp.A.element)}, argSize.sizeA) ||
+        !SafeMul<size_t>({argSize.lenB, LibraryHelper::GetDataTypeSize(mdesp.B.element)}, argSize.sizeB) ||
+        !SafeMul<size_t>({argSize.lenC, LibraryHelper::GetDataTypeSize(mdesp.C.element)}, argSize.sizeC) ||
+        !SafeMul<size_t>({config_.groupCount, sizeof(int64_t)}, argSize.sizeGroupList)) {
+        LOGE("Arguments size overflows, please check command line input --m --n --k --group_count");
+        return false;
+    }
+
+    // 申请 device 侧内存，除了 workspace 外，所有内存统一申请
+    std::vector<DeviceMemoryParam> params{
+        {reinterpret_cast<void**>(&arg_.deviceGroupList), argSize.sizeGroupList},
+        {reinterpret_cast<void**>(&arg_.A), argSize.sizeA},
+        {reinterpret_cast<void**>(&arg_.B), argSize.sizeB},
+        {reinterpret_cast<void**>(&arg_.C), argSize.sizeC},
+    };
+    if (!MallocDeviceMemory(params)) {
+        return false;
+    }
+
+    // 填充数据，layout 的案例在 GroupedGemmOpConfig 类
+    std::vector<int64_t> groupList = GenGroupList<int64_t>(config_.groupCount, config_.m);
+    DeviceMemoryManager::Instance().FillDeviceData(arg_.deviceGroupList, argSize.sizeGroupList,
+                                                   groupList.data());
+    return true;
+}
+
+void GroupedSliceMGemmOpConfig::SaveMetric(Metric &metric)
+{
+    GemmOpConfig::SaveMetric(metric);
+    metric.SetField("group_count", std::to_string(config_.groupCount));
+}
 } // namespace Catlass
