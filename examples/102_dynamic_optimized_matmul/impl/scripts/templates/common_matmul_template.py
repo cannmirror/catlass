@@ -47,15 +47,19 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
 }}
 """
 
+    KERNEL_NAME = "CommonMatmulKernel"
+
     @staticmethod
-    def gen_code(kernel_name, base_file_name, kernel_serial, dtype, kernel_info):
+    def gen_code(dtype, kernel_info):
+        kernel_serial = Config.KERNEL_SERIAL_MAP[CommonMatmulTemplate.KERNEL_NAME]
+
         combinations = list(
             itertools.product(Config.LAYOUT_TAG_SET, Config.LAYOUT_TAG_SET)
         )
         for l_tag_a, l_tag_b in combinations:
             # kernel_fun_name can be CommonMatmulKernelHalfLayout00
             kernel_func_name = (
-                kernel_name
+                CommonMatmulTemplate.KERNEL_NAME
                 + dtype.capitalize()
                 + "Layout"
                 + str(l_tag_a)
@@ -68,24 +72,9 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
             # launch_kernel_fun_name can be LaunchCommonMatmulKernelHalfLayout00
             launch_kernel_func_name = "Launch" + kernel_func_name
             # get_workspace_fun_name can be CommonMatmulKernelHalfLayout00GetWorkspaceSize
-            get_workspace_func_name = (
-                kernel_name
-                + dtype.capitalize()
-                + "Layout"
-                + str(l_tag_a)
-                + str(l_tag_b)
-                + "GetWorkspaceSize"
-            )
+            get_workspace_func_name = kernel_func_name + "GetWorkspaceSize"
             # file name can be common_matmul_kernel_half_layout_00.cpp
-            file_name = (
-                base_file_name
-                + "_"
-                + dtype
-                + "_layout"
-                + str(l_tag_a)
-                + str(l_tag_b)
-                + ".cpp"
-            )
+            file_name = Config.camel_to_snake(kernel_func_name) + ".cpp"
 
             element_a = dtype
             element_b = dtype

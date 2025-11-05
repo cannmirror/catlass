@@ -16,8 +16,20 @@ class Config:
     WRAPPER_CODE_PATH = "../wrapper"
     INCLUDE_PATH = "../../include"
 
-    LAYOUT_TAG_SET = [0, 1]  # 0 is RowMajor, 1 is ColumnMajor
     LAYOUT_TAG_MAP = {0: "Catlass::layout::RowMajor", 1: "Catlass::layout::ColumnMajor"}
+    LAYOUT_TAG_SET = list(LAYOUT_TAG_MAP.keys())
+
+    PADDING_TAG_MAP = {
+        0: "PaddingTag::NO_PADDING", 
+        1: "PaddingTag::PADDING_ND",
+        2: "PaddingTag::PADDING_BLOCK_ND",
+        3: "PaddingTag::PADDING_NZ"
+    }
+
+    KERNEL_SERIAL_MAP = {
+        "CommonMatmulKernel": 0,
+        "PaddingCommonMatmulKernel": 2
+    }
 
     DTYPE_MAP = {"half": 0, "float": 1}
 
@@ -35,3 +47,12 @@ class Config:
         part8 = (l_tag_b << 4) | l_tag_c  # 0-7
         hex_str = f"0x{part1:02x}{part2:02x}{part3:02x}{part4:02x}{part5:02x}{part6:02x}{part7:02x}{part8:02x}"
         return hex_str
+
+    @staticmethod
+    def camel_to_snake(name):
+        result = []
+        for i, c in enumerate(name):
+            if c.isupper() and i > 0:
+                result.append('_')
+            result.append(c.lower())
+        return "".join(result)
