@@ -56,7 +56,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
     @staticmethod
     def gen_code(dtype, kernel_info):
 
-        kernel_serial = Config.KERNEL_SERIAL_MAP[CommonMatmulTemplate.KERNEL_NAME]
+        kernel_serial = Config.KERNEL_SERIAL_MAP[PaddingCommonMatmulTemplate.KERNEL_NAME]
 
         PADDING_TAG_SET_A = [0, 3]
         PADDING_TAG_SET_B = [0, 3]
@@ -87,7 +87,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
             # launch_kernel_fun_name can be LaunchPaddingCommonMatmulHalfLayout00
             launch_kernel_func_name = "Launch" + kernel_func_name
             # get_workspace_fun_name can be PaddingCommonMatmulHalfLayout00GetWorkspaceSize
-            get_workspace_func_name = kernel_serial + "GetWorkspaceSize"
+            get_workspace_func_name = kernel_func_name + "GetWorkspaceSize"
             # file name can be padding_common_matmul_kernel_half_layout_00.cpp
             file_name = Config.camel_to_snake(kernel_func_name) + ".cpp"
 

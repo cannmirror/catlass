@@ -17,7 +17,7 @@ class Config:
     INCLUDE_PATH = "../../include"
 
     LAYOUT_TAG_MAP = {0: "Catlass::layout::RowMajor", 1: "Catlass::layout::ColumnMajor"}
-    LAYOUT_TAG_SET = LAYOUT_TAG_MAP.keys
+    LAYOUT_TAG_SET = list(LAYOUT_TAG_MAP.keys())
 
     PADDING_TAG_MAP = {
         0: "PaddingTag::NO_PADDING", 
@@ -28,7 +28,7 @@ class Config:
 
     KERNEL_SERIAL_MAP = {
         "CommonMatmulKernel": 0,
-        "PaddingCommonMatmulKernel": 1
+        "PaddingCommonMatmulKernel": 2
     }
 
     DTYPE_MAP = {"half": 0, "float": 1}
@@ -55,4 +55,4 @@ class Config:
             if c.isupper() and i > 0:
                 result.append('_')
             result.append(c.lower())
-        return result
+        return "".join(result)

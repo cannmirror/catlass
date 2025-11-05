@@ -72,7 +72,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
             # launch_kernel_fun_name can be LaunchCommonMatmulKernelHalfLayout00
             launch_kernel_func_name = "Launch" + kernel_func_name
             # get_workspace_fun_name can be CommonMatmulKernelHalfLayout00GetWorkspaceSize
-            get_workspace_func_name = kernel_serial + "GetWorkspaceSize"
+            get_workspace_func_name = kernel_func_name + "GetWorkspaceSize"
             # file name can be common_matmul_kernel_half_layout_00.cpp
             file_name = Config.camel_to_snake(kernel_func_name) + ".cpp"
 
