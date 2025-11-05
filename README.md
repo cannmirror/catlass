@@ -55,16 +55,12 @@ catlass
 
 + 硬件支持
 
-CANN包赋能下，CATLASS能够在昇腾系列NPU上运行，可支持CATLASS编译运行的硬件平台及其最低CANN包版本如下表：
+CANN包赋能下，CATLASS能够在[昇腾系列AI处理器](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)上运行，可支持CATLASS编译运行的硬件平台及其最低CANN包版本如下表：
 
-| NPU 平台 | CANN | 支撑CATLASS的CANN版本 | 
+| 产品系列 | CANN | 支撑CATLASS的CANN版本 | 
 | -------- | --- | --- | 
-| `Atlas A2 训练系列产品`/ <br>`Atlas 800I A2 推理产品`/ <br>`A200I A2 Box 异构组件` | 7.0.0.beta1 | [8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002) | 
-| `Atlas 800T A2 训练服务器` | 7.0.0.beta1 | [8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002) |
-| `Atlas 900 A2 PoD 集群基础单元` | 7.0.0.beta1 | [8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002) | 
-| `Atlas 200T A2 Box16 异构子框` | 7.0.0.beta1 | [8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002) | 
-| `Atlas 800I A2 推理服务器` | 7.0.0.beta1 | [8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002) | 
-| `A200I A2 Box 异构组件` | 7.0.0.beta1 | [8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002) | 
+| `Atlas A2训练/推理产品` | 7.0.0.beta1 | [8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002) | 
+<detail><summary>Atlas A2训练/推理产品</summary>  `Atlas A2 训练系列产品`/ <br>`Atlas 800I A2 推理产品`/ <br>`A200I A2 Box 异构组件` </detail>
 
 备注：
 - 对于某些调测工具，可能需要较以上版本更加新的CANN版本，可参考[调测工具文档](#toolbox)。
