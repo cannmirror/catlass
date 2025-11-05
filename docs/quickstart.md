@@ -4,7 +4,7 @@
 
 环境配套信息，可查看README中[软件硬件配套说明](../README.md#软件硬件配套说明)。
 
-下载CANN开发套件包，点击[下载链接](https://www.hiascend.com/zh/developer/download/community/result?module=cann)选择对应的开发套件包`Ascend-cann-toolkit_<version>_linux-<arch>.run`。 CANN开发套件包依赖固件驱动，如需安装请查阅[安装NPU驱动固件](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/800alpha002/softwareinst/instg/instg_0005.html?Mode=PmIns&OS=Ubuntu&Software=cannToolKit)页面。
+根据昇腾产品类别下载CANN开发套件包，点击[下载链接](https://www.hiascend.com/zh/developer/download/community/result?module=cann)选择对应的开发套件包`Ascend-cann-toolkit_<version>_linux-<arch>.run`。 CANN开发套件包依赖固件驱动，如需安装请查阅[安装NPU驱动固件](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/800alpha002/softwareinst/instg/instg_0005.html?Mode=PmIns&OS=Ubuntu&Software=cannToolKit)页面。
 
 安装CANN开发套件包。以下为root用户默认路径安装演示。
 
@@ -18,6 +18,24 @@ chmod +x Ascend-cann-toolkit_<version>_linux-<arch>.run
 ```bash
 source /usr/local/Ascend/ascend-toolkit/set_env.sh
 ```
+
+## 编译一个算子样例
+
+以[`basic_matmul`](../examples/00_basic_matmul/basic_matmul.cpp)为示例，下面演示如何快速编译算子样例并进行简单测试。
+
+首先，在主目录下执行下述指令进行算子编译：
+```bash
+bash scripts/build.sh 00_basic_matmul
+```
+出现`Target '00_basic_matmul' built successfully`即表明样例编译成功，算子编译产物默认在`output/bin`下，切换至该目录运行算子样例程序如下：
+
+```bash
+cd output/bin
+# 可执行文件名 |矩阵m轴|n轴|k轴|Device ID（可选）
+./00_basic_matmul 256 512 1024 0
+```
+
+出现`Compare success.`打屏，说明算子运行成功，精度比较通过。
 
 ## 使用CATLASS开发Matmul算子
 
