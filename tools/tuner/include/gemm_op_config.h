@@ -98,5 +98,39 @@ private:
     std::vector<int32_t> groupList_;
 };
 
+class GroupedSliceMGemmOpConfig: public GemmOpConfig {
+public:
+    explicit GroupedSliceMGemmOpConfig(const Library::OperationDescription &desp)
+        : GemmOpConfig(desp)
+    {
+        // 构造函数必须初始化 subKind_ 为本类对应的枚举
+        subKind_ = static_cast<uint32_t>(Library::GemmKind::GroupedMatmulSliceM);
+    }
+
+    // 用于从命令行参数初始化 m/n/k/group_count 等配置
+    bool InitConfig(CommandLineParser &parser) override;
+    bool InitArgument(Library::Operation *op) override;
+    void SaveMetric(Metric &metric) override;
+
+    void* GetConfig() override { return &config_; };
+    void* GetArg() override { return &arg_; };
+
+private:
+    // 临时存储各个缓冲区长度
+    struct ArgumentSize {
+        size_t lenA;
+        size_t lenB;
+        size_t lenC;
+        size_t sizeA;
+        size_t sizeB;
+        size_t sizeC;
+        size_t sizeGroupList;
+    };
+
+    // config_ 和 arg_ 分别需要定义成 catlass/tools/library/src/library.h 对应本类的对象
+    Library::GroupedMatmulSliceMGemmArguments arg_{};
+    Library::GroupedMatmulSliceMGemmConfiguration config_{};
+};
+
 } // namespace Catlass
 #endif // CATLASS_TUNER_GEMM_OP_CONFIG_H
