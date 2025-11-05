@@ -2,6 +2,8 @@
 
 ## 🔥 Latest News
 
+<!-- 更新 -->
+- [2025/10] 发行版[v1.2.0](https://gitcode.com/cann/catlass/releases/v1.2.0)发布，新增[Matmul算子泛化](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/102_dynamic_optimized_matmul)等示例，快速上手请参阅[这里](docs/quickstart.md)
 - [2025/09] CATLASS模板库正式开源
 
 ## 📌 简介
@@ -14,12 +16,14 @@ CATLASS(**CA**NN **T**emplates for **L**inear **A**lgebra **S**ubroutine**s**)�
 
 ## 🧩 模板分层设计
 
+<!-- 移除图片 -->
 ![api_level](docs/images/api_level.png)
 
 分层详细介绍和各层级api，见[api](docs/api.md)文档。
 
 ## 📁 目录结构说明
 
+<!-- 目录结构补充齐全 -->
 ```bash
 catlass
 ├── cmake          # cmake工程文件
@@ -36,36 +40,37 @@ catlass
 
 + 平台版本
 
-经过测试，在不同平台下推荐使用的编译版本如下：
+在不同系统平台下，下述编译环境经测试可支持CATLASS构建：
 
 | 系统 | `gcc` | `cmake` | `python` | 
 | ----- | --- | --- | --- |
 | Ubuntu 22.04 | `7.5`, `8.3`，`9.3`，`11.4` | `3.22`  |  `3.10` | 
-| Ubuntu 20.04 | `7.5`,  | `3.22`  |  `3.10` | 
-| Ubuntu 18.04 | `7.5`,  | `3.22`  |  `3.10` | 
-| OE 2203sp4  | 10.3 
+| Ubuntu 20.04 | `7.5`, `8.3`，`9.3`，`11.4` | `3.22` | `3.10` | 
+| Ubuntu 18.04 | `7.5`, `8.3`，`9.3`，`11.4` | `3.22` | `3.10` | 
+| openEuler 22.03 | `7.3`, `10.3` | `3.22`  |  `3.10` | 
 
-经测试GCC推荐使用9.3以上版本
+备注:
+   - Catlass继承自CANN能力，支持`aarch64`/`x86_64`架构
+   - 推荐使用`9.3`以上，`13.0`以下的GCC版本
 
-“cann继承”
-+ 
 
 + 硬件支持
 
-在CANN包赋能下，CATLASS能够在昇腾系列NPU上运行，可运行的硬件平台及其最低CANN包版本如下表：
+CANN包赋能下，CATLASS能够在昇腾系列NPU上运行，可支持CATLASS编译运行的硬件平台及其最低CANN包版本如下表：
+
  
 | NPU 平台 | CANN | 支撑CATLASS的CANN版本 | 
 | -------- | --- | --- | 
-| `Atlas A2 训练系列产品`/ <br>`Atlas 800I A2 推理产品`/ <br>`A200I A2 Box 异构组件` | 
-| `Atlas 800T A2 训练服务器` | 
-| `Atlas 900 A2 PoD 集群基础单元` | 
-| `Atlas 200T A2 Box16 异构子框` | 
-| `Atlas 800I A2 推理服务器` | 
-| `A200I A2 Box 异构组件` | 
+| `Atlas A2 训练系列产品`/ <br>`Atlas 800I A2 推理产品`/ <br>`A200I A2 Box 异构组件` | 7.0.0.beta1 | [8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002) | 
+| `Atlas 800T A2 训练服务器` | 7.0.0.beta1 | [8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002) |
+| `Atlas 900 A2 PoD 集群基础单元` | 7.0.0.beta1 | [8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002) | 
+| `Atlas 200T A2 Box16 异构子框` | 7.0.0.beta1 | [8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002) | 
+| `Atlas 800I A2 推理服务器` | 8.0.RC1.beta1 | [8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002) | 
+| `A200I A2 Box 异构组件` | 7.0.0.beta1 | [8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002) | 
 
+备注：
 - 对于某些调测工具，可能需要较以上版本更加新的CANN版本，可参考[调测工具文档](#toolbox)。
-
-
+<!-- 
 > 原“软硬件配套说明”：
 
 - 硬件平台：
@@ -86,10 +91,11 @@ catlass
   - 社区版`CANN`包（[8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002)及之后版本）
 
 
-- 对于某些调测工具，可能需要较以上版本更加新的CANN版本，可参考[调测工具文档](#toolbox)。
+- 对于某些调测工具，可能需要较以上版本更加新的CANN版本，可参考[调测工具文档](#toolbox)。 -->
 
 ## ⚡️ 快速上手
 
+<!-- 移至quickstart.md内 -->
 以[`00_basic_matmul`](examples/00_basic_matmul)算子样例为例，快速上手CATLASS算子开发：
 
 1. 使能CANN环境变量
@@ -118,7 +124,7 @@ cd output/bin
 出现`Compare success.`打屏，说明算子运行成功，精度比较通过。
 
 ## 📚 文档介绍
-
+<!-- 合并下沉至docs/下：API介绍 基础文档 进阶文档 调测工具 -->
 ### 📖 基础文档
 
 按照由浅入深的次序，对模板库的相关内容展开介绍。
