@@ -15,7 +15,7 @@ import itertools
 
 from utils.config import Config
 
-class PaddingMatmulTemplate:
+class PaddingCommonMatmulTemplate:
 
     TEMPLATE = """
 #include "kernel/padding_common_matmul_kernel.h"
@@ -51,9 +51,12 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
         paddingTagA, paddingTagB, paddingTagC>(tilingParams);
 }}
 """
+    KERNEL_NAME = "PaddingCommonMatmulKernel"
 
     @staticmethod
-    def gen_code(kernel_name, base_file_name, kernel_serial, dtype, kernel_info):
+    def gen_code(dtype, kernel_info):
+
+        kernel_serial = Config.KERNEL_SERIAL_MAP[CommonMatmulTemplate.KERNEL_NAME]
 
         PADDING_TAG_SET_A = [0, 3]
         PADDING_TAG_SET_B = [0, 3]
@@ -67,7 +70,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
         for l_tag_a, l_tag_b, p_tag_a, p_tag_b, p_tag_c in combinations:
             # kernel_fun_name can be PaddingCommonMatmulHalfLayout00
             kernel_func_name = (
-                kernel_name
+                PaddingCommonMatmulTemplate.KERNEL_NAME
                 + dtype.capitalize()
                 + "Layout"
                 + str(l_tag_a)
@@ -84,32 +87,9 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
             # launch_kernel_fun_name can be LaunchPaddingCommonMatmulHalfLayout00
             launch_kernel_func_name = "Launch" + kernel_func_name
             # get_workspace_fun_name can be PaddingCommonMatmulHalfLayout00GetWorkspaceSize
-            get_workspace_func_name = (
-                kernel_name
-                + dtype.capitalize()
-                + "Layout"
-                + str(l_tag_a)
-                + str(l_tag_b)
-                + "Padding"
-                + str(p_tag_a)
-                + str(p_tag_b)
-                + str(p_tag_c)
-                + "GetWorkspaceSize"
-            )
+            get_workspace_func_name = kernel_serial + "GetWorkspaceSize"
             # file name can be padding_common_matmul_kernel_half_layout_00.cpp
-            file_name = (
-                base_file_name
-                + "_"
-                + dtype
-                + "_layout"
-                + str(l_tag_a)
-                + str(l_tag_b)
-                + "_padding"
-                + str(p_tag_a)
-                + str(p_tag_b)
-                + str(p_tag_c)
-                + ".cpp"
-            )
+            file_name = Config.camel_to_snake(kernel_func_name) + ".cpp"
 
             element_a = dtype
             element_b = dtype
@@ -121,7 +101,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
             padding_tag_b = Config.PADDING_TAG_MAP[p_tag_b]
             padding_tag_c = Config.PADDING_TAG_MAP[p_tag_c]
 
-            content = PaddingMatmulTemplate.TEMPLATE.format(
+            content = PaddingCommonMatmulTemplate.TEMPLATE.format(
                 launch_kernel_func_name=launch_kernel_func_name,
                 get_workspace_func_name=get_workspace_func_name,
                 element_a=element_a,
