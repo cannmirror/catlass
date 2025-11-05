@@ -41,8 +41,9 @@ class GemmOperation:
         self.kernel_name = self.get_name()
 
         self.kernel_instance_generators = {
-            'basic_matmul': BasicMatmulKernelInstance,
-            'grouped_matmul': GroupedMatmulKernelInstance,
+            '00_basic_matmul': BasicMatmulKernelInstance,
+            '08_grouped_matmul': GroupedMatmulKernelInstance,
+            '02_grouped_matmul_slice_m': GroupedMatmulSliceMKernelInstance,
         }
 
         self.body_template = """
@@ -268,3 +269,43 @@ class GroupedMatmulKernelInstance:
         )
         return src
 
+
+class GroupedMatmulSliceMKernelInstance:
+    def __init__(self):
+        self.cpp_instance = 'GroupedMatmulSliceMGemmOperation'
+        self.custom_headers = '#include "catlass/gemm/kernel/grouped_matmul_slice_m.hpp"'
+        self.custom_common_decls = ''
+        self.template = """
+        Gemm::Device::DeviceGemm<
+            Gemm::Kernel::GroupedMatmulSliceM<
+                Gemm::Block::BlockMmad<
+                    Gemm::MmadAtlasA2PreloadAsync<1,2,4,2,1,true,true>,
+                    GemmShape<{l1_m}, {l1_n}, {l1_k}>,
+                    GemmShape<{l0_m}, {l0_n}, {l0_k}>,
+                    Gemm::GemmType<{element_a}, {layout_a}>,
+                    Gemm::GemmType<{element_b}, {layout_b}>,
+                    Gemm::GemmType<{element_c}, {layout_c}>
+                >,
+                void,
+                {block_swizzle},
+                int64_t
+            >
+        >"""
+
+    def gen_src(self, gemm_operation):
+        src = self.template.format(
+            l1_m=str(gemm_operation.l1_tile_shape[0]),
+            l1_n=str(gemm_operation.l1_tile_shape[1]),
+            l1_k=str(gemm_operation.l1_tile_shape[2]),
+            l0_m=str(gemm_operation.l0_tile_shape[0]),
+            l0_n=str(gemm_operation.l0_tile_shape[1]),
+            l0_k=str(gemm_operation.l0_tile_shape[2]),
+            element_a=gemm_operation.a_type.element_type.to_code(),
+            element_b=gemm_operation.b_type.element_type.to_code(),
+            element_c=gemm_operation.c_type.element_type.to_code(),
+            layout_a=gemm_operation.a_type.layout.to_code(),
+            layout_b=gemm_operation.b_type.layout.to_code(),
+            layout_c=gemm_operation.c_type.layout.to_code(),
+            block_swizzle=gemm_operation.block_swizzle
+        )
+        return src

@@ -4,10 +4,10 @@ mstuner_catlass 是一款用于 CATLASS 模板库算子 Tiling 参数寻优的�
 
 ### 快速上手
 
-以m=256，n=512，k=1024 的**basic_matmul**的tiling参数寻优为例，使用默认的搜索空间配置，执行以下命令完成工具的编译。
+以m=256，n=512，k=1024 的**00_basic_matmul**的tiling参数寻优为例，使用默认的搜索空间配置，执行以下命令完成工具的编译。
 
 ```bash
-bash scripts/build.sh -DCATLASS_LIBRARY_KERNELS=basic_matmul mstuner_catlass
+bash scripts/build.sh -DCATLASS_LIBRARY_KERNELS=00_basic_matmul mstuner_catlass
 ```
 
 输入mstuner_catlass命令，启动性能测试。
@@ -33,7 +33,7 @@ $ ./output/bin/mstuner_catlass --m=256 --n=512 --k=1024 --device=0 --output=resu
    task_duration(us) : 19.380
            device_id : 0
            operation : Gemm
-         description : catlass_gemm_basic_matmul_fp16xRowMajor_fp16xRowMajor_fp16xRowMajor_32x128x128_32x128x32_swizzle3x0
+         description : catlass_gemm_00_basic_matmul_fp16xRowMajor_fp16xRowMajor_fp16xRowMajor_32x128x128_32x128x32_swizzle3x0
        l0_tile_shape : 32x128x32
        l1_tile_shape : 32x128x128
              swizzle : swizzle3x0
@@ -51,36 +51,37 @@ $ ./output/bin/mstuner_catlass --m=256 --n=512 --k=1024 --device=0 --output=resu
 ================================
 Top 10:
 case_id,task_duration(us),device_id,operation,description,m,n,k,A,B,C
-489,12.740,7,Gemm,catlass_gemm_basic_matmul_fp16xRowMajor_fp16xRowMajor_fp16xRowMajor_64x128x128_64x128x64_swizzle3x1,256,512,1024,fp16:row,fp16:row,fp16:row
+489,12.740,7,Gemm,catlass_gemm_00_basic_matmul_fp16xRowMajor_fp16xRowMajor_fp16xRowMajor_64x128x128_64x128x64_swizzle3x1,256,512,1024,fp16:row,fp16:row,fp16:row
 ...
 [INFO ] Save profile data to /path_to_my_repo/catlass/output/results.csv success
 ```
 
 ### 编译
 
-支持通过`-DCATLASS_LIBRARY_KERNELS=<kernel_name>`命令过滤算子，当算子的description信息包含`kernel_name`时，该算子用例代码会被生成并编译，比如通过如下命令指定编译`basic_matmul`类算子。
+支持通过`-DCATLASS_LIBRARY_KERNELS=<kernel_name>`命令过滤算子，当算子的description信息包含`kernel_name`时，该算子用例代码会被生成并编译，比如通过如下命令指定编译`00_basic_matmul`类算子。
 
 ```bash
-bash scripts/build.sh -DCATLASS_LIBRARY_KERNELS=basic_matmul mstuner_catlass
+bash scripts/build.sh -DCATLASS_LIBRARY_KERNELS=00_basic_matmul mstuner_catlass
 ```
 
 可直接指定具体的单个算子实例的description信息，比如使用如下命令，仅编译快速上手中所展示的case_id为1的算子。
 
 ```bash
-bash scripts/build.sh -DCATLASS_LIBRARY_KERNELS=catlass_gemm_basic_matmul_fp16xRowMajor_fp16xRowMajor_fp16xRowMajor_32x128x128_32x128x32_swizzle3x1 mstuner_catlass
+bash scripts/build.sh -DCATLASS_LIBRARY_KERNELS=catlass_gemm_00_basic_matmul_fp16xRowMajor_fp16xRowMajor_fp16xRowMajor_32x128x128_32x128x32_swizzle3x1 mstuner_catlass
 ```
 
 当前已支持如下算子类型。
 
-- basic_matmul
-- grouped_matmul
+- 00_basic_matmul
+- 02_grouped_matmul_slice_m
+- 08_grouped_matmul
 
 除直接使用上述命令外，编译也可通过cmake命令完成。
 
 ```bash
 mkdir build
 cd build
-cmake .. -DCATLASS_LIBRARY_KERNELS=basic_matmul
+cmake .. -DCATLASS_LIBRARY_KERNELS=00_basic_matmul
 make mstuner_catlass -j
 cmake --install . --component catlass_kernels
 cmake --install . --component mstuner_catlass
@@ -93,7 +94,7 @@ mstuner_catlass 支持以下命令。
 | 命令          | 示例                          | 默认值 | 描述                                                         |
 | ------------- | ----------------------------- |-| ------------------------------------------------------------ |
 | --help, -h    | --help                        | / | 展示工具支持的命令。                                           |
-| --kernels     | --kernels=basic_matmul        | / | 过滤寻优的算子类型，其与算子的description列字符串进行子串匹配，未匹配时该算子会被跳过。 |
+| --kernels     | --kernels=00_basic_matmul        | / | 过滤寻优的算子类型，其与算子的description列字符串进行子串匹配，未匹配时该算子会被跳过。 |
 | --output      | --output=./profile_result.csv | / | 指定算子性能数据落盘文件路径。                                 |
 | --device      | --device=0                    | 0 | 指定运行的单卡ID。                                             |
 | --m           | --m=256                       | 256 | 指定输入矩阵的维度m。                                          |
@@ -116,11 +117,11 @@ mstuner_catlass支持对算子tiling参数的搜索空间进行自定义配置�
 
 当搜索空间范围配置较广时，可能导致上万个算子被实例化，导致编译耗时较长，且过多的算子可能超过硬件限制无法保证编译成功，同时算子数量较多时，算子下发前注册耗时也较长，因此建议将搜索空间的规模控制在5000以内，以确保工具运行顺畅，获得最佳体验。
 
-算子数量可通过查看日志文件`build/tools/library/catlass_library_code_generation.log`，如下所示，basic_matmul的搜索空间实例了1701个算子。
+算子数量可通过查看日志文件`build/tools/library/catlass_library_code_generation.log`，如下所示，00_basic_matmul的搜索空间实例了1701个算子。
 
 ```txt
-INFO:search_space:basic_matmul tile_shapes size=1701
-INFO:search_space:grouped_matmul tile_shapes size=576
+INFO:search_space:00_basic_matmul tile_shapes size=1701
+INFO:search_space:08_grouped_matmul tile_shapes size=576
 INFO:manifest:operations that will be generated in total: 1701
 ...
 ```
@@ -139,13 +140,13 @@ mstuner_catlass支持在 `tools/library/scripts/search_space_config.py`文件中
 - l1_tile_k_range：L1 Tile Shape的k轴取值搜索范围
 - block_swizzle：Swizzle策略
 
-basic_matmul算子的一种搜索空间配置如下：
+00_basic_matmul算子的一种搜索空间配置如下：
 
 ```python
-@OperationRegistry.register_high_priority('basic_matmul')
+@OperationRegistry.register_high_priority('00_basic_matmul')
 def register(manifest):
     config = search_space.SearchSpaceConfiguration(
-        kernel_type='basic_matmul',
+        kernel_type='00_basic_matmul',
 
         data_type_a=library.DataType.fp16,
         data_type_b=library.DataType.fp16,
@@ -168,14 +169,14 @@ def register(manifest):
 入门级配置的算子搜索空间会**覆盖**高级配置中同类型算子的配置，若暂不需要使能入门级配置而使用高级配置，可把该行代码注释掉。
 
 ```python
-# @OperationRegistry.register_high_priority('basic_matmul')
+# @OperationRegistry.register_high_priority('00_basic_matmul')
 ```
 
 #### 高级配置
 
 mstuner_catlass支持在 `tools/library/scripts/search_space.py`文件中对算子tiling参数的搜索空间进行更为灵活的自定义配置，支持自定义配置layouts、data types、L1/L0 Tile Shapes、Swizzle策略等参数的正交组合方式，自定义剪枝函数过滤筛选搜索空间遍历。
 
-以`basic_matmul`算子的搜索空间为例，其配置位于函数`register_gemm_basic_matmul_operation`中。
+以`00_basic_matmul`算子的搜索空间为例，其配置位于函数`register_gemm_00_basic_matmul_operation`中。
 
 - layouts配置
 
@@ -221,4 +222,4 @@ mstuner_catlass支持在 `tools/library/scripts/search_space.py`文件中对算�
       ]
   ```
 
-类似的，`grouped_matmul`算子的搜索空间配置位于函数`register_gemm_grouped_matmul_operation`中，支持自定义配置。
+类似的，`08_grouped_matmul`算子的搜索空间配置位于函数`register_gemm_08_grouped_matmul_operation`中，支持自定义配置。

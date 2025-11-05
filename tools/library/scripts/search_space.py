@@ -23,7 +23,7 @@ LOGGER = logging.getLogger(__name__)
 
 @dataclass
 class SearchSpaceConfiguration:
-    kernel_type: str # e.g. 'basic_matmul'
+    kernel_type: str # e.g. '00_basic_matmul'
 
     data_type_a: library.DataType # e.g. library.DataType.fp16/fp32
     data_type_b: library.DataType
@@ -235,9 +235,9 @@ def generate_tile_shapes(
 ############### search space generation methods end ###############
 
 
-################## basic_matmul ##################
-@OperationRegistry.register('basic_matmul')
-def register_gemm_basic_matmul_operation(manifest):
+################## 00_basic_matmul ##################
+@OperationRegistry.register('00_basic_matmul')
+def register_gemm_00_basic_matmul_operation(manifest):
 
     layouts = [
         [library.LayoutType.RowMajor, library.LayoutType.RowMajor, library.LayoutType.RowMajor],
@@ -262,7 +262,7 @@ def register_gemm_basic_matmul_operation(manifest):
             l0_tile_k_range=(32, 64)
         )
     ))
-    LOGGER.info(f'basic_matmul tile_shapes size={len(tile_shapes)}')
+    LOGGER.info(f'00_basic_matmul tile_shapes size={len(tile_shapes)}')
 
     block_swizzle_descriptions = [
         'Gemm::Block::GemmIdentityBlockSwizzle<3, 0>',
@@ -278,7 +278,7 @@ def register_gemm_basic_matmul_operation(manifest):
         tensor_b = library.GemmTypeDescription(data_type[1], layout[1])
         tensor_c = library.GemmTypeDescription(data_type[2], layout[2])
         op = GemmOperation(
-            kernel_type='basic_matmul',
+            kernel_type='00_basic_matmul',
             l1_tile_shape=l1_tile_shape,
             l0_tile_shape=l0_tile_shape,
             a_type=tensor_a,
@@ -287,12 +287,12 @@ def register_gemm_basic_matmul_operation(manifest):
             block_swizzle=block_swizzle,
         )
         manifest.append(op)
-################## basic_matmul end ##################
+################## 00_basic_matmul end ##################
 
 
-################## grouped_matmul ##################
-@OperationRegistry.register('grouped_matmul')
-def register_gemm_grouped_matmul_operation(manifest):
+################## 02_grouped_matmul_slice_m ##################
+@OperationRegistry.register('02_grouped_matmul_slice_m')
+def register_gemm_08_grouped_matmul_operation(manifest):
 
     layouts = [
         [library.LayoutType.ColumnMajor, library.LayoutType.RowMajor, library.LayoutType.RowMajor],
@@ -319,7 +319,7 @@ def register_gemm_grouped_matmul_operation(manifest):
             l0_tile_k_range=(32, 64)
         )
     ))
-    LOGGER.info(f'grouped_matmul tile_shapes size={len(tile_shapes)}')
+    LOGGER.info(f'02_grouped_matmul_slice_m tile_shapes size={len(tile_shapes)}')
 
     # 正交tiling参数组合
     for layout, data_type, tile_shape, block_swizzle in product(
@@ -330,7 +330,7 @@ def register_gemm_grouped_matmul_operation(manifest):
         tensor_b = library.GemmTypeDescription(data_type[1], layout[1])
         tensor_c = library.GemmTypeDescription(data_type[2], layout[2])
         op = GemmOperation(
-            kernel_type='grouped_matmul',
+            kernel_type='02_grouped_matmul_slice_m',
             l1_tile_shape=l1_tile_shape,
             l0_tile_shape=l0_tile_shape,
             a_type=tensor_a,
@@ -339,4 +339,56 @@ def register_gemm_grouped_matmul_operation(manifest):
             block_swizzle=block_swizzle,
         )
         manifest.append(op)
-################## grouped_matmul end ##################
+################## 02_grouped_matmul_slice_m end ##################
+
+
+################## 08_grouped_matmul ##################
+@OperationRegistry.register('08_grouped_matmul')
+def register_gemm_08_grouped_matmul_operation(manifest):
+
+    layouts = [
+        [library.LayoutType.ColumnMajor, library.LayoutType.RowMajor, library.LayoutType.RowMajor],
+    ]
+    data_types = [
+        [library.DataType.fp16, library.DataType.fp16, library.DataType.fp16],
+    ]
+    block_swizzle_descriptions = [
+        'Gemm::Block::GemmIdentityBlockSwizzle<3, 1>',
+    ]
+
+    # generate L1/L0TileShape search space
+    tile_shapes = list(generate_tile_shapes(
+        tile_shape_constraint_for_preload_async, # 自定义减枝函数
+        element_sizes=(2, 2, 4), # size of ElementA, ElementB, ElementAccumulator
+        stages=(1, 2, 4, 2, 1), # Preload/L1/L0A/L0B/L0C stages
+        step=16,
+        tile_shape_range=TileShapeRange(
+            l1_tile_m_range=(128, 256),
+            l1_tile_n_range=(128, 256),
+            l1_tile_k_range=(128, 256),
+            l0_tile_m_range=(128, 256),
+            l0_tile_n_range=(128, 256),
+            l0_tile_k_range=(32, 64)
+        )
+    ))
+    LOGGER.info(f'08_grouped_matmul tile_shapes size={len(tile_shapes)}')
+
+    # 正交tiling参数组合
+    for layout, data_type, tile_shape, block_swizzle in product(
+        layouts, data_types, tile_shapes, block_swizzle_descriptions
+    ):
+        l1_tile_shape, l0_tile_shape = tile_shape
+        tensor_a = library.GemmTypeDescription(data_type[0], layout[0])
+        tensor_b = library.GemmTypeDescription(data_type[1], layout[1])
+        tensor_c = library.GemmTypeDescription(data_type[2], layout[2])
+        op = GemmOperation(
+            kernel_type='08_grouped_matmul',
+            l1_tile_shape=l1_tile_shape,
+            l0_tile_shape=l0_tile_shape,
+            a_type=tensor_a,
+            b_type=tensor_b,
+            c_type=tensor_c,
+            block_swizzle=block_swizzle,
+        )
+        manifest.append(op)
+################## 08_grouped_matmul end ##################
