@@ -25,7 +25,7 @@ def main():
     parser.add_argument(
         '--kernels',
         type=str,
-        default='basic_matmul',
+        default='00_basic_matmul',
         help="Filter kernels by the specified kernel list(comma delimited)",
     )
     parser.add_argument(
