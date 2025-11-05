@@ -198,6 +198,25 @@ struct GroupedMatmulGemmConfiguration {
     uint32_t groupCount;
 };
 
+
+// Arguments for grouped matmul slice M operations
+//
+// OperationKind: Gemm
+// GemmKind:      GroupedMatmulSliceM
+//
+struct GroupedMatmulSliceMGemmArguments {
+    uint8_t *deviceGroupList;
+    uint8_t *A;
+    uint8_t *B;
+    uint8_t *C;
+};
+
+struct GroupedMatmulSliceMGemmConfiguration {
+    uint32_t m;
+    uint32_t n;
+    uint32_t k;
+    uint32_t groupCount;
+};
 }
 }
 
