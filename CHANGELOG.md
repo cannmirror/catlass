@@ -70,5 +70,11 @@
    - 修改`l2offset`设置的重定义问题
    
 ### CATLASS 1.0.0
-  - [CATLASS](https://gitcode.com/cann/catlass/)模板库正式发布
+  - [CATLASS](https://gitcode.com/cann/catlass/)模板库正式开源发布
 
+ - 关键特性
+   - 提供Kernel、Block、Tile、Basic分层算子开发能力
+
+ - 样例参考
+   - 提供包括基础Matmul及各种不同的优化策略在内的算子样例：
+     + [基础Matmul]()
