@@ -1,17 +1,13 @@
 # CHANGELOG
 
-## CATLASS 1.0
+## CATLASS 1.X
 ### CATLASS 1.2.0
 
  - 关键特性
-   - 算子编译时支持传入计算平台架构(如编译选项`-DCATLASS_BISHENG_ARCH=a2`)<span>？是否有其他可选，如a3?</span>
+   - 算子编译时支持传入计算平台架构
    - 新增[Matmul泛化工程](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/102_dynamic_optimized_matmul)示例
      + 自动依照特征尺寸确定Tiling参数
      + 可在预设的算子模板中择优选取
-
-   - 更新[Python调用接口](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/python_extension/README.md)内容
-     + 调整工程组织结构
-     + 支持转置情形
 
  - 更多样例
     - [Flash Attention推理算子](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/23_flash_attention_infer)
@@ -26,6 +22,9 @@
     - [INT8类型反量化Matmul算子](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/30_w8a16_matmul)
 
  - 工具支持
+    - 更新[Python调用接口](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/python_extension/README.md)内容
+        + 调整工程组织结构
+        + 支持转置情形
     - 新增[`msTuner`](https://gitcode.com/cann/catlass/tree/v1.2.0/tools/tuner)工具，用于Tiling自动寻优，在搜索空间内全量运行并获取性能数据
     - 支持使能[`msSanitizer`](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/83RC1alpha003/devaids/optool/atlasopdev_16_0039.html)地址消毒工具(编译选项加入`--enable_mssanitizer`)
   
@@ -49,8 +48,6 @@
    - 支持算子仿真运行(编译选项启用`--simulator`)
    - 编译过程适配毕昇编译器（[bisheng](https://www.hiascend.com/cann/bisheng)）
 
-   支持float类型矩阵乘
-
  - 更多样例
     - [带偏置的MatmulBias算子](https://gitcode.com/cann/catlass/blob/v1.1.0/examples/20_matmul_bias)
     - [预加载(Preload)优化Matmul算子](https://gitcode.com/cann/catlass/tree/v1.1.0/examples/21_basic_matmul_preload_zN) （科大讯飞联创贡献）
@@ -60,12 +57,10 @@
     - 支持[`AscendC::Dump`](https://www.hiascend.com/document/detail/zh/canncommercial/83RC1/opdevg/Ascendcopdevg/atlas_ascendc_10_0075.html)与[`AscendC::printf`](https://www.hiascend.com/document/detail/zh/canncommercial/83RC1/opdevg/Ascendcopdevg/atlas_ascendc_10_0075.html)进行打印调试
       - 编译选项中加入`--enable_print`，`--enable_ascendc_dump`以启用上述功能
       - 请参阅文档: [`ascendc_dump`](docs/tools/ascendc_dump.md)和[`print`](docs/tools/print.md)
-    - 支持
-
   
  - 文档资料
    - 新增[tutorials快速上手示例](https://gitee.com/ascend/catlass/tree/v1.1.0/docs/tutorials.md)
-   - 新增利用msProf工具进行算子性能调测的文档：[msprof simulator](https://gitee.com/ascend/catlass/tree/v1.1.0/docs/tools/performance_tools.md#性能流水仿真)，[profiling](https://gitee.com/ascend/catlass/tree/v1.1.0/docs/tools/performance_tools.md#msprof使用示例)
+   - 新增利用[msProf工具](https://www.hiascend.com/document/detail/zh/mindstudio/82RC1/ODtools/Operatordevelopmenttools/atlasopdev_16_0082.html)进行算子性能调测的文档：[msprof](https://gitee.com/ascend/catlass/tree/v1.1.0/docs/tools/performance_tools.md)性能调测
 
  - Bugfix&优化
    - 优化`Kernel`层AIC程序，添加`PIPE_ALL`避免整网影响
@@ -74,28 +69,6 @@
    - 隔离Kernel侧`AscendC`的`inline`定义，避免异构编程时无法使用部分标准库
    - 修改`l2offset`设置的重定义问题
    
-
-### 新增特性
-  - **新增** [matmul_bias Kernel层](https://gitee.com/ascend/catlass/tree/v1.1.0/include/catlass/gemm/kernel/matmul_bias.hpp)
-
-
-  - **新增** 支持float类型矩阵乘
-### 资料与工具
-- **新增** [tutorials快速上手示例](https://gitee.com/ascend/catlass/tree/v1.1.0/docs/tutorials.md)
-- CATLASS工程适配下列调测工具，并提供基础使用文档
-  - [ascendc_dump](https://gitee.com/ascend/catlass/tree/v1.1.0/docs/tools/ascendc_dump.md)
-  - [print](https://gitee.com/ascend/catlass/tree/v1.1.0/docs/tools/print.md)
-  - [msprof](https://gitee.com/ascend/catlass/tree/v1.1.0/docs/tools/performance_tools.md#上板性能采集)
-  - [msprof simulator](https://gitee.com/ascend/catlass/tree/v1.1.0/docs/tools/performance_tools.md#性能流水仿真)
-  - [profiling](https://gitee.com/ascend/catlass/tree/v1.1.0/docs/tools/performance_tools.md#msprof使用示例)
-- 将毕昇编译器适配至CMake工程，整改CMake编译脚本为标准的CMake函数调用
-### BugFix
-- 修复block_mmad预加载nextBlock时的引用错误
-- 隔离Kernel侧`AscendC`的`inline`定义，避免异构编程时无法使用部分标准库
-- 修改l2offset设置的重定义问题
-### 测试
-- 增加头文件自包含测试
-- 其他
-  - **优化** 使用非毕昇编译器时，将CATLASS_GLOBAL宏的定义清空，使得部分CATLASS结构体可以在纯Host代码使用，提升Tiling代码开发效率
-  - **整改** 整改CMake工程，支持bisheng编译器；解决安全编译问题
 ### CATLASS 1.0.0
+  - [CATLASS](https://gitcode.com/cann/catlass/)模板库正式发布
+

@@ -16,14 +16,9 @@ CATLASS(**CA**NN **T**emplates for **L**inear **A**lgebra **S**ubroutine**s**)�
 
 ## 新版本发布说明 1.2.0
  - 关键特性
-   - 算子编译时支持传入计算平台架构(如编译选项`-DCATLASS_BISHENG_ARCH=a2`)<span>？是否有其他可选，如a3?</span>
    - 新增[Matmul泛化工程](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/102_dynamic_optimized_matmul)示例
      + 自动依照特征尺寸确定Tiling参数
      + 可在预设的算子模板中择优选取
-
-   - 更新[Python调用接口](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/python_extension/README.md)内容
-     + 调整工程组织结构
-     + 支持转置情形
 
  - 更多样例
     - [Flash Attention推理算子](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/23_flash_attention_infer)
@@ -50,9 +45,7 @@ CATLASS(**CA**NN **T**emplates for **L**inear **A**lgebra **S**ubroutine**s**)�
    - 修复[`GroupedMatmulSliceK`](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/05_grouped_matmul_slice_k)算子在Ki=0特例时的输出清零行为，并将真值比较逻辑调整为全尺寸(M,N,K)比较
    - 修改[`performance_tools.md`](https://gitcode.com/cann/catlass/tree/v1.2.0/docs/tools/performance_tools.md)，[`tutorials.md`](https://gitcode.com/cann/catlass/tree/v1.2.0/docs/tutorials.md)等文档中的错误
 
-请参阅[CHANGELOG](CHANGELOG.md)以取得历史版本的更新信息。
-
-
+请参阅[CHANGELOG](CHANGELOG.md)以取得详细更新内容及历史版本的更新信息。
 
 ## 📁 目录结构说明
 
@@ -92,7 +85,7 @@ CANN包赋能下，CATLASS能够在[昇腾系列AI处理器](https://www.hiascen
 
 | CATLASS社区版本 | 最低支持CANN包版本 | 支持昇腾产品 | 
 | ----- | ----- | ---------- | 
-| v1.2.0 | | `Atlas A2训练/推理产品` |
+| v1.2.0() | | `Atlas A2训练/推理产品` |
 | v1.1.0 | | `Atlas A2训练/推理产品` |
 | v1.0.0 | [8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002) | `Atlas A2训练/推理产品` |
 
