@@ -39,7 +39,7 @@ cd output/bin
 
 ## 使用CATLASS开发Matmul算子
 
-本示例主要展示如何基于CATLASS快速搭建一个NPU上的BasicMatmul实现。示例中使用已提供的下层基础组件完成Device层和Kernel层组装，并调用算子输出结果。CATLASS分层示意图见[api文档](api.md)。
+本示例主要展示如何基于CATLASS快速搭建一个NPU上的BasicMatmul实现。示例中使用已提供的下层基础组件完成Device层和Kernel层组装，并调用算子输出结果。CATLASS分层示意图见[api文档](./contents/advanced/api.md)。
 
 ### Kernel层算子定义
 
@@ -70,7 +70,7 @@ using BlockMmad = Catlass::Gemm::Block::BlockMmad<DispatchPolicy,
 using BlockEpilogue = void;
 ```
 
-3. `BlockScheduler_`该模板类定义数据走位方式，提供计算offset的方法。此处使用定义好的GemmIdentityBlockSwizzle。参考[Swizzle策略说明](swizzle_explanation.md)文档了解更多swizzle信息。
+3. `BlockScheduler_`该模板类定义数据走位方式，提供计算offset的方法。此处使用定义好的GemmIdentityBlockSwizzle。参考[Swizzle策略说明](./contents/advanced/swizzle_explanation.md)文档了解更多swizzle信息。
 
 ```c++
 using BlockScheduler = typename Catlass::Gemm::Block::GemmIdentityBlockSwizzle<>;
