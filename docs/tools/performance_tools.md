@@ -1,6 +1,6 @@
 # 在CATLASS样例工程进行性能调优
 
-CANN对算子开发的两个场景——单算子与整网开发，分别提供了对应的性能调优工具：**msProf**和**Profiling**。
+CANN对算子开发的两个场景——单算子与整网开发，分别提供了对应的性能调优工具：[**msProf**](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha003/devaids/optool/atlasopdev_16_0082.html)和[**Profiling**](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha003/devaids/Profiling/atlasprofiling_16_0010.html)。
 
 ## 性能调优工具简介
 
@@ -52,7 +52,7 @@ msprof op --application="./00_basic_matmul 256 512 1024 0"
 
 - ⚠ 注意事项
   - 工具默认会读取第一个算子的性能，使用example进行调测时可直接获取到结果；若接入其他工程，工程中可能存在其他算子（虽然只跑某一个算子的用例），所以性能分析时要通过--kernel-name指定算子名称的方式，否则读取不到结果。
-  - 可设置环境变量`ASCEND_RT_VISIBLE_DEVICES`指定上板调测的Device Id, 如：
+  - 可设置环境变量`ASCEND_RT_VISIBLE_DEVICES`指定上板调测的Device Id号
 
 ```bash
 # 指定当前进程仅可使用Device Id为0，1，2，3的Device
@@ -145,7 +145,7 @@ msprof op simulator ./00_basic_matmul 256 512 1024 0
 
 ###### 使用MindStudio Insight呈现
 
-获取仿真输出文件夹`simulator`下的`visualize_data.bin`。通过MindStudio Insight工具加载bin文件查看仿真流水图。
+获取仿真输出文件夹`simulator/`下的`visualize_data.bin`。通过MindStudio Insight工具加载bin文件查看仿真流水图。
 
 ![MindStudio Insight Timeline](https://www.hiascend.com/doc_center/source/zh/mindstudio/80RC1/GUI_baseddevelopmenttool/msascendinsightug/figure/zh-cn_image_0000002274910873.png)
 
