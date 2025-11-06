@@ -96,7 +96,7 @@ struct VisitorAuxStore : VisitorImpl<> {
                 }
 
             }
-            // 透传返回输入以便继续参与 EVT 组合
+            // 透传返回输入以便继续参与 EVG 组合
             return input;
         }
     };

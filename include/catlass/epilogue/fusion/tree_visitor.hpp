@@ -111,7 +111,7 @@ struct TreeVisitor : VisitorImpl<ChildOps..., NodeOp> {
 };
 
 template <class NodeOp, class... ChildOps>
-using EVT = TreeVisitor<NodeOp, ChildOps...>;
+using EVG = TreeVisitor<NodeOp, ChildOps...>;
 
 } // namespace Catlass::Epilogue::Fusion
 

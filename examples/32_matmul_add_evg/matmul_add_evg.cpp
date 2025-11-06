@@ -71,23 +71,9 @@ static void Run(const Options &options) {
     std::vector<fp16_t> hostA(lenA);
     std::vector<fp16_t> hostB(lenB);
     std::vector<fp16_t> hostX(lenX);
-    std::srand(std::time(nullptr));
-    // golden::FillRandomData<fp16_t>(hostA, -5.0f, 5.0f);
-    // golden::FillRandomData<fp16_t>(hostB, -5.0f, 5.0f);
-    // golden::FillRandomData<fp16_t>(hostX, -5.0f, 5.0f);
-    // golden::FillRandomData<fp16_t>(hostA, 1.0f, 1.0f);
-    // golden::FillRandomData<fp16_t>(hostB, 1.0f, 1.0f);
-    // golden::FillRandomData<fp16_t>(hostX, 1.0f, 1.0f);
-
-    auto FillRandomIntDataToFp16 = [](std::vector<fp16_t>& data, int32_t low, int32_t high) {
-        for (uint64_t i = 0; i < data.size(); ++i) {
-            data[i] = static_cast<fp16_t>(low + rand() % (high - low + 1));
-        }
-    };
-
-    FillRandomIntDataToFp16(hostA, -5, 5);
-    FillRandomIntDataToFp16(hostB, -5, 5);
-    FillRandomIntDataToFp16(hostX, -5, 5);
+    golden::FillRandomData<fp16_t>(hostA, -5.0f, 5.0f);
+    golden::FillRandomData<fp16_t>(hostB, -5.0f, 5.0f);
+    golden::FillRandomData<fp16_t>(hostX, -5.0f, 5.0f);
 
     // Allocate device memory and copy data from host to device
     uint8_t *deviceA{nullptr};
@@ -98,13 +84,10 @@ static void Run(const Options &options) {
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceB), sizeB, ACL_MEM_MALLOC_HUGE_FIRST));
     ACL_CHECK(aclrtMemcpy(deviceB, sizeB, hostB.data(), sizeB, ACL_MEMCPY_HOST_TO_DEVICE));
 
-    // Allocate separate memory for X and D
-    uint8_t *deviceX{nullptr};
-    ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceX), sizeD, ACL_MEM_MALLOC_HUGE_FIRST));
-    ACL_CHECK(aclrtMemcpy(deviceX, sizeD, hostX.data(), sizeD, ACL_MEMCPY_HOST_TO_DEVICE));
-
+    // The data of X is stored on deviceD to save storage space
     uint8_t *deviceD{nullptr};
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceD), sizeD, ACL_MEM_MALLOC_HUGE_FIRST));
+    ACL_CHECK(aclrtMemcpy(deviceD, sizeD, hostX.data(), sizeD, ACL_MEMCPY_HOST_TO_DEVICE));
 
     // Prepare FFTS address
     uint64_t fftsAddr{0};
@@ -127,27 +110,20 @@ static void Run(const Options &options) {
     using CType = Gemm::GemmType<half, LayoutC>;
     using BlockMmad = Gemm::Block::BlockMmad<MmadDispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType>;
 
-    // 定义 EVG: D = (C + X) + (C + X)（拓扑访问器实现，测试节点复用）
-    constexpr uint32_t computeLength = 4096;
+    // 定义 EVG: D = C + X
 
-    // 节点顺序：
-    // 0-AccLoad, 1-AuxLoad, 2-Compute1(C+X), 3-Compute2((C+X)+(C+X)), 4-Store
-    // 复用体现在 3 号节点依赖两次 2 号节点
-    using Edges = tla::tuple<
-        tla::seq<>,         // 0: AccLoad 无子节点
-        tla::seq<>,         // 1: AuxLoad 无子节点
-        tla::seq<0, 1>,     // 2: Compute1 依赖 AccLoad 与 AuxLoad，计算 (C+X)
-        tla::seq<2, 2>,     // 3: Compute2 依赖 Compute1 与 Compute1，计算 (C+X)+(C+X)
-        tla::seq<3>         // 4: Store 依赖 Compute2
-    >;
+    using LayoutX = LayoutC;
+    using LayoutD = LayoutC;
 
-    using EVG = Epilogue::Fusion::TopologicalVisitor<
-        Edges,
-        Epilogue::Fusion::VisitorAccLoad<half>,
-        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>,
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-        Epilogue::Fusion::VisitorAuxStore<half, LayoutC>
+    constexpr uint32_t computeLength = Epilogue::EpilogueAtlasA2Visitor::ArchTag::UB_SIZE /3/2/sizeof(half);
+    
+    using EVG = Epilogue::Fusion::TreeVisitor<
+        Epilogue::Fusion::VisitorAuxStore<half, LayoutD>,
+        Epilogue::Fusion::TreeVisitor<
+            Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
+            Epilogue::Fusion::VisitorAccLoad<half>,  // 加载 C (workspace)
+            Epilogue::Fusion::VisitorAuxLoad<half, LayoutX>   // 加载 X
+        >
     >;
 
     // Block level, define BlockEpilogue with EVG
@@ -158,49 +134,73 @@ static void Run(const Options &options) {
         EVG
     >;
 
-    // 准备 EVG Arguments（与 Ops 顺序一致）
+    // 准备 EVG Arguments
     typename EVG::Arguments evg_args{
-        {},               // 0
-        {deviceX, layoutD}, // 1
-        {},               // 2: Compute1
-        {},               // 3: Compute2
-        {deviceD, layoutD}  // 4
+        {
+            {},
+            {deviceD, layoutD},
+            {}
+        },
+        {deviceD, layoutD}
     };
 
+
     std::vector<fp16_t> hostD(lenD);
-    // Define BlockScheduler
-    // Swizzle offset is 3 and direction is 0.
-    using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
-    // Kernel level
-    using MatmulKernel = Gemm::Kernel::MatmulVisitor<BlockMmad, BlockEpilogue, BlockScheduler>;
-    // Prepare params
-    typename MatmulKernel::Arguments arguments{options.problemShape, deviceA, deviceB, evg_args};
-    using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
-    MatmulAdapter matmulOp;
-    size_t sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
-    uint8_t *deviceWorkspace{nullptr};
-    if (sizeWorkspace > 0) {
-        ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST)
-        );
+    if (m > n) {
+        // Define BlockScheduler
+        // Swizzle offset is 3 and direction is 0.
+        using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
+        // Kernel level
+        using MatmulKernel = Gemm::Kernel::MatmulVisitor<BlockMmad, BlockEpilogue, BlockScheduler>;
+        // Prepare params
+        typename MatmulKernel::Arguments arguments{options.problemShape, deviceA, deviceB, evg_args};
+        using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
+        MatmulAdapter matmulOp;
+        size_t sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
+        uint8_t *deviceWorkspace{nullptr};
+        if (sizeWorkspace > 0) {
+            ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST)
+            );
+        }
+        matmulOp.Initialize(arguments, deviceWorkspace);
+        matmulOp(stream, aicCoreNum, fftsAddr);
+        ACL_CHECK(aclrtSynchronizeStream(stream));
+        if (sizeWorkspace > 0) {
+            ACL_CHECK(aclrtFree(deviceWorkspace));
+        }
+
+        // Copy the result from device to host
+        ACL_CHECK(aclrtMemcpy(hostD.data(), sizeD, deviceD, sizeD, ACL_MEMCPY_DEVICE_TO_HOST));
+    } else {
+        // Define BlockScheduler
+        // Swizzle offset is 3 and direction is 1.
+        using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
+        // Kernel level
+        using MatmulKernel = Gemm::Kernel::MatmulVisitor<BlockMmad, BlockEpilogue, BlockScheduler>;
+        // Prepare params
+        typename MatmulKernel::Arguments arguments{options.problemShape, deviceA, deviceB, evg_args};
+        using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
+        MatmulAdapter matmulOp;
+        size_t sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
+        uint8_t *deviceWorkspace{nullptr};
+        if (sizeWorkspace > 0) {
+            ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST)
+            );
+        }
+        matmulOp.Initialize(arguments, deviceWorkspace);
+        matmulOp(stream, aicCoreNum, fftsAddr);
+        ACL_CHECK(aclrtSynchronizeStream(stream));
+        if (sizeWorkspace > 0) {
+            ACL_CHECK(aclrtFree(deviceWorkspace));
+        }
+
+        // Copy the result from device to host
+        ACL_CHECK(aclrtMemcpy(hostD.data(), sizeD, deviceD, sizeD, ACL_MEMCPY_DEVICE_TO_HOST));
     }
-    matmulOp.Initialize(arguments, deviceWorkspace);
-    matmulOp(stream, aicCoreNum, fftsAddr);
-    ACL_CHECK(aclrtSynchronizeStream(stream));
-    if (sizeWorkspace > 0) {
-        ACL_CHECK(aclrtFree(deviceWorkspace));
-    }
 
-
-    // Copy the result from device to host
-    ACL_CHECK(aclrtMemcpy(hostD.data(), sizeD, deviceD, sizeD, ACL_MEMCPY_DEVICE_TO_HOST));
-
-    // Compute the golden result: Golden = (C + X) + (C + X) = 2*(C + X)
+    // Compute the golden result
     std::vector<float> hostGolden(lenD);
     golden::ComputeMatmulElemWiseAdd(options.problemShape, hostA, layoutA, hostB, layoutB, hostX, hostGolden, layoutD);
-    for (size_t i = 0; i < hostGolden.size(); ++i) {
-        hostGolden[i] = hostGolden[i] + hostGolden[i];
-    }
-
 
     // Compare the result
     std::vector<uint64_t> errorIndices = golden::CompareData(hostD, hostGolden, k);
@@ -215,7 +215,6 @@ static void Run(const Options &options) {
 
     ACL_CHECK(aclrtFree(deviceA));
     ACL_CHECK(aclrtFree(deviceB));
-    ACL_CHECK(aclrtFree(deviceX));  // 新增
     ACL_CHECK(aclrtFree(deviceD));
 
     ACL_CHECK(aclrtDestroyStream(stream));

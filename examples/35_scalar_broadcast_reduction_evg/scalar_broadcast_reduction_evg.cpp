@@ -71,13 +71,17 @@ static void Run(const Options &options) {
     std::vector<fp16_t> hostA(lenA);
     std::vector<fp16_t> hostB(lenB);
     std::vector<fp16_t> hostX(lenX);
+    std::vector<fp16_t> hostScalar(1);   // scalar broadcast input
+    std::vector<float> hostScalarOut(1); // scalar reduction output, float for accumulation
     std::srand(std::time(nullptr));
     // golden::FillRandomData<fp16_t>(hostA, -5.0f, 5.0f);
     // golden::FillRandomData<fp16_t>(hostB, -5.0f, 5.0f);
     // golden::FillRandomData<fp16_t>(hostX, -5.0f, 5.0f);
+    // golden::FillRandomData<fp16_t>(hostScalar, -2.0f, 2.0f);
     // golden::FillRandomData<fp16_t>(hostA, 1.0f, 1.0f);
     // golden::FillRandomData<fp16_t>(hostB, 1.0f, 1.0f);
     // golden::FillRandomData<fp16_t>(hostX, 1.0f, 1.0f);
+    // golden::FillRandomData<fp16_t>(hostScalar, 1.0f, 1.0f);
 
     auto FillRandomIntDataToFp16 = [](std::vector<fp16_t>& data, int32_t low, int32_t high) {
         for (uint64_t i = 0; i < data.size(); ++i) {
@@ -85,9 +89,10 @@ static void Run(const Options &options) {
         }
     };
 
-    FillRandomIntDataToFp16(hostA, -5, 5);
-    FillRandomIntDataToFp16(hostB, -5, 5);
-    FillRandomIntDataToFp16(hostX, -5, 5);
+    FillRandomIntDataToFp16(hostA, -1, 1);
+    FillRandomIntDataToFp16(hostB, -1, 1);
+    FillRandomIntDataToFp16(hostX, -1, 1);
+    FillRandomIntDataToFp16(hostScalar, -1, 1);
 
     // Allocate device memory and copy data from host to device
     uint8_t *deviceA{nullptr};
@@ -98,10 +103,20 @@ static void Run(const Options &options) {
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceB), sizeB, ACL_MEM_MALLOC_HUGE_FIRST));
     ACL_CHECK(aclrtMemcpy(deviceB, sizeB, hostB.data(), sizeB, ACL_MEMCPY_HOST_TO_DEVICE));
 
-    // Allocate separate memory for X and D
+    // Allocate separate memory for X, scalar and D
     uint8_t *deviceX{nullptr};
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceX), sizeD, ACL_MEM_MALLOC_HUGE_FIRST));
     ACL_CHECK(aclrtMemcpy(deviceX, sizeD, hostX.data(), sizeD, ACL_MEMCPY_HOST_TO_DEVICE));
+
+    size_t sizeScalar = sizeof(fp16_t);
+    size_t sizeScalarOut = sizeof(float);
+    uint8_t *deviceScalar{nullptr};
+    ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceScalar), sizeScalar, ACL_MEM_MALLOC_HUGE_FIRST));
+    ACL_CHECK(aclrtMemcpy(deviceScalar, sizeScalar, hostScalar.data(), sizeScalar, ACL_MEMCPY_HOST_TO_DEVICE));
+
+    uint8_t *deviceScalarOut{nullptr};
+    ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceScalarOut), sizeScalarOut, ACL_MEM_MALLOC_HUGE_FIRST));
+    ACL_CHECK(aclrtMemset(deviceScalarOut, sizeScalarOut, 0, sizeScalarOut));
 
     uint8_t *deviceD{nullptr};
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceD), sizeD, ACL_MEM_MALLOC_HUGE_FIRST));
@@ -127,27 +142,22 @@ static void Run(const Options &options) {
     using CType = Gemm::GemmType<half, LayoutC>;
     using BlockMmad = Gemm::Block::BlockMmad<MmadDispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType>;
 
-    // 定义 EVG: D = (C + X) + (C + X)（拓扑访问器实现，测试节点复用）
+    // 定义 EVG: D = C + ScalarBroadcast(scalar); 同时对 (C+scalar) 做整体规约并累加到 deviceScalarOut
     constexpr uint32_t computeLength = 4096;
-
-    // 节点顺序：
-    // 0-AccLoad, 1-AuxLoad, 2-Compute1(C+X), 3-Compute2((C+X)+(C+X)), 4-Store
-    // 复用体现在 3 号节点依赖两次 2 号节点
-    using Edges = tla::tuple<
-        tla::seq<>,         // 0: AccLoad 无子节点
-        tla::seq<>,         // 1: AuxLoad 无子节点
-        tla::seq<0, 1>,     // 2: Compute1 依赖 AccLoad 与 AuxLoad，计算 (C+X)
-        tla::seq<2, 2>,     // 3: Compute2 依赖 Compute1 与 Compute1，计算 (C+X)+(C+X)
-        tla::seq<3>         // 4: Store 依赖 Compute2
-    >;
-
-    using EVG = Epilogue::Fusion::TopologicalVisitor<
-        Edges,
-        Epilogue::Fusion::VisitorAccLoad<half>,
-        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>,
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-        Epilogue::Fusion::VisitorAuxStore<half, LayoutC>
+    
+    using EVG = Epilogue::Fusion::TreeVisitor<
+        Epilogue::Fusion::VisitorScalarReduce<Epilogue::Fusion::Plus, float, layout::RowMajor>,
+        Epilogue::Fusion::TreeVisitor<
+            Epilogue::Fusion::VisitorCast<float, half>,
+            Epilogue::Fusion::TreeVisitor<
+                Epilogue::Fusion::VisitorAuxStore<half, LayoutC>,
+                Epilogue::Fusion::TreeVisitor<
+                    Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
+                    Epilogue::Fusion::VisitorAccLoad<half>,
+                    Epilogue::Fusion::VisitorScalarBroadcast<half, layout::RowMajor>
+                >
+            >
+        >
     >;
 
     // Block level, define BlockEpilogue with EVG
@@ -158,13 +168,20 @@ static void Run(const Options &options) {
         EVG
     >;
 
-    // 准备 EVG Arguments（与 Ops 顺序一致）
+    // 准备 EVG Arguments
     typename EVG::Arguments evg_args{
-        {},               // 0
-        {deviceX, layoutD}, // 1
-        {},               // 2: Compute1
-        {},               // 3: Compute2
-        {deviceD, layoutD}  // 4
+        {
+            {
+                {
+                    {},
+                    {deviceScalar, layout::RowMajor{1, 1}},
+                    {}
+                },
+                {deviceD, layoutD}
+            },
+            {}
+        },
+        {deviceScalarOut, layout::RowMajor{1, 1}, 0.0f}
     };
 
     std::vector<fp16_t> hostD(lenD);
@@ -193,16 +210,21 @@ static void Run(const Options &options) {
 
     // Copy the result from device to host
     ACL_CHECK(aclrtMemcpy(hostD.data(), sizeD, deviceD, sizeD, ACL_MEMCPY_DEVICE_TO_HOST));
+    ACL_CHECK(aclrtMemcpy(hostScalarOut.data(), sizeScalarOut, deviceScalarOut, sizeScalarOut, ACL_MEMCPY_DEVICE_TO_HOST));
 
-    // Compute the golden result: Golden = (C + X) + (C + X) = 2*(C + X)
+    // Compute the golden result
     std::vector<float> hostGolden(lenD);
-    golden::ComputeMatmulElemWiseAdd(options.problemShape, hostA, layoutA, hostB, layoutB, hostX, hostGolden, layoutD);
-    for (size_t i = 0; i < hostGolden.size(); ++i) {
-        hostGolden[i] = hostGolden[i] + hostGolden[i];
+    // Golden for D: C + scalar (scalar broadcast add)
+    std::vector<fp16_t> hostScalarBroadcast(lenD);
+    for (uint32_t i = 0; i < m; ++i) {
+        for (uint32_t j = 0; j < n; ++j) {
+            hostScalarBroadcast[static_cast<size_t>(i) * n + j] = hostScalar[0];
+        }
     }
+    golden::ComputeMatmulElemWiseAdd(options.problemShape, hostA, layoutA, hostB, layoutB, hostScalarBroadcast, hostGolden, layoutD);
 
 
-    // Compare the result
+    // Compare the matrix result
     std::vector<uint64_t> errorIndices = golden::CompareData(hostD, hostGolden, k);
     if (errorIndices.empty()) {
         std::cout << "Compare success." << std::endl;
@@ -213,9 +235,30 @@ static void Run(const Options &options) {
         }
     }
 
+    // Golden for scalar reduction: sum over all elements of (C + scalar)
+    float goldenScalar = 0.0f;
+    for (uint32_t i = 0; i < m; ++i) {
+        for (uint32_t j = 0; j < n; ++j) {
+            goldenScalar += static_cast<float>(hostGolden[i * n + j]);
+        }
+    }
+    // Compare scalar reduce output
+    std::vector<float> goldenScalarVec{goldenScalar};
+    std::vector<uint64_t> errScalar = golden::CompareData(hostScalarOut, goldenScalarVec, k);
+    if (errScalar.empty()) {
+        std::cout << "ScalarReduce compare success." << std::endl;
+    } else {
+        std::cerr << "ScalarReduce compare failed. Error count: " << errScalar.size() << std::endl;
+        for (size_t i = 0; i < min(10, errScalar.size()); ++i) {
+            std::cerr << "  Error[" << i << "] = " << errScalar[i] << " (ScalarOut[" << errScalar[i] << "] = " << hostScalarOut[errScalar[i]] << ", GoldenScalar[" << errScalar[i] << "] = " << goldenScalarVec[errScalar[i]] << ")" << std::endl;
+        }
+    }
+
     ACL_CHECK(aclrtFree(deviceA));
     ACL_CHECK(aclrtFree(deviceB));
-    ACL_CHECK(aclrtFree(deviceX));  // 新增
+    ACL_CHECK(aclrtFree(deviceX));
+    ACL_CHECK(aclrtFree(deviceScalar));
+    ACL_CHECK(aclrtFree(deviceScalarOut));
     ACL_CHECK(aclrtFree(deviceD));
 
     ACL_CHECK(aclrtDestroyStream(stream));

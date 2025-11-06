@@ -78,29 +78,29 @@ public:
               layoutB(layoutB_), ptrWorkspace(ptrWorkspace_), epilogueParams(epilogueParams_) {}
     };
 
-    // Build EVT args tuple for arbitrary number of phases
+    // Build EVG args tuple for arbitrary number of phases
     template <class IndexSeq>
-    struct EVTArgsTupleHelper;
+    struct EVGArgsTupleHelper;
 
     template <size_t... Is>
-    struct EVTArgsTupleHelper<std::index_sequence<Is...>> {
-        using type = std::tuple<typename std::tuple_element_t<Is, EpilogueTuple>::EVT::Arguments...>;
+    struct EVGArgsTupleHelper<std::index_sequence<Is...>> {
+        using type = std::tuple<typename std::tuple_element_t<Is, EpilogueTuple>::EVG::Arguments...>;
     };
 
-    using EVTArgsTuple = typename EVTArgsTupleHelper<std::make_index_sequence<NumPhases>>::type;
+    using EVGArgsTuple = typename EVGArgsTupleHelper<std::make_index_sequence<NumPhases>>::type;
 
     struct Arguments {
         GemmCoord problemShape;
         GM_ADDR ptrA;
         GM_ADDR ptrB;
-        EVTArgsTuple evt_args;
+        EVGArgsTuple evg_args;
     };
 
 private:
-    // Helper to build Arguments::evt tuple for arbitrary NumPhases
+    // Helper to build Arguments::evg tuple for arbitrary NumPhases
     template <size_t... Is>
     struct ArgumentsImpl {
-        using TupleT = std::tuple<typename std::tuple_element_t<Is, EpilogueTuple>::EVT::Arguments...>;
+        using TupleT = std::tuple<typename std::tuple_element_t<Is, EpilogueTuple>::EVG::Arguments...>;
     };
 
 public:
@@ -125,9 +125,9 @@ public:
         LayoutA layoutA{m, k};
         LayoutB layoutB{k, n};
 
-        uint8_t* evt_workspace = workspace + sizeof(ElementC) * static_cast<size_t>(m) * n;
+        uint8_t* evg_workspace = workspace + sizeof(ElementC) * static_cast<size_t>(m) * n;
 
-        EpilogueParamsTuple epilogueParams = build_epilogue_params_tuple(problemShape, args.evt_args, evt_workspace, std::make_index_sequence<NumPhases>{});
+        EpilogueParamsTuple epilogueParams = build_epilogue_params_tuple(problemShape, args.evg_args, evg_workspace, std::make_index_sequence<NumPhases>{});
 
         return Params{problemShape, args.ptrA, layoutA, args.ptrB, layoutB, workspace, epilogueParams};
     }
@@ -245,8 +245,8 @@ private:
     static bool can_implement_impl(Arguments const& args, std::index_sequence<Is...>)
     {
         bool ok = true;
-        auto const& tup = args.evt_args;
-        (void)std::initializer_list<int>{ (ok = ok && std::tuple_element_t<Is, EpilogueTuple>::EVT::can_implement(args.problemShape, std::get<Is>(tup)), 0)... };
+        auto const& tup = args.evg_args;
+        (void)std::initializer_list<int>{ (ok = ok && std::tuple_element_t<Is, EpilogueTuple>::EVG::can_implement(args.problemShape, std::get<Is>(tup)), 0)... };
         return ok;
     }
 
@@ -254,36 +254,36 @@ private:
     static size_t workspace_size_impl(Arguments const& args, std::index_sequence<Is...>)
     {
         size_t bytes = 0;
-        auto const& tup = args.evt_args;
-        (void)std::initializer_list<int>{ (bytes += std::tuple_element_t<Is, EpilogueTuple>::EVT::get_workspace_size(args.problemShape, std::get<Is>(tup)), 0)... };
+        auto const& tup = args.evg_args;
+        (void)std::initializer_list<int>{ (bytes += std::tuple_element_t<Is, EpilogueTuple>::EVG::get_workspace_size(args.problemShape, std::get<Is>(tup)), 0)... };
         return bytes;
     }
 
     template <size_t... Is>
     static EpilogueParamsTuple build_epilogue_params_tuple(
         GemmCoord const& problemShape,
-        typename MatmulVisitorPhased::EVTArgsTuple const& evt_args,
-        uint8_t* evt_workspace_base,
+        typename MatmulVisitorPhased::EVGArgsTuple const& evg_args,
+        uint8_t* evg_workspace_base,
         std::index_sequence<Is...>)
     {
-        uint8_t* cur = evt_workspace_base;
+        uint8_t* cur = evg_workspace_base;
         return tla::MakeTuple(
-            build_one_param<Is>(problemShape, std::get<Is>(evt_args), cur)...
+            build_one_param<Is>(problemShape, std::get<Is>(evg_args), cur)...
         );
     }
 
     template <size_t I>
     static auto build_one_param(
         GemmCoord const& problemShape,
-        typename std::tuple_element_t<I, EpilogueTuple>::EVT::Arguments const& args,
+        typename std::tuple_element_t<I, EpilogueTuple>::EVG::Arguments const& args,
         uint8_t*& cur)
     {
-        using EVT = typename std::tuple_element_t<I, EpilogueTuple>::EVT;
-        size_t need = EVT::get_workspace_size(problemShape, args);
-        EVT::initialize_workspace(problemShape, args, cur);
-        auto evt_params = EVT::to_underlying_arguments(problemShape, args, cur);
+        using EVG = typename std::tuple_element_t<I, EpilogueTuple>::EVG;
+        size_t need = EVG::get_workspace_size(problemShape, args);
+        EVG::initialize_workspace(problemShape, args, cur);
+        auto evg_params = EVG::to_underlying_arguments(problemShape, args, cur);
         cur += need;
-        return typename std::tuple_element_t<I, EpilogueTuple>::Params{evt_params};
+        return typename std::tuple_element_t<I, EpilogueTuple>::Params{evg_params};
     }
 
 private:

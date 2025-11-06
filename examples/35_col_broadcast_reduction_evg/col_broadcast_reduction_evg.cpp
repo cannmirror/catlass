@@ -71,13 +71,17 @@ static void Run(const Options &options) {
     std::vector<fp16_t> hostA(lenA);
     std::vector<fp16_t> hostB(lenB);
     std::vector<fp16_t> hostX(lenX);
+    std::vector<fp16_t> hostCol(m);     // col broadcast input (1 x m)
+    std::vector<float> hostColOut(m);   // col reduction output (1 x m), float for accumulation
     std::srand(std::time(nullptr));
     // golden::FillRandomData<fp16_t>(hostA, -5.0f, 5.0f);
     // golden::FillRandomData<fp16_t>(hostB, -5.0f, 5.0f);
     // golden::FillRandomData<fp16_t>(hostX, -5.0f, 5.0f);
+    // golden::FillRandomData<fp16_t>(hostRow, -2.0f, 2.0f);
     // golden::FillRandomData<fp16_t>(hostA, 1.0f, 1.0f);
     // golden::FillRandomData<fp16_t>(hostB, 1.0f, 1.0f);
     // golden::FillRandomData<fp16_t>(hostX, 1.0f, 1.0f);
+    // golden::FillRandomData<fp16_t>(hostRow, 1.0f, 1.0f);
 
     auto FillRandomIntDataToFp16 = [](std::vector<fp16_t>& data, int32_t low, int32_t high) {
         for (uint64_t i = 0; i < data.size(); ++i) {
@@ -88,6 +92,7 @@ static void Run(const Options &options) {
     FillRandomIntDataToFp16(hostA, -5, 5);
     FillRandomIntDataToFp16(hostB, -5, 5);
     FillRandomIntDataToFp16(hostX, -5, 5);
+    FillRandomIntDataToFp16(hostCol, -5, 5);
 
     // Allocate device memory and copy data from host to device
     uint8_t *deviceA{nullptr};
@@ -98,10 +103,20 @@ static void Run(const Options &options) {
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceB), sizeB, ACL_MEM_MALLOC_HUGE_FIRST));
     ACL_CHECK(aclrtMemcpy(deviceB, sizeB, hostB.data(), sizeB, ACL_MEMCPY_HOST_TO_DEVICE));
 
-    // Allocate separate memory for X and D
+    // Allocate separate memory for X, Row and D
     uint8_t *deviceX{nullptr};
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceX), sizeD, ACL_MEM_MALLOC_HUGE_FIRST));
     ACL_CHECK(aclrtMemcpy(deviceX, sizeD, hostX.data(), sizeD, ACL_MEMCPY_HOST_TO_DEVICE));
+
+    size_t sizeCol = static_cast<size_t>(m) * sizeof(fp16_t);
+    size_t sizeColOut = static_cast<size_t>(m) * sizeof(float);
+    uint8_t *deviceCol{nullptr};
+    ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceCol), sizeCol, ACL_MEM_MALLOC_HUGE_FIRST));
+    ACL_CHECK(aclrtMemcpy(deviceCol, sizeCol, hostCol.data(), sizeCol, ACL_MEMCPY_HOST_TO_DEVICE));
+
+    uint8_t *deviceColOut{nullptr};
+    ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceColOut), sizeColOut, ACL_MEM_MALLOC_HUGE_FIRST));
+    ACL_CHECK(aclrtMemset(deviceColOut, sizeColOut, 0, sizeColOut));
 
     uint8_t *deviceD{nullptr};
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceD), sizeD, ACL_MEM_MALLOC_HUGE_FIRST));
@@ -127,27 +142,22 @@ static void Run(const Options &options) {
     using CType = Gemm::GemmType<half, LayoutC>;
     using BlockMmad = Gemm::Block::BlockMmad<MmadDispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType>;
 
-    // 定义 EVG: D = (C + X) + (C + X)（拓扑访问器实现，测试节点复用）
+    // 定义 EVG: D = C + ColBroadcast(col); 同时对 (C+col) 做按列规约并加到 deviceColOut
     constexpr uint32_t computeLength = 4096;
-
-    // 节点顺序：
-    // 0-AccLoad, 1-AuxLoad, 2-Compute1(C+X), 3-Compute2((C+X)+(C+X)), 4-Store
-    // 复用体现在 3 号节点依赖两次 2 号节点
-    using Edges = tla::tuple<
-        tla::seq<>,         // 0: AccLoad 无子节点
-        tla::seq<>,         // 1: AuxLoad 无子节点
-        tla::seq<0, 1>,     // 2: Compute1 依赖 AccLoad 与 AuxLoad，计算 (C+X)
-        tla::seq<2, 2>,     // 3: Compute2 依赖 Compute1 与 Compute1，计算 (C+X)+(C+X)
-        tla::seq<3>         // 4: Store 依赖 Compute2
-    >;
-
-    using EVG = Epilogue::Fusion::TopologicalVisitor<
-        Edges,
-        Epilogue::Fusion::VisitorAccLoad<half>,
-        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>,
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-        Epilogue::Fusion::VisitorAuxStore<half, LayoutC>
+    
+    using EVG = Epilogue::Fusion::TreeVisitor<
+        Epilogue::Fusion::VisitorColReduce<Epilogue::Fusion::Plus, float, layout::RowMajor>,
+        Epilogue::Fusion::TreeVisitor<
+            Epilogue::Fusion::VisitorCast<float, half>,
+            Epilogue::Fusion::TreeVisitor<
+                Epilogue::Fusion::VisitorAuxStore<half, LayoutC>,
+                Epilogue::Fusion::TreeVisitor<
+                    Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
+                    Epilogue::Fusion::VisitorAccLoad<half>,
+                    Epilogue::Fusion::VisitorColBroadcast<half, layout::RowMajor>
+                >
+            >
+        >
     >;
 
     // Block level, define BlockEpilogue with EVG
@@ -158,13 +168,20 @@ static void Run(const Options &options) {
         EVG
     >;
 
-    // 准备 EVG Arguments（与 Ops 顺序一致）
+    // 准备 EVG Arguments
     typename EVG::Arguments evg_args{
-        {},               // 0
-        {deviceX, layoutD}, // 1
-        {},               // 2: Compute1
-        {},               // 3: Compute2
-        {deviceD, layoutD}  // 4
+        {
+            {
+                {
+                    {},
+                    {deviceCol, layout::RowMajor{m, 1}},
+                    {}
+                },
+                {deviceD, layoutD}
+            },
+            {}
+        },
+        {deviceColOut, layout::RowMajor{m, 1}, 0.0f}
     };
 
     std::vector<fp16_t> hostD(lenD);
@@ -193,16 +210,21 @@ static void Run(const Options &options) {
 
     // Copy the result from device to host
     ACL_CHECK(aclrtMemcpy(hostD.data(), sizeD, deviceD, sizeD, ACL_MEMCPY_DEVICE_TO_HOST));
+    ACL_CHECK(aclrtMemcpy(hostColOut.data(), sizeColOut, deviceColOut, sizeColOut, ACL_MEMCPY_DEVICE_TO_HOST));
 
-    // Compute the golden result: Golden = (C + X) + (C + X) = 2*(C + X)
+    // Compute the golden result
     std::vector<float> hostGolden(lenD);
-    golden::ComputeMatmulElemWiseAdd(options.problemShape, hostA, layoutA, hostB, layoutB, hostX, hostGolden, layoutD);
-    for (size_t i = 0; i < hostGolden.size(); ++i) {
-        hostGolden[i] = hostGolden[i] + hostGolden[i];
+    // Golden for D: C + col (col-broadcast add)
+    std::vector<fp16_t> hostColBroadcast(lenD);
+    for (uint32_t i = 0; i < m; ++i) {
+        for (uint32_t j = 0; j < n; ++j) {
+            hostColBroadcast[static_cast<size_t>(i) * n + j] = hostCol[i];
+        }
     }
+    golden::ComputeMatmulElemWiseAdd(options.problemShape, hostA, layoutA, hostB, layoutB, hostColBroadcast, hostGolden, layoutD);
 
 
-    // Compare the result
+    // Compare the matrix result
     std::vector<uint64_t> errorIndices = golden::CompareData(hostD, hostGolden, k);
     if (errorIndices.empty()) {
         std::cout << "Compare success." << std::endl;
@@ -213,9 +235,29 @@ static void Run(const Options &options) {
         }
     }
 
+    // Golden for col reduction: sum over cols of (C + col)
+    std::vector<float> goldenColOut(m, 0.0f);
+    for (uint32_t i = 0; i < m; ++i) {
+        for (uint32_t j = 0; j < n; ++j) {
+            goldenColOut[i] += static_cast<float>(hostGolden[i * n + j]);
+        }
+    }
+    // Compare col reduce output
+    std::vector<uint64_t> errCol = golden::CompareData(hostColOut, goldenColOut, k);
+    if (errCol.empty()) {
+        std::cout << "ColReduce compare success." << std::endl;
+    } else {
+        std::cerr << "ColReduce compare failed. Error count: " << errCol.size() << std::endl;
+        for (size_t i = 0; i < min(10, errCol.size()); ++i) {
+            std::cerr << "  Error[" << i << "] = " << errCol[i] << " (ColOut[" << errCol[i] << "] = " << hostColOut[errCol[i]] << ", GoldenCol[" << errCol[i] << "] = " << goldenColOut[errCol[i]] << ")" << std::endl;
+        }
+    }
+
     ACL_CHECK(aclrtFree(deviceA));
     ACL_CHECK(aclrtFree(deviceB));
-    ACL_CHECK(aclrtFree(deviceX));  // 新增
+    ACL_CHECK(aclrtFree(deviceX));
+    ACL_CHECK(aclrtFree(deviceCol));
+    ACL_CHECK(aclrtFree(deviceColOut));
     ACL_CHECK(aclrtFree(deviceD));
 
     ACL_CHECK(aclrtDestroyStream(stream));

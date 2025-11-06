@@ -26,7 +26,7 @@
 #include "catlass/gemm/dispatch_policy.hpp"
 #include "catlass/gemm/gemm_type.hpp"
 #include "catlass/gemm/kernel/matmul_epilogue.hpp"
-#include "catlass/gemm/kernel/matmul_visitor.hpp"
+#include "catlass/gemm/kernel/matmul_visitor_phased.hpp"
 #include "catlass/epilogue/fusion/fusion.hpp"
 #include "catlass/layout/layout.hpp"
 #include "catlass/status.hpp"
@@ -71,13 +71,17 @@ static void Run(const Options &options) {
     std::vector<fp16_t> hostA(lenA);
     std::vector<fp16_t> hostB(lenB);
     std::vector<fp16_t> hostX(lenX);
+    std::vector<fp16_t> hostRow(n);     // reserved (unused in softmax)
+    std::vector<float> hostRowOut(n);   // reserved (unused in softmax)
     std::srand(std::time(nullptr));
     // golden::FillRandomData<fp16_t>(hostA, -5.0f, 5.0f);
     // golden::FillRandomData<fp16_t>(hostB, -5.0f, 5.0f);
     // golden::FillRandomData<fp16_t>(hostX, -5.0f, 5.0f);
+    // golden::FillRandomData<fp16_t>(hostRow, -2.0f, 2.0f);
     // golden::FillRandomData<fp16_t>(hostA, 1.0f, 1.0f);
     // golden::FillRandomData<fp16_t>(hostB, 1.0f, 1.0f);
     // golden::FillRandomData<fp16_t>(hostX, 1.0f, 1.0f);
+    // golden::FillRandomData<fp16_t>(hostRow, 1.0f, 1.0f);
 
     auto FillRandomIntDataToFp16 = [](std::vector<fp16_t>& data, int32_t low, int32_t high) {
         for (uint64_t i = 0; i < data.size(); ++i) {
@@ -88,6 +92,7 @@ static void Run(const Options &options) {
     FillRandomIntDataToFp16(hostA, -5, 5);
     FillRandomIntDataToFp16(hostB, -5, 5);
     FillRandomIntDataToFp16(hostX, -5, 5);
+    FillRandomIntDataToFp16(hostRow, -5, 5);
 
     // Allocate device memory and copy data from host to device
     uint8_t *deviceA{nullptr};
@@ -98,10 +103,26 @@ static void Run(const Options &options) {
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceB), sizeB, ACL_MEM_MALLOC_HUGE_FIRST));
     ACL_CHECK(aclrtMemcpy(deviceB, sizeB, hostB.data(), sizeB, ACL_MEMCPY_HOST_TO_DEVICE));
 
-    // Allocate separate memory for X and D
+    // Allocate separate memory for X, Row and D
     uint8_t *deviceX{nullptr};
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceX), sizeD, ACL_MEM_MALLOC_HUGE_FIRST));
     ACL_CHECK(aclrtMemcpy(deviceX, sizeD, hostX.data(), sizeD, ACL_MEMCPY_HOST_TO_DEVICE));
+
+    size_t sizeRow = static_cast<size_t>(n) * sizeof(fp16_t);
+    size_t sizeRowOut = static_cast<size_t>(n) * sizeof(float);
+    // Softmax buffers: row_max (M x 1, float), row_sum (M x 1, float)
+    size_t sizeRowMax = static_cast<size_t>(m) * sizeof(float);
+    size_t sizeRowSum = static_cast<size_t>(m) * sizeof(float);
+    uint8_t *deviceRowMax{nullptr};
+    uint8_t *deviceRowSum{nullptr};
+    ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceRowMax), sizeRowMax, ACL_MEM_MALLOC_HUGE_FIRST));
+    ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceRowSum), sizeRowSum, ACL_MEM_MALLOC_HUGE_FIRST));
+    {
+        std::vector<float> hostInitMax(m);
+        for (uint32_t i = 0; i < m; ++i) hostInitMax[i] = std::numeric_limits<float>::lowest();
+        ACL_CHECK(aclrtMemcpy(deviceRowMax, sizeRowMax, hostInitMax.data(), sizeRowMax, ACL_MEMCPY_HOST_TO_DEVICE));
+    }
+    ACL_CHECK(aclrtMemset(deviceRowSum, sizeRowSum, 0, sizeRowSum));
 
     uint8_t *deviceD{nullptr};
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceD), sizeD, ACL_MEM_MALLOC_HUGE_FIRST));
@@ -127,44 +148,122 @@ static void Run(const Options &options) {
     using CType = Gemm::GemmType<half, LayoutC>;
     using BlockMmad = Gemm::Block::BlockMmad<MmadDispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType>;
 
-    // 定义 EVG: D = (C + X) + (C + X)（拓扑访问器实现，测试节点复用）
-    constexpr uint32_t computeLength = 4096;
-
-    // 节点顺序：
-    // 0-AccLoad, 1-AuxLoad, 2-Compute1(C+X), 3-Compute2((C+X)+(C+X)), 4-Store
-    // 复用体现在 3 号节点依赖两次 2 号节点
-    using Edges = tla::tuple<
-        tla::seq<>,         // 0: AccLoad 无子节点
-        tla::seq<>,         // 1: AuxLoad 无子节点
-        tla::seq<0, 1>,     // 2: Compute1 依赖 AccLoad 与 AuxLoad，计算 (C+X)
-        tla::seq<2, 2>,     // 3: Compute2 依赖 Compute1 与 Compute1，计算 (C+X)+(C+X)
-        tla::seq<3>         // 4: Store 依赖 Compute2
+    // 定义 三阶段EVG（softmax 行方向）：
+    //   阶段0(EVG0): 行最大值（原子Max到 row_max）
+    //   阶段1(EVG1): 计算 exp(x - row_max) 并原子加到 row_sum
+    //   阶段2(EVG2): 归一化 y = exp(x - row_max) / row_sum 并写回 D
+    constexpr uint32_t computeLength = 1024;
+    
+    using EVG0 = Epilogue::Fusion::TreeVisitor<
+        Epilogue::Fusion::VisitorColReduce<Epilogue::Fusion::Maximum, float, layout::RowMajor>,
+        Epilogue::Fusion::TreeVisitor<
+            Epilogue::Fusion::VisitorCast<float, half>,
+            Epilogue::Fusion::VisitorAccLoad<half>
+        >
     >;
 
-    using EVG = Epilogue::Fusion::TopologicalVisitor<
-        Edges,
-        Epilogue::Fusion::VisitorAccLoad<half>,
-        Epilogue::Fusion::VisitorAuxLoad<half, LayoutC>,
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
-        Epilogue::Fusion::VisitorAuxStore<half, LayoutC>
+    using EVG1 = Epilogue::Fusion::TreeVisitor<
+        Epilogue::Fusion::VisitorColReduce<Epilogue::Fusion::Plus, float, layout::RowMajor>,
+        Epilogue::Fusion::TreeVisitor<
+            Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::ExpOp, float>,
+            Epilogue::Fusion::TreeVisitor<
+                Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::SubOp, float>,
+                Epilogue::Fusion::TreeVisitor<
+                    Epilogue::Fusion::VisitorCast<float, half>,
+                    Epilogue::Fusion::VisitorAccLoad<half>
+                >,
+                Epilogue::Fusion::VisitorColBroadcast<float, layout::RowMajor>
+            >
+        >
+    >;
+
+    using EVG2 = Epilogue::Fusion::TreeVisitor<
+        Epilogue::Fusion::VisitorAuxStore<half, LayoutC>,
+        Epilogue::Fusion::TreeVisitor<
+            Epilogue::Fusion::VisitorCast<half, float>,
+            Epilogue::Fusion::TreeVisitor<
+                Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::DivOp, float>,
+                Epilogue::Fusion::TreeVisitor<
+                    Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::ExpOp, float>,
+                    Epilogue::Fusion::TreeVisitor<
+                        Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::SubOp, float>,
+                        Epilogue::Fusion::TreeVisitor<
+                            Epilogue::Fusion::VisitorCast<float, half>,
+                            Epilogue::Fusion::VisitorAccLoad<half>
+                        >,
+                        Epilogue::Fusion::VisitorColBroadcast<float, layout::RowMajor> // row_max
+                    >
+                >,
+                Epilogue::Fusion::VisitorColBroadcast<float, layout::RowMajor> // row_sum
+            >
+        >
     >;
 
     // Block level, define BlockEpilogue with EVG
-    using BlockEpilogue = Epilogue::Block::BlockEpilogue<
+    using BlockEpilogue0 = Epilogue::Block::BlockEpilogue<
         Epilogue::EpilogueAtlasA2Visitor,
         CType,
         tla::Int<computeLength>,
-        EVG
+        EVG0
     >;
 
-    // 准备 EVG Arguments（与 Ops 顺序一致）
-    typename EVG::Arguments evg_args{
-        {},               // 0
-        {deviceX, layoutD}, // 1
-        {},               // 2: Compute1
-        {},               // 3: Compute2
-        {deviceD, layoutD}  // 4
+    using BlockEpilogue1 = Epilogue::Block::BlockEpilogue<
+        Epilogue::EpilogueAtlasA2Visitor,
+        CType,
+        tla::Int<computeLength>,
+        EVG1
+    >;
+
+    using BlockEpilogue2 = Epilogue::Block::BlockEpilogue<
+        Epilogue::EpilogueAtlasA2Visitor,
+        CType,
+        tla::Int<computeLength>,
+        EVG2
+    >;
+
+    typename EVG0::Arguments evg0_args {
+        {
+            {}, // AccLoad
+            {}  // Cast<float, half>
+        },
+        {deviceRowMax, layout::RowMajor{m, 1}, std::numeric_limits<float>::lowest()}
+    };
+
+    typename EVG1::Arguments evg1_args {
+        {
+            {
+                {
+                    {}, // AccLoad
+                    {}  // Cast<float, half>
+                },
+                {deviceRowMax, layout::RowMajor{m, 1}}, // ColBroadcast(row_max)
+                {} // SubOp
+            },
+            {} // ExpOp
+        },
+        {deviceRowSum, layout::RowMajor{m, 1}, 0.0f} // ColReduce<Plus>
+    };
+
+    typename EVG2::Arguments evg2_args {
+        {
+            {
+                {
+                    {
+                        {
+                            {}, // AccLoad
+                            {}, // Cast<float, half>
+                        },
+                        {deviceRowMax, layout::RowMajor{m, 1}}, // ColBroadcast(row_max)
+                        {}, // SubOp
+                    },
+                    {}, // ExpOp
+                },
+                {deviceRowSum, layout::RowMajor{m, 1}}, // ColBroadcast(row_sum)
+                {}, // DivOp
+            },
+            {}, // Cast<half, float>
+        },
+        {deviceD, layoutD}, // AuxStore(D)
     };
 
     std::vector<fp16_t> hostD(lenD);
@@ -172,9 +271,9 @@ static void Run(const Options &options) {
     // Swizzle offset is 3 and direction is 0.
     using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
     // Kernel level
-    using MatmulKernel = Gemm::Kernel::MatmulVisitor<BlockMmad, BlockEpilogue, BlockScheduler>;
-    // Prepare params
-    typename MatmulKernel::Arguments arguments{options.problemShape, deviceA, deviceB, evg_args};
+    using MatmulKernel = Gemm::Kernel::MatmulVisitorPhased<BlockMmad, BlockScheduler, BlockEpilogue0, BlockEpilogue1, BlockEpilogue2>;
+    // Prepare params（按阶段顺序传入evg_args元组）
+    typename MatmulKernel::Arguments arguments{options.problemShape, deviceA, deviceB, std::make_tuple(evg0_args, evg1_args, evg2_args)};
     using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
     MatmulAdapter matmulOp;
     size_t sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
@@ -194,15 +293,31 @@ static void Run(const Options &options) {
     // Copy the result from device to host
     ACL_CHECK(aclrtMemcpy(hostD.data(), sizeD, deviceD, sizeD, ACL_MEMCPY_DEVICE_TO_HOST));
 
-    // Compute the golden result: Golden = (C + X) + (C + X) = 2*(C + X)
+    // Compute the golden result
     std::vector<float> hostGolden(lenD);
-    golden::ComputeMatmulElemWiseAdd(options.problemShape, hostA, layoutA, hostB, layoutB, hostX, hostGolden, layoutD);
-    for (size_t i = 0; i < hostGolden.size(); ++i) {
-        hostGolden[i] = hostGolden[i] + hostGolden[i];
+    // Golden for D: row-wise softmax
+    {
+        std::vector<float> tmpC(lenD);
+        golden::ComputeMatmul(options.problemShape, hostA, layoutA, hostB, layoutB, tmpC, layoutD);
+        for (uint32_t i = 0; i < m; ++i) {
+            float mval = -std::numeric_limits<float>::infinity();
+            for (uint32_t j = 0; j < n; ++j) {
+                mval = std::max(mval, tmpC[static_cast<size_t>(i) * n + j]);
+            }
+            float s = 0.0f;
+            for (uint32_t j = 0; j < n; ++j) {
+                float v = std::exp(tmpC[static_cast<size_t>(i) * n + j] - mval);
+                s += v;
+                tmpC[static_cast<size_t>(i) * n + j] = v;
+            }
+            for (uint32_t j = 0; j < n; ++j) {
+                hostGolden[static_cast<size_t>(i) * n + j] = tmpC[static_cast<size_t>(i) * n + j] / s;
+            }
+        }
     }
 
 
-    // Compare the result
+    // Compare the matrix result
     std::vector<uint64_t> errorIndices = golden::CompareData(hostD, hostGolden, k);
     if (errorIndices.empty()) {
         std::cout << "Compare success." << std::endl;
@@ -215,7 +330,9 @@ static void Run(const Options &options) {
 
     ACL_CHECK(aclrtFree(deviceA));
     ACL_CHECK(aclrtFree(deviceB));
-    ACL_CHECK(aclrtFree(deviceX));  // 新增
+    ACL_CHECK(aclrtFree(deviceX));
+    ACL_CHECK(aclrtFree(deviceRowMax));
+    ACL_CHECK(aclrtFree(deviceRowSum));
     ACL_CHECK(aclrtFree(deviceD));
 
     ACL_CHECK(aclrtDestroyStream(stream));

@@ -13,13 +13,13 @@ namespace Catlass::Epilogue::Block {
 template <
     class CType_,
     class ComputeLength_,
-    class EVT_
+    class EVG_
 >
 class BlockEpilogue<
     EpilogueAtlasA2PreloadAsyncVisitor,
     CType_,
     ComputeLength_,
-    EVT_
+    EVG_
 > {
 public:
     using DispatchPolicy = EpilogueAtlasA2Visitor;
@@ -30,25 +30,25 @@ public:
     using LayoutD = LayoutC;
 
     static constexpr uint32_t COMPUTE_LENGTH = ComputeLength_::value;
-    using EVT = EVT_;
+    using EVG = EVG_;
 
     struct Params {
-        typename EVT::Params evt_params;
+        typename EVG::Params evg_params;
 
         CATLASS_HOST_DEVICE
         Params() {}
 
         CATLASS_HOST_DEVICE
-        Params(typename EVT::Params const& evt_params_)
-            : evt_params(evt_params_) {}
+        Params(typename EVG::Params const& evg_params_)
+            : evg_params(evg_params_) {}
     };
 
     CATLASS_DEVICE
     BlockEpilogue(Arch::Resource<ArchTag>& resource, Params const& params)
-        : params(params), evt(params.evt_params), resource_(resource)
+        : params(params), evg(params.evg_params), resource_(resource)
     {
         uint32_t ub_offset0 = 0;
-        auto callbacks0 = evt.get_callbacks(
+        auto callbacks0 = evg.get_callbacks(
             resource_, ub_offset0, COMPUTE_LENGTH
         );
         callbacks0.begin_epilogue();
@@ -84,7 +84,7 @@ public:
         // Arch::CrossCoreBarrier<0x0, PIPE_MTE3>();
 
         uint32_t ub_offset0 = 0;
-        auto callbacks0 = evt.get_callbacks(
+        auto callbacks0 = evg.get_callbacks(
             resource_, ub_offset0, COMPUTE_LENGTH
         );
         callbacks0.end_epilogue();
@@ -124,11 +124,11 @@ public:
 
         // 分配 UB 空间并获取两套 callbacks（双缓冲）
         uint32_t ub_offset0 = 0;
-        auto callbacks0 = evt.get_callbacks(
+        auto callbacks0 = evg.get_callbacks(
             resource_, ub_offset0, COMPUTE_LENGTH
         );
         uint32_t ub_offset1 = ub_offset0;
-        auto callbacks1 = evt.get_callbacks(
+        auto callbacks1 = evg.get_callbacks(
             resource_, ub_offset1, COMPUTE_LENGTH
         );
 
@@ -227,7 +227,7 @@ private:
     }
 
     Params params;
-    EVT evt;
+    EVG evg;
     Arch::Resource<ArchTag>& resource_;  // 新增成员引用
     int32_t eventVMTE2[2];   // V_MTE2：V->MTE2，同步事件（两个buffer）
     int32_t eventMTE2V[2];   // MTE2_V：MTE2->V，同步事件（两个buffer）

@@ -60,18 +60,18 @@ public:
         GemmCoord problemShape;
         GM_ADDR ptrA;
         GM_ADDR ptrB;
-        typename BlockEpilogue::EVT::Arguments evt_args;
+        typename BlockEpilogue::EVG::Arguments evg_args;
     };
 
     static bool CanImplement(const Arguments& args)
     {
-        return BlockEpilogue::EVT::can_implement(args.problemShape, args.evt_args);
+        return BlockEpilogue::EVG::can_implement(args.problemShape, args.evg_args);
     }
 
     static size_t GetWorkspaceSize(const Arguments& args)
     {
         return sizeof(ElementC) * args.problemShape.m() * args.problemShape.n() +
-               BlockEpilogue::EVT::get_workspace_size(args.problemShape, args.evt_args);
+               BlockEpilogue::EVG::get_workspace_size(args.problemShape, args.evg_args);
     }
 
     static Params ToUnderlyingArguments(const Arguments& args, uint8_t* workspace)
@@ -83,14 +83,14 @@ public:
         LayoutA layoutA{m, k};
         LayoutB layoutB{k, n};
 
-        uint8_t* evt_workspace = workspace + sizeof(ElementC) * m * n;
-        BlockEpilogue::EVT::initialize_workspace(problemShape, args.evt_args, evt_workspace);
+        uint8_t* evg_workspace = workspace + sizeof(ElementC) * m * n;
+        BlockEpilogue::EVG::initialize_workspace(problemShape, args.evg_args, evg_workspace);
 
-        // 转换 EVT Arguments 到 Params
-        typename BlockEpilogue::EVT::Params fusion_params = 
-            BlockEpilogue::EVT::to_underlying_arguments(
-                problemShape, args.evt_args, 
-                evt_workspace  // EVT workspace 在 GEMM workspace 之后
+        // 转换 EVG Arguments 到 Params
+        typename BlockEpilogue::EVG::Params fusion_params = 
+            BlockEpilogue::EVG::to_underlying_arguments(
+                problemShape, args.evg_args, 
+                evg_workspace  // EVG workspace 在 GEMM workspace 之后
             );
         
         EpilogueParams epilogueParams{fusion_params};
