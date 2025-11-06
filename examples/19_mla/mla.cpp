@@ -19,11 +19,8 @@
 // Helper methods to check for errors
 #include "golden.hpp"
 #include "helper.hpp"
-#include "mla_kernel.cpp"
-#include "mla_kernel_tp1_spec.cpp"
-#include "mla_tiling.h"
-
-using namespace std;
+#include "kernel/mla_kernel.h"
+#include "tiling/mla_tiling.h"
 
 // This code section describes the parameters to execute the run function.
 struct Options {
@@ -44,8 +41,8 @@ struct Options {
     uint32_t kvHeads{1};
     uint32_t embeddingSize{512};
     uint32_t embeddingSizeRope{64};
-    string dataType = "half";
-    string dataPath = "../../examples/19_mla/data";
+    std::string dataType = "half";
+    std::string dataPath = "../../examples/19_mla/data";
 
     Options() = default;
 
@@ -67,13 +64,13 @@ struct Options {
         numBlocks = atoi(argv[argIndex++]);
         blockSize = atoi(argv[argIndex++]);
         while (argIndex < argc) {
-            string flag = string(argv[argIndex++]);
+            std::string flag = std::string(argv[argIndex++]);
             if (flag == "--datapath") {
-                dataPath = string(argv[argIndex++]);
+                dataPath = std::string(argv[argIndex++]);
             } else if (flag == "--device") {
                 deviceId = atoi(argv[argIndex++]);
             } else if (flag == "--dtype") {
-                dataType = string(argv[argIndex++]);
+                dataType = std::string(argv[argIndex++]);
             } else {
                 printf(HELPER);
                 return -1;
@@ -118,12 +115,12 @@ static void Run(const Options &options)
     int32_t numBlocks = options.numBlocks;
     int32_t blockSize = options.blockSize;
     int32_t maskType = options.maskType;
-    string dataType = options.dataType;
-    string dataPath = options.dataPath;
+    std::string dataType = options.dataType;
+    std::string dataPath = options.dataPath;
     int32_t maxKvSeqlen = kvSeqlen;
 
     if ((dataType != "half") && (dataType != "bf16")) {
-        cerr << "[ERROR] dtype must be 'half' or 'bf16'." << endl;
+        std::cerr << "[ERROR] dtype must be 'half' or 'bf16'." << std::endl;
         return;
     }
 
@@ -269,30 +266,31 @@ static void Run(const Options &options)
 
     // use Tp1Spec kernel to get better performance when numHeads = 128
     if (tilingKey == 0) {
-        MLAFp16<<<blockDim, nullptr, stream>>>(
-            fftsAddr, qDevice, qRopeDevice, kDevice, kRopeDevice, blockTableDevice, oDevice, sDevice, pDevice,
-            oTmpDevice, globaloDevice, oCoreTmpDevice, lDevice, tilingDevice
+        MLADevice(
+            blockDim, stream, ACL_FLOAT16, false, fftsAddr, qDevice, qRopeDevice, kDevice, kRopeDevice,
+            blockTableDevice, oDevice, sDevice, pDevice, oTmpDevice, globaloDevice, oCoreTmpDevice, lDevice,
+            tilingDevice
         );
     } else if (tilingKey == 1) {
-        MLABf16<<<blockDim, nullptr, stream>>>(
-            fftsAddr, qDevice, qRopeDevice, kDevice, kRopeDevice, blockTableDevice, oDevice, sDevice, pDevice,
-            oTmpDevice, globaloDevice, oCoreTmpDevice, lDevice, tilingDevice
+        MLADevice(
+            blockDim, stream, ACL_BF16, false, fftsAddr, qDevice, qRopeDevice, kDevice, kRopeDevice, blockTableDevice,
+            oDevice, sDevice, pDevice, oTmpDevice, globaloDevice, oCoreTmpDevice, lDevice, tilingDevice
         );
     } else if (tilingKey == 4) {
-        MLATp1SpecFp16<<<blockDim, nullptr, stream>>>(
-            fftsAddr, qDevice, qRopeDevice, kDevice, kRopeDevice, blockTableDevice, oDevice, sDevice, pDevice,
-            oTmpDevice, globaloDevice, oCoreTmpDevice, lDevice, tilingDevice
+        MLADevice(
+            blockDim, stream, ACL_FLOAT16, true, fftsAddr, qDevice, qRopeDevice, kDevice, kRopeDevice, blockTableDevice,
+            oDevice, sDevice, pDevice, oTmpDevice, globaloDevice, oCoreTmpDevice, lDevice, tilingDevice
         );
     } else if (tilingKey == 5) {
-        MLATp1SpecBf16<<<blockDim, nullptr, stream>>>(
-            fftsAddr, qDevice, qRopeDevice, kDevice, kRopeDevice, blockTableDevice, oDevice, sDevice, pDevice,
-            oTmpDevice, globaloDevice, oCoreTmpDevice, lDevice, tilingDevice
+        MLADevice(
+            blockDim, stream, ACL_BF16, true, fftsAddr, qDevice, qRopeDevice, kDevice, kRopeDevice, blockTableDevice,
+            oDevice, sDevice, pDevice, oTmpDevice, globaloDevice, oCoreTmpDevice, lDevice, tilingDevice
         );
     }
     ACL_CHECK(aclrtSynchronizeStream(stream));
     // Copy the result from device to host
-    vector<fp16_t> oHostHalf(qoSize / sizeof(fp16_t));
-    vector<bfloat16> oHostBf16(qoSize / sizeof(bfloat16), (bfloat16)2.1);
+    std::vector<fp16_t> oHostHalf(qoSize / sizeof(fp16_t));
+    std::vector<bfloat16> oHostBf16(qoSize / sizeof(bfloat16), (bfloat16)2.1);
     if (dataType == "half") {
         ACL_CHECK(aclrtMemcpy(oHostHalf.data(), qoSize, oDevice, qoSize, ACL_MEMCPY_DEVICE_TO_HOST));
     } else if (dataType == "bf16") {
@@ -300,17 +298,17 @@ static void Run(const Options &options)
     }
 
     // Compute the golden result
-    vector<float> goldenHost(qoSize / sizeof(fp16_t));
+    std::vector<float> goldenHost(qoSize / sizeof(fp16_t));
     const size_t goldenSize = qoSize * 2;
     ReadFile(dataPath + "/golden.bin", goldenHost.data(), goldenSize);
 
     // Compare the result
-    vector<uint64_t> errorIndices = (dataType == "half") ? golden::CompareData(oHostHalf, goldenHost, kvSeqlen)
-                                                         : golden::CompareData(oHostBf16, goldenHost, kvSeqlen);
+    std::vector<uint64_t> errorIndices = (dataType == "half") ? Catlass::golden::CompareData(oHostHalf, goldenHost, kvSeqlen)
+                                                         : Catlass::golden::CompareData(oHostBf16, goldenHost, kvSeqlen);
     if (errorIndices.empty()) {
-        cout << "Compare success." << endl;
+        std::cout << "Compare success." << std::endl;
     } else {
-        cerr << "Compare failed. Error count: " << errorIndices.size() << endl;
+        std::cerr << "Compare failed. Error count: " << errorIndices.size() << std::endl;
     }
 
     // Free host memory allocations.

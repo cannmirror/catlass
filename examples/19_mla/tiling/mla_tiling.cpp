@@ -22,7 +22,6 @@
 
 #include "catlass/detail/alignment.hpp"
 
-using namespace std;
 namespace MLATiling {
 using AddrOffsets = struct AddressOffsetInfo {
     uint64_t addrQSeqOffset = 0;
@@ -251,11 +250,11 @@ uint32_t GetKVSplitParamSpec(const MLAInfo &mlaInfo, uint32_t &blockDim, uint32_
 
 int32_t GetMLATilingParam(const MLAInfo &mlaInfo, uint32_t &blockDim, uint32_t *tilingHost) {
     if (tilingHost == nullptr || mlaInfo.qSeqLen == nullptr || mlaInfo.kvSeqLen == nullptr) {
-        cerr << "[ERROR] pointer tilingHost or seq is nullptr." << endl;
+        std::cerr << "[ERROR] pointer tilingHost or seq is nullptr." << std::endl;
         return -1;
     }
     if (mlaInfo.blockSize != NUM128) {
-        cerr << "[ERROR] blockSize != 128 is not supported." << endl;
+        std::cerr << "[ERROR] blockSize != 128 is not supported." << std::endl;
         return -1;
     }
     int32_t maxQseqlen = 0;
@@ -263,7 +262,7 @@ int32_t GetMLATilingParam(const MLAInfo &mlaInfo, uint32_t &blockDim, uint32_t *
     for (int32_t seqIdx = 0; seqIdx < mlaInfo.batch; seqIdx++) {
         int32_t qSeqLen = *(mlaInfo.qSeqLen + seqIdx);
         if (qSeqLen > NUM4) {
-            cerr << "[ERROR] qSeqLen > 4 is not supported." << endl;
+            std::cerr << "[ERROR] qSeqLen > 4 is not supported." << std::endl;
         }
         int32_t kvSeqLen = *(mlaInfo.kvSeqLen + seqIdx);
         qSeqLen = (kvSeqLen == 0) ? 0 : qSeqLen;
@@ -271,7 +270,7 @@ int32_t GetMLATilingParam(const MLAInfo &mlaInfo, uint32_t &blockDim, uint32_t *
         totalKvNumtokens += kvSeqLen;
     }
     if (totalKvNumtokens > mlaInfo.numBlocks * mlaInfo.blockSize) {
-        cerr << "[ERROR] the number of K and V tokens is too big to fit in the paged cache." << endl;
+        std::cerr << "[ERROR] the number of K and V tokens is too big to fit in the paged cache." << std::endl;
         return -1;
     }
     float tor = static_cast<float>(1.0 / sqrt(1.0 * (mlaInfo.embeddingSize + mlaInfo.embeddingSizeRope)));

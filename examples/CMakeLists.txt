@@ -71,12 +71,15 @@ endmacro()
 include_directories(
     ${CATLASS_EXAMPLES_COMMON_SOURCE_DIR}
     ${CATLASS_INCLUDE_DIR}
+    ${ASCEND_HOME_PATH}/include
     ${ASCEND_HOME_PATH}/include/aclnn
     ${ASCEND_HOME_PATH}/include/experiment/runtime
     ${ASCEND_HOME_PATH}/include/experiment/msprof
 )
 link_directories(${ASCEND_HOME_PATH}/lib64)
-link_libraries(dl tiling_api platform c_sec nnopbase ascendcl)
+link_directories("${ASCEND_HOME_PATH}/${CMAKE_SYSTEM_PROCESSOR}-linux/devlib")
+link_libraries(dl tiling_api platform c_sec nnopbase ascendcl ascend_hal ascend_dump ascendc_runtime
+    runtime c_sec profapi error_manager mmpa)
 
 if(DEFINED ENABLE_ASCENDC_DUMP AND ENABLE_ASCENDC_DUMP)
     add_compile_definitions($<$<COMPILE_LANGUAGE:ASC>:ENABLE_ASCENDC_DUMP>)

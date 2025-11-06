@@ -1,14 +1,21 @@
 # MLA Example Readme
 ## 代码组织
-```
-├── 19_mla
-│   ├── CMakeLists.txt # CMake编译文件
-│   ├── gen_data.py
-│   ├── kernel_common.hpp #两个不同的kernel实现中的共同变量与宏
-│   ├── main.cpp
-│   ├── mla_kernel.cpp # MLA TP 2/4/8 模板
-│   ├── mla_kernel_tp1_spec.cpp # MLA TP 1 模板
-│   └── README.md
+```bash
+19_mla
+├── CMakeLists.txt          # CMake编译脚本
+├── gen_data.py             # 测试数据生成脚本
+├── kernel                  # kernel部分代码
+│   ├── kernel_common.hpp   # 两个不同的kernel实现中的共同变量与宏
+│   ├── mla.h               # MLA TP 1 模板
+│   ├── mla_kernel.cpp      # kernel入口
+│   ├── mla_kernel.h        # kernel入口头文件 
+│   └── mla_tp1_spec.h      # MLA TP 2/4/8 模板
+├── mla.cpp                 # 可执行文件源码
+├── mla.md
+├── README.md
+└── tiling                  # tiling部分代码
+    ├── mla_tiling.cpp      #tiling源码
+    └── mla_tiling.h        # tiling头文件
 ```
 ## 使用示例
 - 获取代码之后编译相应的算子可执行文件，可参考[quickstart](../../docs/quickstart.md#算子编译)

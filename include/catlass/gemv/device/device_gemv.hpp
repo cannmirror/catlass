@@ -16,7 +16,7 @@
 #include "catlass/status.hpp"
 #include "catlass/detail/kernel_adapter.hpp"
 
-#if defined(ENABLE_ASCENDC_DUMP)
+#if defined(ENABLE_ASCENDC_DUMP) && !defined(BUILTIN_ASC_CMAKE_MODULES)
 #include "catlass/debug.hpp"
 #endif
 
@@ -72,7 +72,7 @@ public:
     /// Supplied params struct must be construct by calling matmul Kernel::to_underling arguments
     inline Status Run(aclrtStream stream, uint32_t blockDim, uint64_t fftsAddr)
     {
-#if defined(ENABLE_ASCENDC_DUMP)
+#if defined(ENABLE_ASCENDC_DUMP) && !defined(BUILTIN_ASC_CMAKE_MODULES)
         uint8_t *ptrDump{nullptr};
         aclCheck(aclrtMalloc(reinterpret_cast<void **>(&ptrDump), ALL_DUMPSIZE, ACL_MEM_MALLOC_HUGE_FIRST));
         if (fftsAddr == 0) {

@@ -13,7 +13,7 @@
 
 #include "catlass/catlass.hpp"
 
-#if defined(ENABLE_ASCENDC_DUMP)
+#if defined(ENABLE_ASCENDC_DUMP) && !defined(BUILTIN_ASC_CMAKE_MODULES)
 #include "catlass/debug.hpp"
 namespace Catlass {
 /// Generic Catlass kernel template
