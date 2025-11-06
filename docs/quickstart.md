@@ -7,11 +7,11 @@
 <div align="center">
 
 ```mermaid
-graph TB
+graph LR
     S[环境准备]--> GroupT[算子开发]
 
     subgraph GroupT[算子开发]
-        direction TB
+        direction LR
         A[Kernel层算子] --> B[Device层算子]
         B --> C[Host侧算子调用]
     end
