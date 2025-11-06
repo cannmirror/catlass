@@ -2,15 +2,15 @@
 
 CATLASS示例工程可适配大多数[CANN](https://www.hiascend.com/cann)提供的调测工具，算子开发阶段，可基于CATLASS示例工程进行初步开发调优，无需关注具体的工具适配操作，待算子基础功能、性能达到预期，再迁移到其他工程中。
 
-下面是利用[CANN](https://www.hiascend.com/cann)已有的工具进行调测、调优的开发实践
+下述文档介绍使用[CANN](https://www.hiascend.com/cann)已有的工具进行调测、调优的开发实践。
 
 ## 功能调试
 
 - [msDebug](./docs/tools/msdebug.md) - 类gdb/lldb的调试工具[msDebug](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/83RC1/devaids/optool/atlasopdev_16_0062.html)
   - ⚠️ **注意** 此功能依赖社区版`CANN`包版本为[8.2.RC1.alpha003](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha003)。
-- [printf](./docs/tools/print.md) - 在算子device侧进行打印调试
+- [printf](./docs/tools/print.md) - 基于[CCE Intrinsic](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/83RC1/opdevg/cceintrinsicguide/cceprogram_0001.html)，在算子device侧进行打印调试
   - ⚠️ **注意** 此功能依赖社区版`CANN`包版本在CANN 8.3后（如[8.3.RC1.alpha001](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.3.RC1.alpha001)）。
-- [ascendc_dump](./docs/tools/ascendc_dump.md) - 利用`Dump`对关键数据打点调测
+- [ascendc_dump](./docs/tools/ascendc_dump.md) - 基于[原生AscendC API](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/83RC1/API/ascendcopapi/atlasascendc_api_07_0192.html)，对关键数据打点调测
 
 ## 性能调优
 
