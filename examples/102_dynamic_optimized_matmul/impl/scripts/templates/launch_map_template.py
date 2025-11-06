@@ -69,5 +69,7 @@ std::unordered_map<uint64_t, std::string> funcNameMap = {{
             workspace_func_list=workspace_func_list,
             func_name_list=func_name_list,
         )
-        with open(os.path.join("../../include", "launch_map.h"), "w") as f:
+        fd = os.open(os.path.join("../../include", "launch_map.h"),
+                     os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o550) # r-xr-x---
+        with os.fdopen(fd, "w") as f:
             f.write(content)

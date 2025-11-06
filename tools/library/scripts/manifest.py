@@ -173,7 +173,10 @@ void RegisterCatlass{operation_type}Operations(Manifest &manifest)
             )
 
             path = f'register_all_{operation_type}_operations.cpp'
-            with open(os.path.join(operation_subdir, path), "w") as f:
+            fd = os.open(os.path.join(operation_subdir, path), 
+                         os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 
+                         0o550) # r-xr-x---
+            with os.fdopen(fd, "w") as f:
                 # e.g. create generated/gemm/register_all_gemm_operations.cpp
                 f.write(operation_register_src)
 
@@ -181,5 +184,7 @@ void RegisterCatlass{operation_type}Operations(Manifest &manifest)
             api_decl_src='\n'.join(api_decl_src), api_call_src='\n'.join(api_call_src)
         )
 
-        with open(os.path.join(generated_dir, 'register_all_kernels_generated.cpp'), "w") as register_all_file:
+        fd = os.open(os.path.join(generated_dir, 'register_all_kernels_generated.cpp'), 
+                     os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o550) # r-xr-x---
+        with os.fdopen(fd, "w") as register_all_file:
             register_all_file.write(register_all_kernels_src)
