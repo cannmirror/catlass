@@ -43,9 +43,8 @@ CATLASS_DEVICE void DynamicSmallMatmul(Catlass::GemmCoord &problemShape, Catlass
     Catlass::Arch::Resource<ArchTag> &resource)
 {
     constexpr bool enableUnitFlag = false;
-    constexpr bool enableShuffleK = false;
     static constexpr uint32_t stages = 1;
-    using DispatchPolicy = Catlass::Gemm::MmadAtlasA2DynamicSmall<stages, enableShuffleK, enableShuffleK>;
+    using DispatchPolicy = Catlass::Gemm::MmadAtlasA2DynamicSmall<stages, enableUnitFlag>;
 
     using AType = Catlass::Gemm::GemmType<ElementA, LayoutA>;
     using BType = Catlass::Gemm::GemmType<ElementB, LayoutB>;

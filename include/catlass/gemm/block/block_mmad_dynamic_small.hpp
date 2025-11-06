@@ -22,13 +22,13 @@
 
 namespace Catlass::Gemm::Block {
 
-template <uint32_t STAGES_, bool ENABLE_UNIT_FLAG_, bool ENABLE_SHUFFLE_K_, class L1TileShape_, class L0TileShape_,
+template <uint32_t STAGES_, bool ENABLE_UNIT_FLAG_, class L1TileShape_, class L0TileShape_,
     class AType_, class BType_, class CType_, class BiasType_, class TileCopy_, class TileMmad_>
-struct BlockMmad<MmadAtlasA2DynamicSmall<STAGES_, ENABLE_UNIT_FLAG_, ENABLE_SHUFFLE_K_>, L1TileShape_, L0TileShape_,
+struct BlockMmad<MmadAtlasA2DynamicSmall<STAGES_, ENABLE_UNIT_FLAG_>, L1TileShape_, L0TileShape_,
     AType_, BType_, CType_, BiasType_, TileCopy_, TileMmad_> {
 public:
     // Type Aliases
-    using DispatchPolicy = MmadAtlasA2DynamicSmall<STAGES_, ENABLE_UNIT_FLAG_, ENABLE_SHUFFLE_K_>;
+    using DispatchPolicy = MmadAtlasA2DynamicSmall<STAGES_, ENABLE_UNIT_FLAG_>;
     using ArchTag = typename DispatchPolicy::ArchTag;
 
     using ElementA = typename AType_::Element;
@@ -55,7 +55,6 @@ public:
     using L1BAlignHelper = Gemm::helper::L1AlignHelper<ElementB, LayoutB>;
 
     static constexpr bool ENABLE_UNIT_FLAG = DispatchPolicy::ENABLE_UNIT_FLAG;
-    static constexpr bool ENABLE_SHUFFLE_K = DispatchPolicy::ENABLE_SHUFFLE_K;
     static constexpr uint32_t STAGES = DispatchPolicy::STAGES;
 
     static constexpr uint32_t L0A_PINGPONG_BUF_SIZE = ArchTag::L0A_SIZE / STAGES;
