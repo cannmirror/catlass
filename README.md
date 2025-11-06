@@ -1,41 +1,22 @@
 # CATLASS
 
 ---
-*最新消息*  
+### Latest News
 
-- [2025/10] 发行版[v1.2.0](https://gitcode.com/cann/catlass/releases/v1.2.0)发布，新增[Matmul算子泛化](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/102_dynamic_optimized_matmul)等示例，快速上手请参阅[这里](docs/quickstart.md)
+- [2025/10] 社区版[v1.2.0](https://gitcode.com/cann/catlass/releases/v1.2.0)发布，新增[Matmul算子泛化](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/102_dynamic_optimized_matmul/README.md)等示例
 - [2025/09] CATLASS模板库正式开源
+
+请参阅[CHANGELOG](CHANGELOG.md)以查看当前及历史版本的详细更新内容。
+
 ---
 
 ## 📌 简介
 
 CATLASS(**CA**NN **T**emplates for **L**inear **A**lgebra **S**ubroutine**s**)，中文名为昇腾算子模板库，是一个聚焦于提供高性能矩阵乘类算子基础模板的代码库。  
 
-通过抽象分层的方式将矩阵类算子代码模板化。算子计算逻辑可以进行白盒化组装，让算子代码可复用，可替换，可局部修改。针对昇腾硬件特点进行设计，可以支持复杂场景流水排布，如Flash Attention等算子。在上层代码逻辑共享的同时，可以支持底层硬件差异特化。
+通过抽象分层的方式将矩阵类算子代码模板化。算子计算逻辑可以进行白盒化组装，让算子代码可复用，可替换，可局部修改。针对昇腾硬件特点进行设计，可以支持复杂场景流水排布，如`Flash Attention`等算子。在上层代码逻辑共享的同时，可以支持底层硬件差异特化。
 
-本代码仓为CATLASS联创代码仓。结合昇腾生态力量，共同设计研发算子模板，并提供典型算子的高性能实现代码样例。
-
-## 🔥 新版本发布 [1.2.0](https://gitcode.com/cann/catlass/releases/v1.2.0)
- - 关键特性
-   - 新增[Matmul泛化工程](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/102_dynamic_optimized_matmul)示例
-     + 自动依照特征尺寸确定Tiling参数
-     + 可在预设的算子模板中择优选取
-
- - 更多样例
-    
-    - Attention：[Flash Attention推理](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/23_flash_attention_infer)
-    - 卷积类算子：[2D卷积](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/33_basic_conv2d)，[3D卷积](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/24_conv_bias)
-    - 优化类Matmul：[A矩阵全加载Matmul](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/25_matmul_full_loadA)，[小矩阵优化](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/31_small_matmul)
-    - 后处理类Matmul：[MatmulRelu](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/26_matmul_relu)，[MatmulGelu](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/27_matmul_gelu)，[MatmulSwish](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/28_matmul_swish)
-    - 反量化Matmul：[FP8类型反量化Matmul](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/29_a2_fp8_e4m3_matmul)，[INT8类型反量化Matmul](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/30_w8a16_matmul)
-
- - 工具支持
-    - 新增[`msTuner`](https://gitcode.com/cann/catlass/tree/v1.2.0/tools/tuner)工具，实现Tiling自动寻优
- 
-    ...
-
-请参阅[CHANGELOG](CHANGELOG.md)以查看当前及历史版本的详细更新内容。
-
+本代码仓为CATLASS联创代码仓。结合昇腾生态力量，共同设计研发算子模板，并提供典型算子的高性能实现代码样例，概述详情参考[这里](./docs/summary.md)。
 
 ## ⚡️ 快速上手
 
@@ -43,16 +24,17 @@ CATLASS(**CA**NN **T**emplates for **L**inear **A**lgebra **S**ubroutine**s**)�
  - [快速入门](./docs/quickstart.md)：以基础Matmul算子为例，基于CATLASS的第一个算子开发与编译；
  - [开发者实践](./docs/tutorials.md): 从算子编写至编译测试，再到Tiling调优与算子优化，从新手到进阶的实践示例。
 
-## 📚 参考资料
+## 📚 进阶参考
 
 下述资料可助力您深入开展CATLASS算子的开发与调优，实现更优性能的GEMM类算子。
- - [CATLASS API](./docs/api.md): 介绍CATLASS的分层特征与通用矩阵乘法Gemm API。
+ - [CATLASS API](./docs/contents/advanced/api.md): 介绍CATLASS的分层特征与通用矩阵乘法Gemm API。
  - [CATLASS性能调测](./docs/evaluation_collections.md): 汇总CATLASS工程开发中的调测办法，有助于消除漏洞，分析性能的瓶颈点。
  - [CATLASS进阶实践](./docs/advanced_collections.md): 汇总CATLASS的进阶知识，如Tiling调参方法、Dispatch策略等，实现更高性能。
 
 
 ## 📁 目录结构说明
 
+关键目录如下，详细目录参见[项目目录](./docs/dir_structure.md)。
 ```bash
 catlass
 ├── cmake                     # cmake工程文件
@@ -74,7 +56,6 @@ catlass
 └── tools                     # 相关工具
     └── tuner                 # Tiling自动寻优工具
 ```
-以上为关键目录，详细目录参见[项目目录](.)。
 
 ## 💻 软硬件配套说明
 
@@ -90,24 +71,74 @@ CATLASS所需的软硬件环境依赖如下：
 
 不同CATLASS发行版可支持的硬件平台及所需的最低[CANN](https://www.hiascend.com/developer/download/community/result?module=cann)版本如下表：
 
-| CATLASS社区版本 | 最低支持CANN包版本 | 支持昇腾产品 | 
-| ----- | ----- | ---------- | 
-| [v1.2.0](https://gitcode.com/cann/catlass/releases/v1.2.0)(当前)~<br>[v1.0.0](https://gitcode.com/cann/catlass/releases/v1.0.0) | 社区版：[8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002) | [Atlas A2训练/推理产品](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html) | 
+<table style="width: 75%; margin: 0 auto;">
+  <colgroup>
+    <col style="width: 25%">
+    <col style="width: 22%">
+    <col style="width: 22%">
+  </colgroup>
+  <thead>
+      <tr>
+          <th>CATLASS社区版本</th>
+          <th>最低支持CANN包版本</th>
+          <th>支持昇腾产品</th>
+      </tr>
+  </thead>
+  <tbody style="text-align: center">
+      <tr>
+          <td><a href="https://gitcode.com/cann/catlass/releases/v1.2.0">v1.2.0</a>(当前)~<a href="https://gitcode.com/cann/catlass/releases/v1.0.0">v1.0.0</a></td>
+          <td>社区版<a href="https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002">8.2.RC1.alpha002</a></td>
+          <td><a href="https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html">Atlas A2训练/推理产品</a> <br>
+          <a href="https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html">Atlas A3训练/推理产品</a></td>
+      </tr>
+  </tbody>
+</table>
 
  - 对于某些调测工具，可能需要较上述更新的CANN版本，详请参考[调测工具文档](./docs/evaluation_collections.md)。
 
 下述环境经测试支持[当前CATLASS](https://gitcode.com/cann/catlass/releases/v1.2.0)构建：
 
-| 系统 | `CANN` | `gcc` | `cmake` | `python` | 
-| ----- | --- | --- | --- | --- |
-| Ubuntu 22.04.5 | `8.2.RC1.alpha002` | `9.3` | `3.22`  |  `3.10` | 
-| openEuler 22.03 SP4 | `8.2.RC1.alpha002` | `10.3` | `3.22`  |  `3.10` | 
+<table style="width: 75%; margin: 0 auto;">
+  <colgroup>
+      <col style="width: 15%">
+      <col style="width: 15%">
+      <col style="width: 10%">
+      <col style="width: 10%">
+      <col style="width: 10%">
+  </colgroup>
+  <thead>
+      <tr style="text-align: center">
+          <th>系统</th>
+          <th><code>CANN</code></th>
+          <th><code>gcc</code></th>
+          <th><code>cmake</code></th>
+          <th><code>python</code></th>
+      </tr>
+  </thead>
+  <tbody style="text-align: center">
+      <tr>
+          <td>Ubuntu 22.04.5</td>
+          <td><code>8.2.RC1.alpha002</code></td>
+          <td><code>9.3</code></td>
+          <td><code>3.22</code></td>
+          <td><code>3.10</code></td>
+      </tr>
+      <tr>
+          <td>openEuler 22.03 SP4</td>
+          <td><code>8.2.RC1.alpha002</code></td>
+          <td><code>10.3</code></td>
+          <td><code>3.22</code></td>
+          <td><code>3.10</code></td>
+      </tr>
+  </tbody>
+</table>
+
 
 ## 👥 合作贡献者
 
-### [华南理工大学 陆璐教授团队](https://www2.scut.edu.cn/cs/2017/0629/c22284a328108/page.htm)
+#### [华南理工大学 陆璐教授团队](https://www2.scut.edu.cn/cs/2017/0629/c22284a328108/page.htm)
 
-### 科大讯飞 研究院工程组
+#### 科大讯飞 研究院工程组
 
 ## 📝相关信息
 
