@@ -54,23 +54,14 @@ CATLASS_DEVICE void DynamicCommonMatmul(Catlass::GemmCoord &problemShape, Catlas
     using TileCopy = TileCopyDynamicOptimized<ArchTag, AType, BType, CType>;
     using BlockMmad = Catlass::Gemm::Block::BlockMmad<DispatchPolicy, void, void, AType, BType, CType, void, TileCopy>;
     using BlockEpilogue = void;
-    if (problemShape.m() > problemShape.n()) {
-        using BlockScheduler = typename Catlass::Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
-        // kernel level
-        using MatmulKernel = Catlass::Gemm::Kernel::DynamicCommonMatmul<BlockMmad, BlockEpilogue, BlockScheduler>;
-        typename MatmulKernel::Params params{problemShape, l1TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC};
-        // call a kernel
-        MatmulKernel matmul;
-        matmul(params, resource);
-    } else {
-        using BlockScheduler = typename Catlass::Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
-        // kernel level
-        using MatmulKernel = Catlass::Gemm::Kernel::DynamicCommonMatmul<BlockMmad, BlockEpilogue, BlockScheduler>;
-        typename MatmulKernel::Params params{problemShape, l1TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC};
-        // call a kernel
-        MatmulKernel matmul;
-        matmul(params, resource);
-    }
+
+    using BlockScheduler = typename Catlass::Gemm::Block::DynamicGemmIdentityBlockSwizzle;
+    // kernel level
+    using MatmulKernel = Catlass::Gemm::Kernel::DynamicCommonMatmul<BlockMmad, BlockEpilogue, BlockScheduler>;
+    typename MatmulKernel::Params params{problemShape, l1TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC};
+    // call a kernel
+    MatmulKernel matmul;
+    matmul(params, resource);
 }
 
 template <class ArchTag, class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC>

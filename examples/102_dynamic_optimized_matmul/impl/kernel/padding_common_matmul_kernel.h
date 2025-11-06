@@ -148,27 +148,16 @@ template <class ElementA, class LayoutA, class ElementB, class LayoutB, class El
     using TileCopy = TileCopyDynamicOptimized<ArchTag, AType, BType, CType>;
     using BlockMmad = Catlass::Gemm::Block::BlockMmad<DispatchPolicy, void, void, AType, BType, CType, void, TileCopy>;
     using BlockEpilogue = void;
-    if (problemShape.m() > problemShape.n()) {
-        using BlockScheduler = typename Catlass::Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
-        // kernel level
-        using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingCommonMatmul<
-            PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingC>;
-        typename MatmulKernel::Params params{
-            problemShape, l1TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC, gmWA, gmWB, gmWC};
-        // call a kernel
-        MatmulKernel matmul;
-        matmul(params, resource);
-    } else {
-        using BlockScheduler = typename Catlass::Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
-        // kernel level
-        using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingCommonMatmul<
-            PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingC>;
-        typename MatmulKernel::Params params{
-            problemShape, l1TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC, gmWA, gmWB, gmWC};
-        // call a kernel
-        MatmulKernel matmul;
-        matmul(params, resource);
-    }
+
+    using BlockScheduler = typename Catlass::Gemm::Block::DynamicGemmIdentityBlockSwizzle;
+    // kernel level
+    using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingCommonMatmul<
+        PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingC>;
+    typename MatmulKernel::Params params{
+        problemShape, l1TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC, gmWA, gmWB, gmWC};
+    // call a kernel
+    MatmulKernel matmul;
+    matmul(params, resource);
 }
 
 template <class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC,
