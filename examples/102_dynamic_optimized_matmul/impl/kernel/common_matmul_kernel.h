@@ -89,7 +89,7 @@ CATLASS_GLOBAL __attribute__((aic)) void CommonMatmulKernel(__gm__ uint8_t *__re
     * | 0-3    | 4    | m          | uint32_t  | matrix M dimension            |
     * | 4-7    | 4    | n          | uint32_t  | matrix N dimension            |
     * | 8-11   | 4    | k          | uint32_t  | matrix K dimension            |
-    * | 16-23  | 8    | strideA    | uint64_t  | matrix B stride               |
+    * | 16-23  | 8    | strideA    | uint64_t  | matrix A stride               |
     * | 24-31  | 8    | strideB    | uint64_t  | matrix B stride               |
     * | 32-39  | 8    | strideC    | uint64_t  | matrix C stride               |
     * | 40-41  | 2    | m1         | uint16_t  | l1 mTile(16-bit to save space)|
