@@ -12,8 +12,8 @@
 #define EXAMPLES_COMMON_GOLDEN_FILL_DATA_HPP
 
 #include <vector>
-#include <algorithm>
 #include <cstdlib>
+#include <algorithm>
 #include <ctime>
 
 namespace Catlass::golden {
