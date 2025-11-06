@@ -15,25 +15,26 @@ add_custom_target(catlass_examples)
 # arch specific compile options
 if(CATLASS_BISHENG_ARCH STREQUAL "a2" OR CATLASS_BISHENG_ARCH STREQUAL "a3")
     set(CCE_AICORE_ARCH_BASE dav-c220)
+    set(NPU_ARCH dav-2201)
     add_compile_options(
-        "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-stack-size=0x8000>"
-        "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-function-stack-size=0x8000>"
-        "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-record-overflow=true>"
-        "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-dcci-insert-for-scalar=false>"
+        "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-mllvm -cce-aicore-stack-size=0x8000>"
+        "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-mllvm -cce-aicore-function-stack-size=0x8000>"
+        "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-mllvm -cce-aicore-record-overflow=true>"
+        "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-mllvm -cce-aicore-dcci-insert-for-scalar=false>"
     )
 endif()
 
 # common compile options
 add_compile_options(
-    $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-macro-redefined>
-    $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-ignored-attributes>
+    $<$<COMPILE_LANGUAGE:ASC>:-Wno-macro-redefined>
+    $<$<COMPILE_LANGUAGE:ASC>:-Wno-ignored-attributes>
 
-    "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-addr-transform>"
+    "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-mllvm -cce-aicore-addr-transform>"
 )
 
 # compile options for debug features
 if(DEFINED ENABLE_PRINT AND ENABLE_PRINT)
-    add_compile_options($<$<COMPILE_LANGUAGE:ASCEND>:--cce-enable-print>)
+    add_compile_options($<$<COMPILE_LANGUAGE:ASC>:--cce-enable-print>)
 endif()
 
 macro(catlass_example_add_executable NAME OPTYPE)
@@ -44,20 +45,24 @@ macro(catlass_example_add_executable NAME OPTYPE)
     endif()
 
     add_executable(${NAME} ${ARGN})
-    if(${OPTYPE} STREQUAL "cube" OR ${OPTYPE} STREQUAL "vec")
-        set(CCE_AICORE_ARCH "${CCE_AICORE_ARCH_BASE}-${OPTYPE}")
-    elseif(${OPTYPE} STREQUAL "mix")
-        set(CCE_AICORE_ARCH "${CCE_AICORE_ARCH_BASE}")
+    if(ASC_FOUND)
+        set(ARCH_OPTION "--npu-arch=${NPU_ARCH}")
     else()
-        message("Unsupported op type: ${OPTYPE}")
+        if(${OPTYPE} STREQUAL "cube" OR ${OPTYPE} STREQUAL "vec")
+            set(CCE_AICORE_ARCH "${CCE_AICORE_ARCH_BASE}-${OPTYPE}")
+        elseif(${OPTYPE} STREQUAL "mix")
+            set(CCE_AICORE_ARCH "${CCE_AICORE_ARCH_BASE}")
+        else()
+            message("Unsupported op type: ${OPTYPE}")
+        endif()
+        set(ARCH_OPTION "--cce-aicore-arch=${CCE_AICORE_ARCH}")
     endif()
-    target_compile_options(${NAME} PRIVATE $<$<COMPILE_LANGUAGE:ASCEND>:--cce-aicore-arch=${CCE_AICORE_ARCH}>)
+    target_compile_options(${NAME} PRIVATE $<$<COMPILE_LANGUAGE:ASC>:${ARCH_OPTION}>)
     if(DEFINED ENABLE_MSSANITIZER AND ENABLE_MSSANITIZER)
-        target_compile_options(${NAME} PRIVATE "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-g --cce-enable-sanitizer>")
-        target_link_options(${NAME} PRIVATE "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:--cce-enable-sanitizer --cce-aicore-arch=${CCE_AICORE_ARCH}>")
+        target_compile_options(${NAME} PRIVATE "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-g --cce-enable-sanitizer>")
+        target_link_options(${NAME} PRIVATE "SHELL:$<$<COMPILE_LANGUAGE:ASC>:--cce-enable-sanitizer ${ARCH_OPTION}>")
     endif()
     target_compile_definitions(${NAME} PRIVATE CATLASS_EXAMPLE_NAME=${NAME})
-    target_include_directories(${NAME} PRIVATE ${ASCEND_HOME_PATH}/include/aclnn)
     add_dependencies(catlass_examples ${NAME})
     install(TARGETS ${NAME} DESTINATION ${EXAMPLE_DESTINATION} COMPONENT ${NAME})
     install(TARGETS ${NAME} DESTINATION ${EXAMPLE_DESTINATION} COMPONENT catlass_examples)
@@ -66,14 +71,17 @@ endmacro()
 include_directories(
     ${CATLASS_EXAMPLES_COMMON_SOURCE_DIR}
     ${CATLASS_INCLUDE_DIR}
+    ${ASCEND_HOME_PATH}/include/aclnn
+    ${ASCEND_HOME_PATH}/include/experiment/runtime
+    ${ASCEND_HOME_PATH}/include/experiment/msprof
 )
 link_directories(${ASCEND_HOME_PATH}/lib64)
 link_libraries(dl tiling_api platform c_sec nnopbase ascendcl)
 
 if(DEFINED ENABLE_ASCENDC_DUMP AND ENABLE_ASCENDC_DUMP)
-    add_compile_definitions(ENABLE_ASCENDC_DUMP)
-    add_compile_definitions(ASCENDC_DUMP=1)
-    add_compile_definitions(ASCENDC_DEBUG)
+    add_compile_definitions($<$<COMPILE_LANGUAGE:ASC>:ENABLE_ASCENDC_DUMP>)
+    add_compile_definitions($<$<COMPILE_LANGUAGE:ASC>:ASCENDC_DUMP=1>)
+    add_compile_definitions($<$<COMPILE_LANGUAGE:ASC>:ASCENDC_DEBUG>)
     link_libraries(ascend_dump)
 endif()
 

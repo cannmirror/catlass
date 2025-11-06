@@ -37,6 +37,10 @@ constexpr uint32_t STRIDE_LIMIT = 65536;
 
 constexpr uint32_t BYTE_PER_BLK_FP = 128;  /// datablock size of A1->C2PiPE2GM
 
+#if defined(L2_CACHE_HINT) && !defined(BUILTIN_ASC_CMAKE_MODULES)
+inline __gm__ struct OpSystemRunCfg g_opSystemRunCfg{Catlass::L2_OFFSET};
+#endif
+
 } // namespace Catlass
 
 #endif // CATLASS_CATLASS_HPP

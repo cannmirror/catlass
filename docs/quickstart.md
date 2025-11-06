@@ -116,7 +116,7 @@ BasicMatmul<<<BLOCK_NUM, nullptr, stream>>>(
 
 ```
 # CMakeLists.txt
-set_source_files_properties(basic_matmul.cpp PROPERTIES LANGUAGE ASCEND)
+set_source_files_properties(basic_matmul.cpp PROPERTIES LANGUAGE ASC)
 catlass_example_add_executable(
     00_basic_matmul
     cube

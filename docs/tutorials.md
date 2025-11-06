@@ -263,7 +263,7 @@ int main(int argc, const char **argv)
 在`catlass/examples/basic_matmul/CMakeLists.txt`文件中写入以下代码
 
 ```cmake
-set_source_files_properties(basic_matmul.cpp PROPERTIES LANGUAGE ASCEND)
+set_source_files_properties(basic_matmul.cpp PROPERTIES LANGUAGE ASC)
 catlass_example_add_executable(
     basic_matmul
     cube
@@ -583,7 +583,7 @@ int main(int argc, const char **argv)
 在`catlass/examples/splitk_matmul/splitk_matmul.cpp`同级文件夹下创建`CMakeLists.txt`文件，填入以下内容：
 
 ```cmake
-set_source_files_properties(splitk_matmul.cpp PROPERTIES LANGUAGE ASCEND)
+set_source_files_properties(splitk_matmul.cpp PROPERTIES LANGUAGE ASC)
 catlass_example_add_executable(
     splitk_matmul # 可执行程序名称
     mix
@@ -904,7 +904,7 @@ int main(int argc, const char **argv)
 在`catlass/examples/grouped_matmul/grouped_matmul.cpp`同级文件夹下创建`CMakeLists.txt`文件，填入以下内容：
 
 ```cmake
-set_source_files_properties(grouped_matmul.cpp PROPERTIES LANGUAGE ASCEND)
+set_source_files_properties(grouped_matmul.cpp PROPERTIES LANGUAGE ASC)
 catlass_example_add_executable(
     grouped_matmul # 可执行程序名称
     cube
