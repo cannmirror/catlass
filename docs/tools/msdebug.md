@@ -1,6 +1,6 @@
 # 在CATLASS样例工程使用msDebug
 
-`msDebug`是用于调试在NPU侧运行的算子程序的一个工具，该工具向算子开发人员提供了在昇腾设备上调试算子的手段。调试手段包括了读取昇腾设备内存与寄存器、暂停与恢复程序运行状态等。
+[msDebug](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/83RC1/devaids/optool/atlasopdev_16_0062.html)是用于调试在NPU侧运行的算子程序的一个工具，该工具向算子开发人员提供了在昇腾设备上调试算子的手段。调试手段包括了读取昇腾设备内存与寄存器、暂停与恢复程序运行状态等。
 
 - ⚠️ **注意** 此功能依赖社区版`CANN`包版本为[8.2.RC1.alpha003](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha003)。
 
@@ -10,7 +10,7 @@
 
 ### 使能驱动的调试功能
 
-参考[msDebug工具概述](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha003/devaids/optool/atlasopdev_16_0062.html)，以`debug`模式安装驱动，或在`full`模式安装的驱动下执行`echo 1 > /proc/debug_switch`打开调试通道。
+参考[msDebug工具概述](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/83RC1/devaids/optool/atlasopdev_16_0062.html)，以`debug`模式安装驱动，或在`full`模式安装的驱动下执行`echo 1 > /proc/debug_switch`打开调试通道。
 
 为了避免出现安全问题，请勿在生产环境启用调试通道！
 
@@ -24,7 +24,7 @@ terminate called after throwing an instance of 'MSDEBUG_ERROR_CODE'
 
 ### 编译运行
 
-1. 基于[快速上手](../../README.md#快速上手)，打开工具的编译开关`--debug --msdebug`，使能`debug`与`msdebug`编译算子样例。
+1. 基于[快速上手](../quickstart.md)，打开工具的编译开关`--debug --msdebug`，使能`debug`与`msdebug`编译算子样例。
 
 ```bash
 bash scripts/build.sh --debug --msdebug 00_basic_matmul
@@ -278,7 +278,7 @@ Process 814339 stopped
 
 #### 退出调试
 
-调试完成后，通过命令`q`退出msdebug，若通过`Ctrl+C`等手段强行退出，则msdebug进程不会结束，仍在后台运行，此时可通过`ps -ef | grep msdebug`查找对应的进程pid，再用`kill -9 进程pid`杀掉对应进程即可。不能同时起多个msdebug进程进行调试。
+调试完成后，通过命令`q`退出`msdebug`，若通过`Ctrl+C`等手段强行退出，则`msdebug`进程不会结束，仍在后台运行，此时可通过`ps -ef | grep msdebug`查找对应的进程pid，再用`kill -9 进程pid`杀掉对应进程即可。不能同时起多个`msdebug`进程进行调试。
 
 ```bash
 (msdebug) q
@@ -359,7 +359,7 @@ Valid values are:
 
 ### 指定调试使用的NPU卡
 
-配置环境变量ASCEND_RT_VISIBLE_DEVICES为需要使用的NPU卡号，例如
+配置环境变量`ASCEND_RT_VISIBLE_DEVICES`为需要使用的NPU卡号，例如
 
 ```bash
 # 指定当前进程仅使用Device ID为2的Device

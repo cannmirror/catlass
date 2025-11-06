@@ -1,16 +1,14 @@
 # 在CATLASS样例工程使用AscendC算子调测API
 
-AscendC算子调测API是AscendC提供的调试能力，可进行kernel内部的打印、Tensor内容的查看(Dump)。
-
-关于kernel调测api的详细介绍，可参考[DumpTensor](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha002/API/ascendcopapi/atlasascendc_api_07_0192.html)和[printf](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha002/API/ascendcopapi/atlasascendc_api_07_0193.html).
+AscendC算子调测API是AscendC提供的调试能力，可进行kernel内部的打印([`printf`](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha002/API/ascendcopapi/atlasascendc_api_07_0193.html))、Tensor内容的查看([`DumpTensor`](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha002/API/ascendcopapi/atlasascendc_api_07_0192.html))。
 
 ## 使用示例
 
-下面以`00_basic_matmul`为例，进行`AscendC算子调测API`的使用说明。
+下面以`00_basic_matmul`为例，演示基于[AscendC算子调测API](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/83RC1/API/ascendcopapi/atlasascendc_api_07_0192.html)的测试过程。
 
 ### 插入调试代码
 
-在想进行调试的层级，增加调测API调用。
+在想进行调试的层级，增加调测API调用，如在`include/catlass/gemm/kernel/basic_matmul.hpp`的核函数中添加下述代码。
 
 ```diff
 // include/catlass/gemm/kernel/basic_matmul.hpp
@@ -70,7 +68,7 @@ cd output/bin
 ```
 
 - ⚠ 注意事项
-  - 目前`AscendC算子调测API`**不**支持打印`FixPipe`上的数值。
+  - 目前[`AscendC::DumpTensor`](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/83RC1/API/ascendcopapi/atlasascendc_api_07_0192.html)**不**支持打印`FixPipe`上的数值。
 
 ### 输出示例
 
