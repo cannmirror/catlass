@@ -29,7 +29,7 @@
     - 支持使能[`msSanitizer`](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/83RC1alpha003/devaids/optool/atlasopdev_16_0039.html)地址消毒工具(编译选项加入`--enable_mssanitizer`)
   
  - 文档资料
-   - 新增[`catlass_optimize_guidance.md`](https://gitcode.com/cann/catlass/tree/v1.2.0/docs/catlass_optimize_guidance.md)文档，介绍CATLASS赋能下`Gemm`类算子常用的调优方式
+   - 新增[`catlass_optimize_guidance.md`](https://gitcode.com/cann/catlass/tree/v1.2.0/docs/contents/advanced/catlass_optimize_guidance.md)文档，介绍CATLASS赋能下`Gemm`类算子常用的调优方式
 
  - Bugfix&优化
    - 优化[`OptimizedMatmul`](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/06_optimized_matmul/README.md)算子实现，支持任意Padding方式组合
