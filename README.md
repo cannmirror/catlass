@@ -61,7 +61,7 @@ catlass
 
 CATLASS所需的软硬件环境依赖如下：
 
- - 昇腾产品：[Atlas A2训练/推理产品](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)
+ - 昇腾产品：[Atlas A2训练/推理产品](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html), [Atlas A3训练/推理产品](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)
  - CPU架构：`aarch64`/`x86_64`
  - 系统：主流Linux(进行[兼容性查询](https://www.hiascend.com/hardware/compatibility))
  - 软件依赖：
