@@ -1,5 +1,5 @@
-#ifndef CATLASS_EPILOGUE_BLOCK_EPILOGUE_PRELOAD_VISITOR_HPP
-#define CATLASS_EPILOGUE_BLOCK_EPILOGUE_PRELOAD_VISITOR_HPP
+#ifndef CATLASS_EPILOGUE_BLOCK_EPILOGUE_PRELOAD_ASYNC_VISITOR_HPP
+#define CATLASS_EPILOGUE_BLOCK_EPILOGUE_PRELOAD_ASYNC_VISITOR_HPP
 
 #include "catlass/catlass.hpp"
 #include "catlass/arch/resource.hpp"
@@ -16,7 +16,7 @@ template <
     class EVT_
 >
 class BlockEpilogue<
-    EpilogueAtlasA2PreloadVisitor,
+    EpilogueAtlasA2PreloadAsyncVisitor,
     CType_,
     ComputeLength_,
     EVT_
@@ -83,11 +83,11 @@ public:
         // AscendC::PipeBarrier<PIPE_ALL>();
         // Arch::CrossCoreBarrier<0x0, PIPE_MTE3>();
 
-        // uint32_t ub_offset0 = 0;
-        // auto callbacks0 = evt.get_callbacks(
-        //     resource_, ub_offset0, COMPUTE_LENGTH
-        // );
-        // callbacks0.end_epilogue();
+        uint32_t ub_offset0 = 0;
+        auto callbacks0 = evt.get_callbacks(
+            resource_, ub_offset0, COMPUTE_LENGTH
+        );
+        callbacks0.end_epilogue();
     }
 
     CATLASS_DEVICE
@@ -237,4 +237,4 @@ private:
 
 } // namespace Catlass::Epilogue::Block
 
-#endif // CATLASS_EPILOGUE_BLOCK_EPILOGUE_PRELOAD_VISITOR_HPP
+#endif // CATLASS_EPILOGUE_BLOCK_EPILOGUE_PRELOAD_ASYNC_VISITOR_HPP

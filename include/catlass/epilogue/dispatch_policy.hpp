@@ -102,7 +102,7 @@ struct EpilogueAtlasA2Visitor {
 };
 
 // For AtlasA2, Epilogue with Preload MMAD Visitor
-struct EpilogueAtlasA2PreloadVisitor {
+struct EpilogueAtlasA2PreloadAsyncVisitor {
     using ArchTag = Arch::AtlasA2;
 };
 ///////////////////////////

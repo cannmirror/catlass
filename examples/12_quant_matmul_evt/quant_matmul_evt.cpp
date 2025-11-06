@@ -24,7 +24,7 @@
 #include "catlass/gemm/device/device_gemm.hpp"
 #include "catlass/gemm/dispatch_policy.hpp"
 #include "catlass/gemm/gemm_type.hpp"
-#include "catlass/gemm/kernel/matmul_preload_visitor.hpp"
+#include "catlass/gemm/kernel/matmul_multistage_workspace_visitor.hpp"
 #include "catlass/layout/layout.hpp"
 #include "catlass/status.hpp"
 
@@ -32,6 +32,9 @@
 #include "helper.hpp"
 
 using namespace Catlass;
+
+using L1TileShape = GemmShape<128, 256, 512>;
+constexpr uint32_t workspaceStages = 2;
 
 using Options = GemmOptions;
 
@@ -114,9 +117,8 @@ static void Run(const Options &options) {
     constexpr uint32_t l0CStages = 1;
     constexpr bool enableUnitFlag = false;
     constexpr bool enableShuffleK = true;
-    using DispatchPolicy = Gemm::MmadAtlasA2PreloadAsync<
+    using DispatchPolicy = Gemm::MmadAtlasA2PreloadAsyncWithCallback<
         preloadStages, l1Stages, l0AStages, l0BStages, l0CStages, enableUnitFlag, enableShuffleK>;
-    using L1TileShape = GemmShape<128, 256, 512>;
     using L0TileShape = GemmShape<128, 256, 128>;
 
     using AType = Gemm::GemmType<int8_t, LayoutA>;
@@ -124,6 +126,7 @@ static void Run(const Options &options) {
     using CType = Gemm::GemmType<int32_t, layout::RowMajor>;
 
     using BlockMmad = Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType>;
+
 
     // EVT: D = half( float(C) * scale_col * scale_row )
     constexpr uint32_t computeLength = 3072;
@@ -149,20 +152,8 @@ static void Run(const Options &options) {
         >
     >;
 
-    using BlockEpilogue = Epilogue::Block::BlockEpilogue<
-        Epilogue::EpilogueAtlasA2PreloadVisitor,
-        CType,
-        tla::Int<computeLength>,
-        EVT
-    >;
-
-    using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
-
-    using MatmulKernel = Gemm::Kernel::MatmulPreloadVisitor<BlockMmad, BlockEpilogue, BlockScheduler>;
 
     // 准备 EVT Arguments：列广播 {1,n}，行广播 {m,1}，输出 D
-    layout::RowMajor layoutScaleCol{1, n};
-    layout::RowMajor layoutScaleRow{m, 1};
 
     typename EVT::Arguments evt_args{
         {
@@ -172,11 +163,11 @@ static void Run(const Options &options) {
                     {}
                 },
                 {
-                    {deviceScale, layoutScaleCol},
+                    {deviceScale, {1, n}},
                     {}
                 },
                 {
-                    {devicePerTokenScale, layoutScaleRow},
+                    {devicePerTokenScale, {m, 1}},
                     {}
                 },
                 {}
@@ -186,15 +177,42 @@ static void Run(const Options &options) {
         {deviceD, layoutD}
     };
 
-    typename MatmulKernel::Arguments arguments{options.problemShape, deviceA, deviceB, evt_args};
-    using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
-    MatmulAdapter matmulOp;
-    sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
-    if (sizeWorkspace > 0) {
-        ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST));
+    using BlockEpilogue = Epilogue::Block::BlockEpilogue<
+        Epilogue::EpilogueAtlasA2PreloadAsyncVisitor,
+        CType,
+        tla::Int<computeLength>,
+        EVT
+    >;
+
+    if (options.problemShape.m() > options.problemShape.n()) {
+        using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
+
+        using MatmulKernel = Gemm::Kernel::MatmulMultiStageWorkspaceVisitor<BlockMmad, BlockEpilogue, BlockScheduler, workspaceStages>;
+
+
+        typename MatmulKernel::Arguments arguments{options.problemShape, aicCoreNum, deviceA, deviceB, evt_args};
+        using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
+        MatmulAdapter matmulOp;
+        sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
+        if (sizeWorkspace > 0) {
+            ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST));
+        }
+        matmulOp.Initialize(arguments, deviceWorkspace);
+        matmulOp(stream, aicCoreNum, fftsAddr);
+    } else {
+        using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
+
+        using MatmulKernel = Gemm::Kernel::MatmulMultiStageWorkspaceVisitor<BlockMmad, BlockEpilogue, BlockScheduler, workspaceStages>;
+        typename MatmulKernel::Arguments arguments{options.problemShape, aicCoreNum, deviceA, deviceB, evt_args};
+        using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
+        MatmulAdapter matmulOp;
+        sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
+        if (sizeWorkspace > 0) {
+            ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST));
+        }
+        matmulOp.Initialize(arguments, deviceWorkspace);
+        matmulOp(stream, aicCoreNum, fftsAddr);
     }
-    matmulOp.Initialize(arguments, deviceWorkspace);
-    matmulOp(stream, aicCoreNum, fftsAddr);
     ACL_CHECK(aclrtSynchronizeStream(stream));
 
     std::vector<fp16_t> hostD(lenD);

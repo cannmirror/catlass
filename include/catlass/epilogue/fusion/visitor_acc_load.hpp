@@ -67,8 +67,7 @@ struct VisitorAccLoad : VisitorImpl<> {
         ) {
             static_assert(std::is_same_v<ElementAccumulator, Element>, "ElementAccumulator must be the same as Element");
             if (stage == VisitStage::LOAD) {
-                // GM load 使用 actualTileShape，UB layout 使用 alignedTileShape
-                auto layoutUb = layout::RowMajor::MakeLayoutInUb<Element>(alignedTileShape);
+                auto layoutUb = layout::RowMajor{alignedTileShape.row(), actualTileShape.column(), alignedTileShape.column()};
                 using CopyGm2UbT = Epilogue::Tile::CopyGm2Ub<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>>;
                 CopyGm2UbT copyGm2Ub{};
 
