@@ -1,10 +1,8 @@
----
-title: QuantMatmul 案例对比：未使用 EVG vs 使用 EVG
----
+# QuantMatmul 案例对比：未使用 EVG vs 使用 EVG
 
 ## 简介
 
-本页以量化矩阵乘法（QuantMatmul）为例，对比未使用 EVG 与使用 EVG 两种实现方式，展示EVG在开发便捷性与可扩展性上的优势，并进行性能的对比评估。
+本文档以量化矩阵乘法（QuantMatmul）为例，对比未使用 EVG 与使用 EVG 两种实现方式，展示EVG在开发便捷性与可扩展性上的优势，并进行性能的对比评估。
 
 计算流程：`D = half(float(int32_t C) * scale_col * scale_row)`，其中 `C = A * B`（A、B 为 int8_t，C 为 int32_t 累加结果），`scale_col` 为列向量（形状 {1, n}），`scale_row` 为行向量（形状 {m, 1}）。
 

@@ -1,10 +1,8 @@
----
-title: Matmul+Add 案例对比：未使用 EVG vs 使用 EVG
----
+# Matmul+Add 案例对比：未使用 EVG vs 使用 EVG
 
 ## 简介
 
-本页以 `Matmul + Add` 为例，对比未使用 EVG 与使用 EVG 两种实现方式，展示EVG在开发便捷性与可扩展性上的优势，并进行性能的对比评估。
+本文档以 `Matmul + Add` 为例，对比未使用 EVG 与使用 EVG 两种实现方式，展示EVG在开发便捷性与可扩展性上的优势，并进行性能的对比评估。
 
 参考样例：
 - 未使用 EVG：`examples/03_matmul_add/matmul_add.cpp`
