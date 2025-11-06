@@ -1,124 +1,144 @@
 # CATLASS
 
-## 🔥 Latest News
+---
+### Latest News
 
+- [2025/10] 社区版[v1.2.0](https://gitcode.com/cann/catlass/releases/v1.2.0)发布，新增[Matmul算子泛化](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/102_dynamic_optimized_matmul/README.md)等示例
 - [2025/09] CATLASS模板库正式开源
+
+请参阅[CHANGELOG](CHANGELOG.md)以查看当前及历史版本的详细更新内容。
+
+---
 
 ## 📌 简介
 
 CATLASS(**CA**NN **T**emplates for **L**inear **A**lgebra **S**ubroutine**s**)，中文名为昇腾算子模板库，是一个聚焦于提供高性能矩阵乘类算子基础模板的代码库。  
 
-通过抽象分层的方式将矩阵类算子代码模板化。算子计算逻辑可以进行白盒化组装，让算子代码可复用，可替换，可局部修改。针对昇腾硬件特点进行设计，可以支持复杂场景流水排布，如Flash Attention等算子。在上层代码逻辑共享的同时，可以支持底层硬件差异特化。
+通过抽象分层的方式将矩阵类算子代码模板化。算子计算逻辑可以进行白盒化组装，让算子代码可复用，可替换，可局部修改。针对昇腾硬件特点进行设计，可以支持复杂场景流水排布，如`Flash Attention`等算子。在上层代码逻辑共享的同时，可以支持底层硬件差异特化。
 
-本代码仓为CATLASS联创代码仓。结合昇腾生态力量，共同设计研发算子模板，并提供典型算子的高性能实现代码样例。
+本代码仓为CATLASS联创代码仓。结合昇腾生态力量，共同设计研发算子模板，并提供典型算子的高性能实现代码样例，概述详情参考[这里](./docs/summary.md)。
 
-## 🧩 模板分层设计
+## ⚡️ 快速上手
 
-![api_level](docs/images/api_level.png)
+为快速体验CATLASS的算子开发与使用，请参考下述内容。
+ - [快速入门](./docs/quickstart.md)：以基础Matmul算子为例，基于CATLASS的第一个算子开发与编译；
+ - [开发者实践](./docs/tutorials.md): 从算子编写至编译测试，再到Tiling调优与算子优化，从新手到进阶的实践示例。
 
-分层详细介绍和各层级api，见[api](docs/api.md)文档。
+## 📚 进阶参考
+
+下述资料可助力您深入开展CATLASS算子的开发与调优，实现更优性能的GEMM类算子。
+ - [CATLASS API](./docs/contents/advanced/api.md): 介绍CATLASS的分层特征与通用矩阵乘法Gemm API。
+ - [CATLASS性能调测](./docs/evaluation_collections.md): 汇总CATLASS工程开发中的调测办法，有助于消除漏洞，分析性能的瓶颈点。
+ - [CATLASS进阶实践](./docs/advanced_collections.md): 汇总CATLASS的进阶知识，如Tiling调参方法、Dispatch策略等，实现更高性能。
+
 
 ## 📁 目录结构说明
 
+关键目录如下，详细目录参见[项目目录](./docs/dir_structure.md)。
 ```bash
 catlass
-├── cmake          # cmake工程文件
-├── docs           # 文档
-├── examples       # kernel算子样例
-├── include        # 模板头文件
-├── scripts        # 编译脚本
-|   └── build.sh   # 算子样例编译脚本
-├── tests          # 测试用例
-└── tools          # 相关工具
+├── cmake                     # cmake工程文件
+├── docs                      # 文档存放目录
+├── examples                  # kernel算子样例总目录
+|   ├── 00_basic_matmul       # 单算子样例
+|   |   ├── basic_matmul.cpp  # Host侧算子调用
+|   |   ├── CMakeLists.txt
+|   |   └── README.md         # 算子说明示例
+|   ├── ...   
+|   └── python_extension      # Python调用CATLASS算子
+|                             # 的工程组件
+├── include                   # 模板头文件集
+|   ├── catlass               # 不同层级的算子实现逻辑
+|   └── tla                   # 计算关联的基础数据结构
+├── scripts                   # 编译脚本
+|   └── build.sh              # 算子样例编译脚本
+├── tests                     # 测试用例
+└── tools                     # 相关工具
+    └── tuner                 # Tiling自动寻优工具
 ```
 
 ## 💻 软硬件配套说明
 
-- 硬件平台：
-  - **CPU**: `aarch64`/`x86_64`
-  - **NPU**: `Atlas A2 训练系列产品`/`Atlas 800I A2 推理产品`/`A200I A2 Box 异构组件`
-    - `Atlas 800T A2 训练服务器`
-    - `Atlas 900 A2 PoD 集群基础单元`
-    - `Atlas 200T A2 Box16 异构子框`
-    - `Atlas 800I A2 推理服务器`
-    - `A200I A2 Box 异构组件`
+CATLASS所需的软硬件环境依赖如下：
 
-- 软件版本：
-  - `gcc >= 7.5, < 13`（已测试`7.5`，`8.3`，`9.3`，`11.4`，建议使用9.3以上版本。）
-  - `cmake >= 3.22`
-  - `python >= 3.10`
+ - 昇腾产品：[Atlas A2训练/推理产品](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html), [Atlas A3训练/推理产品](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)
+ - CPU架构：`aarch64`/`x86_64`
+ - 系统：主流Linux(进行[兼容性查询](https://www.hiascend.com/hardware/compatibility))
+ - 软件依赖：
+   + `gcc` >= 7.5, < 13.0
+   + `cmake` >= 3.22
+   + `python` >= 3.8, < 3.12
 
-- CANN版本：
-  - 社区版`CANN`包（[8.2.RC1.alpha002](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002)及之后版本）
+不同CATLASS发行版可支持的硬件平台及所需的最低[CANN](https://www.hiascend.com/developer/download/community/result?module=cann)版本如下表：
 
+<table style="width: 75%; margin: 0 auto;">
+  <colgroup>
+    <col style="width: 25%">
+    <col style="width: 22%">
+    <col style="width: 22%">
+  </colgroup>
+  <thead>
+      <tr>
+          <th>CATLASS社区版本</th>
+          <th>最低支持CANN包版本</th>
+          <th>支持昇腾产品</th>
+      </tr>
+  </thead>
+  <tbody style="text-align: center">
+      <tr>
+          <td><a href="https://gitcode.com/cann/catlass/releases/v1.2.0">v1.2.0</a>(当前)~<a href="https://gitcode.com/cann/catlass/releases/v1.0.0">v1.0.0</a></td>
+          <td>社区版<a href="https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002">8.2.RC1.alpha002</a></td>
+          <td><a href="https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html">Atlas A2训练/推理产品</a> <br>
+          <a href="https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html">Atlas A3训练/推理产品</a></td>
+      </tr>
+  </tbody>
+</table>
 
-- 对于某些调测工具，可能需要较以上版本更加新的CANN版本，可参考[调测工具文档](#toolbox)。
+ - 对于某些调测工具，可能需要较上述更新的CANN版本，详请参考[调测工具文档](./docs/evaluation_collections.md)。
 
-## ⚡️ 快速上手
+下述环境经测试支持[当前CATLASS](https://gitcode.com/cann/catlass/releases/v1.2.0)构建：
 
-以[`00_basic_matmul`](examples/00_basic_matmul)算子样例为例，快速上手CATLASS算子开发：
+<table style="width: 75%; margin: 0 auto;">
+  <colgroup>
+      <col style="width: 15%">
+      <col style="width: 15%">
+      <col style="width: 10%">
+      <col style="width: 10%">
+      <col style="width: 10%">
+  </colgroup>
+  <thead>
+      <tr style="text-align: center">
+          <th>系统</th>
+          <th><code>CANN</code></th>
+          <th><code>gcc</code></th>
+          <th><code>cmake</code></th>
+          <th><code>python</code></th>
+      </tr>
+  </thead>
+  <tbody style="text-align: center">
+      <tr>
+          <td>Ubuntu 22.04.5</td>
+          <td><code>8.2.RC1.alpha002</code></td>
+          <td><code>9.3</code></td>
+          <td><code>3.22</code></td>
+          <td><code>3.10</code></td>
+      </tr>
+      <tr>
+          <td>openEuler 22.03 SP4</td>
+          <td><code>8.2.RC1.alpha002</code></td>
+          <td><code>10.3</code></td>
+          <td><code>3.22</code></td>
+          <td><code>3.10</code></td>
+      </tr>
+  </tbody>
+</table>
 
-1. 使能CANN环境变量
-关于CANN环境准备请参考官网[安装说明](https://www.hiascend.com/document/detail/zh/canncommercial/82RC1/softwareinst/instg/instg_0008.html?Mode=PmIns&InstallType=local&OS=Debian&Software=cannToolKit)
-
-```bash
-# root用户安装（默认路径）
-source /usr/local/Ascend/ascend-toolkit/set_env.sh
-```
-
-2. 编译算子样例
-在主目录下，执行下述指令。
-```bash
-bash scripts/build.sh 00_basic_matmul
-```
-
-3. 执行算子样例
-切换到可执行文件的编译目录`output/bin`下，运行算子样例程序如下。
-
-```bash
-cd output/bin
-# 可执行文件名 |矩阵m轴|n轴|k轴|Device ID（可选）
-./00_basic_matmul 256 512 1024 0
-```
-
-出现`Compare success.`打屏，说明算子运行成功，精度比较通过。
-
-## 📚 文档介绍
-
-### 📖 基础文档
-
-按照由浅入深的次序，对模板库的相关内容展开介绍。
-
-- [quickstart](./docs/quickstart.md) - 快速上手实践模板库，以基础的Matmul算子开发为实践背景认识使用模板库。
-- [catlass_optimize_guidance](./docs/catlass_optimize_guidance.md) - 模板库的进阶教程，介绍模板库下的基础调优方式，如何通过Tiling调参、应用不同的Dispatch策略的方式，快速获得性能提升。
-- [api](./docs/api.md) - 介绍CATLASS模板库的通用矩阵乘法Gemm API。
-- [swizzle_explanation](./docs/swizzle_explanation.md) - 对模板库中Swizzle策略的基本介绍，这影响了AI Core上计算基本块间的顺序。
-- [dispatch_policies](./docs/dispatch_policies.md) - 对模板库在`Block`层面上`BlockMmad`中的一个重要模板参数`DispatchPolicy`的介绍。
-
-### 🧰 调测工具文档
-
-我们已经在CATLASS示例工程中适配了大多数CANN提供的调测工具，开发算子时，可基于CATLASS示例工程进行初步开发调优，无需关注具体的工具适配操作，待算子基础功能、性能达到预期，再迁移到其他工程中。
-
-#### 🚗 功能调试
-
-- [msDebug](./docs/tools/msdebug.md) - 类gdb/lldb的调试工具msDebug
-  - ⚠️ **注意** 此功能依赖社区版`CANN`包版本为[8.2.RC1.alpha003](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha003)。
-- [printf](./docs/tools/print.md) - 在算子device代码进行打印调试
-  - ⚠️ **注意** 此功能依赖社区版`CANN`包版本在CANN 8.3后（如[8.3.RC1.alpha001](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.3.RC1.alpha001)）。
-- [ascendc_dump](./docs/tools/ascendc_dump.md) - 利用AscendC原生API进行调测
-
-#### ✈️ 性能调优
-
-- [msProf&Profiling](./docs/tools/performance_tools.md) - 性能调优工具`msProf`和`Profiling`
-  - [单算子性能分析：msProf](./docs/tools/performance_tools.md#用msProf进行单算子性能分析)
-  - [整网性能分析：Profiling](./docs/tools/performance_tools.md#用Profiling进行整网性能分析)
-- [msTuner_CATLASS](./tools/tuner/README.md) - Tiling自动寻优工具
 
 ## 👥 合作贡献者
 
-### [华南理工大学 陆璐教授团队](https://www2.scut.edu.cn/cs/2017/0629/c22284a328108/page.htm)
+#### [华南理工大学 陆璐教授团队](https://www2.scut.edu.cn/cs/2017/0629/c22284a328108/page.htm)
 
-### 科大讯飞 研究院工程组
+#### 科大讯飞 研究院工程组
 
 ## 📝相关信息
 
