@@ -135,11 +135,12 @@ struct DynamicGemmIdentityBlockSwizzle : public GemmIdentityBlockSwizzle<> {
         swizzleOffset(swizzleOffset_), swizzleDirection(swizzleDirection_), 
         GemmIdentityBlockSwizzle<>(problemShape_, tileMN_) {}
 
+    CATLASS_DEVICE
     DynamicGemmIdentityBlockSwizzle(GemmCoord const &problemShape_, MatrixCoord const &tileMN_) : 
         GemmIdentityBlockSwizzle<>(problemShape_, tileMN_) {}
 
     CATLASS_DEVICE
-    GemmIdentityBlockSwizzle() {}
+    DynamicGemmIdentityBlockSwizzle() {}
 
 
     CATLASS_DEVICE
@@ -153,7 +154,7 @@ struct DynamicGemmIdentityBlockSwizzle : public GemmIdentityBlockSwizzle<> {
     GemmCoord GetBlockCoord(uint32_t taskIdx)
     {
         uint32_t innerIdx = taskIdx % GetCoreLoops();
-        if constexpr (swizzleDirection == 0) { // Zn
+        if (swizzleDirection == 0) { // Zn
             uint32_t tileBlockLoop = CeilDiv(loopsMN.row(), swizzleOffset);
             uint32_t tileBlockIdx = innerIdx / (swizzleOffset * loopsMN.column());
             uint32_t inTileBlockIdx = innerIdx % (swizzleOffset * loopsMN.column());
@@ -168,7 +169,7 @@ struct DynamicGemmIdentityBlockSwizzle : public GemmIdentityBlockSwizzle<> {
                 nIdx = loopsMN.column() - nIdx - 1;
             }
             return GemmCoord{mIdx, nIdx, 0};
-        } else if constexpr (swizzleDirection == 1) { // Nz
+        } else { // Nz
             uint32_t tileBlockLoop = CeilDiv(loopsMN.column(), swizzleOffset);
             uint32_t tileBlockIdx = innerIdx / (swizzleOffset * loopsMN.row());
             uint32_t inTileBlockIdx = innerIdx % (swizzleOffset * loopsMN.row());
@@ -185,7 +186,7 @@ struct DynamicGemmIdentityBlockSwizzle : public GemmIdentityBlockSwizzle<> {
             return GemmCoord{mIdx, nIdx, 0};
         }
     }
-}
+};
 
 /// Block swizzling function for Splitk Gemms
 template <uint32_t SwizzleOffset = 1, uint32_t SwizzleDirection = 0>

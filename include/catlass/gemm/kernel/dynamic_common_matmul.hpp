@@ -70,6 +70,12 @@ public:
     {
         BlockScheduler matmulBlockScheduler(
             params.problemShape, MakeCoord(params.l1TileShape.m(), params.l1TileShape.n()));
+
+        if (params.problemShape.m() > params.problemShape.n()) {
+            matmulBlockScheduler.SetSwizzleParams(3, 0);
+        } else {
+            matmulBlockScheduler.SetSwizzleParams(3, 1);
+        }
         uint32_t coreLoops = matmulBlockScheduler.GetCoreLoops();
 
         // Represent the full gm
