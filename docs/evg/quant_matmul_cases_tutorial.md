@@ -1,5 +1,11 @@
 # QuantMatmul 案例对比：未使用 EVG vs 使用 EVG
 
+## 太长不看（TL;DR）
+
+**EVG（Epilogue Visitor Graph）** 是 Catlass 中用于 GEMM 后处理（Epilogue）的声明式框架。它将后处理操作（如加法、类型转换、广播、规约等）抽象为可组合的模板节点，通过树形或拓扑结构拼接，形成计算图。开发者只需用"表达式"声明计算逻辑，框架自动处理数据搬运、UB 空间分配、事件同步和流水调度。
+
+本文档对比了量化矩阵乘法（`D = half(float(int32_t C) * scale_col * scale_row)`）的两种实现方式：**未使用 EVG** 需要手工组合多个 Tile 操作（`TileRowBroadcastMul`、`TileBroadcastOneBlk`、`TileOneBlkColumnBroadcastMul`、`TileCopy`）并管理执行顺序、类型转换和中间结果；**使用 EVG** 只需用树形 Visitor 声明计算逻辑，通过 `VisitorRowBroadcast`、`VisitorColBroadcast`、`VisitorCast`、`VisitorCompute<Mul3>` 等节点自动处理广播、类型转换和三元乘法。性能测试显示两者性能基本相当（平均 speedup ≈ 0.991），但 EVG 方式开发便捷性显著提升，易于扩展与维护。
+
 ## 简介
 
 本文档以量化矩阵乘法（QuantMatmul）为例，对比未使用 EVG 与使用 EVG 两种实现方式，展示EVG在开发便捷性与可扩展性上的优势，并进行性能的对比评估。
