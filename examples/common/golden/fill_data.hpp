@@ -36,35 +36,6 @@ void FillRandomData<int8_t, int>(std::vector<int8_t>& data, int low, int high)
     }
 }
 
-
-template <typename T>
-void QuickSort(std::vector<T>& arr, int left, int right)
-{
-    if (left >= right) {
-        return;
-    }
-
-    T pivot = arr[(left + right) / 2];
-    int i = left;
-    int j = right;
-
-    while (i <= j) {
-        while (arr[i] < pivot) {
-            i++;
-        }
-        while (arr[j] > pivot) {
-            j--;
-        }
-        if (i <= j) {
-            std::swap(arr[i], arr[j]);
-            i++;
-            j--;
-        }
-    }
-    QuickSort(arr, left, j);
-    QuickSort(arr, i, right);
-}
-
 // Generate an ascending random sequence as grouplist
 template <typename T = int32_t>
 std::vector<T> GenerateGroupList(uint32_t m, uint32_t problemCount)
@@ -74,7 +45,7 @@ std::vector<T> GenerateGroupList(uint32_t m, uint32_t problemCount)
     for (int i = 0; i < problemCount; ++i) {
         groupList[i] = rand() % (m + 1);
     }
-    QuickSort(groupList, 0, groupList.size() - 1);
+    std::sort(groupList.begin(), groupList.end());
 
     return groupList;
 }
