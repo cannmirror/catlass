@@ -299,6 +299,74 @@ struct SplitkGemmIdentityBlockSwizzle {
     }
 };
 
+struct DynamicSplitkGemmIdentityBlockSwizzle : public SplitkGemmIdentityBlockSwizzle<> {
+
+    uint32_t swizzleOffset{1};
+    uint32_t swizzleDirection{0};
+
+    CATLASS_DEVICE
+    DynamicSplitkGemmIdentityBlockSwizzle(GemmCoord const &problemShape_, MatrixCoord const &tileMN_, 
+        uint32_t splitkFactor_, uint32_t swizzleOffset_, uint32_t swizzleDirection_) : 
+        swizzleOffset(swizzleOffset_), swizzleDirection(swizzleDirection_), 
+        SplitkGemmIdentityBlockSwizzle<>(problemShape_, tileMN_, splitkFactor_) {}
+
+    CATLASS_DEVICE
+    DynamicSplitkGemmIdentityBlockSwizzle(GemmCoord const &problemShape_, MatrixCoord const &tileMN_, 
+        uint32_t splitkFactor_) : SplitkGemmIdentityBlockSwizzle<>(problemShape_, tileMN_, splitkFactor_) {}
+
+    CATLASS_DEVICE
+    DynamicSplitkGemmIdentityBlockSwizzle() {}
+
+
+    CATLASS_DEVICE
+    void SetSwizzleParams(uint32_t swizzleOffset_, uint32_t swizzleDirection_)
+    {
+        swizzleOffset = swizzleOffset_;
+        swizzleDirection = swizzleDirection_;
+    }
+
+    CATLASS_DEVICE
+    GemmCoord GetBlockCoord(uint32_t taskIdx)
+    {
+        uint32_t splitkSliceIdx = GetSplitkSliceIdx(taskIdx);
+        uint32_t kIdx = GetKIdxBySplitkSliceIdx(splitkSliceIdx);
+
+        uint32_t innerIdx = taskIdx % (loopsMNK.m() * loopsMNK.n());
+        if (swizzleDirection == 0) { // Zn
+            uint32_t tileBlockLoop = CeilDiv(loopsMNK.m(), swizzleOffset);
+            uint32_t tileBlockIdx = innerIdx / (swizzleOffset * loopsMNK.n());
+            uint32_t inTileBlockIdx = innerIdx % (swizzleOffset * loopsMNK.n());
+
+            uint32_t nRow = swizzleOffset;
+            if (tileBlockIdx == tileBlockLoop - 1) {
+                nRow = loopsMNK.m() - swizzleOffset * tileBlockIdx;
+            }
+            uint32_t mIdx = tileBlockIdx * swizzleOffset + inTileBlockIdx % nRow;
+            uint32_t nIdx = inTileBlockIdx / nRow;
+            if (tileBlockIdx % 2 == 1) {
+                nIdx = loopsMNK.n() - nIdx - 1;
+            }
+            return GemmCoord{mIdx, nIdx, kIdx};
+        } else { // Nz
+            uint32_t tileBlockLoop = CeilDiv(loopsMNK.n(), swizzleOffset);
+            uint32_t tileBlockIdx = innerIdx / (swizzleOffset * loopsMNK.m());
+            uint32_t inTileBlockIdx = innerIdx % (swizzleOffset * loopsMNK.m());
+
+            uint32_t nCol = swizzleOffset;
+            if (tileBlockIdx == tileBlockLoop - 1) {
+                nCol = loopsMNK.n() - swizzleOffset * tileBlockIdx;
+            }
+            uint32_t mIdx = inTileBlockIdx / nCol;
+            uint32_t nIdx = tileBlockIdx * swizzleOffset + inTileBlockIdx % nCol;
+            if (tileBlockIdx % 2 == 1) {
+                mIdx = loopsMNK.m() - mIdx - 1;
+            }
+            return GemmCoord{mIdx, nIdx, kIdx};
+        }
+    }
+
+};
+
 /// Block swizzling function for Gemms
 template <uint32_t SwizzleOffset = 1, uint32_t SwizzleDirection = 0>
 struct GemmIdentityBlockSwizzleL1FullLoad {
