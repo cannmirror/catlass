@@ -25,6 +25,7 @@ namespace Catlass::Gemm::Block {
 template <
     class ArchTag_,
     bool ENABLE_UNIT_FLAG_,
+    bool USE_HF32_MODE_,
     class L1TileShape_,
     class L0TileShape_,
     class ElementA_,
@@ -35,7 +36,7 @@ template <
     class TileMmad_
 >
 struct BlockMmadTla <
-    MmadPingpong<ArchTag_, ENABLE_UNIT_FLAG_>,
+    MmadPingpong<ArchTag_, ENABLE_UNIT_FLAG_, USE_HF32_MODE_>,
     L1TileShape_,
     L0TileShape_,
     ElementA_,
@@ -47,7 +48,7 @@ struct BlockMmadTla <
 > {
 public:
     // Type Aliases
-    using DispatchPolicy = MmadPingpong<ArchTag_, ENABLE_UNIT_FLAG_>;
+    using DispatchPolicy = MmadPingpong<ArchTag_, ENABLE_UNIT_FLAG_, USE_HF32_MODE_>;
     using ArchTag = typename DispatchPolicy::ArchTag;
     using L1TileShape = L1TileShape_;
     using L0TileShape = L0TileShape_;
@@ -125,10 +126,12 @@ public:
         "The situation where the basic blocks of L1 and L0 differ on the m and n axes is not supported yet");
     static_assert(L0_TILE_K <= L1_TILE_K, "L0TileShape::K cannot exceed L1TileShape::K");
 
-    static constexpr auto L1A_LAYOUT = tla::MakeLayout<ElementA, LayoutTagL1A>(Int<L1_TILE_M>{}, Int<L1_TILE_K>{});
-    static constexpr auto L1B_LAYOUT = tla::MakeLayout<ElementB, LayoutTagL1B>(Int<L1_TILE_K>{}, Int<L1_TILE_N>{});
-    static constexpr auto L1BIAS_LAYOUT = tla::MakeLayout(Int<L1_TILE_N>{});
-    static constexpr auto L0BIAS_LAYOUT = tla::MakeLayout(Int<L0_TILE_N>{});
+    static constexpr auto L1A_LAYOUT =
+        tla::MakeLayout<ElementA, LayoutTagL1A>(tla::Int<L1_TILE_M>{}, tla::Int<L1_TILE_K>{});
+    static constexpr auto L1B_LAYOUT =
+        tla::MakeLayout<ElementB, LayoutTagL1B>(tla::Int<L1_TILE_K>{}, tla::Int<L1_TILE_N>{});
+    static constexpr auto L1BIAS_LAYOUT = tla::MakeLayout(tla::Int<L1_TILE_N>{});
+    static constexpr auto L0BIAS_LAYOUT = tla::MakeLayout(tla::Int<L0_TILE_N>{});
 
     /// Construct
     CATLASS_DEVICE

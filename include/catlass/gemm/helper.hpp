@@ -233,6 +233,11 @@ struct L0ALayoutSelector<Arch::AtlasA2> {
     using Layout = layout::zZ;
 };
 
+template<>
+struct L0ALayoutSelector<Arch::AtlasA5> {
+    using Layout = layout::zN;
+};
+
 template<class Element, class Layout, class Enable = void>
 struct L1AlignHelperTla {
     static_assert(DEPENDENT_FALSE<Element>, "Unsupported align helper tla, can not find the specialization.");

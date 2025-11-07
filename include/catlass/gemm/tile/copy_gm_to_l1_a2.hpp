@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef CATLASS_GEMM_TILE_COPY_GM_TO_L1_HPP
-#define CATLASS_GEMM_TILE_COPY_GM_TO_L1_HPP
+#ifndef CATLASS_GEMM_TILE_COPY_GM_TO_L1_A2_HPP
+#define CATLASS_GEMM_TILE_COPY_GM_TO_L1_A2_HPP
 
 #include "catlass/catlass.hpp"
 #include "catlass/arch/arch.hpp"
@@ -1994,4 +1994,4 @@ struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::VectorLayout, AscendC
 
 } // namespace Catlass::Gemm::Tile
 
-#endif // CATLASS_GEMM_TILE_COPY_GM_TO_L1_HPP
+#endif // CATLASS_GEMM_TILE_COPY_GM_TO_L1_A2_HPP
