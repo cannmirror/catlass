@@ -67,10 +67,13 @@ CATLASS_GLOBAL __attribute__((aic)) void CommonMatmulKernel(__gm__ uint8_t *__re
     * --------------------------------------------------------------------------------
     */
 
+    // This kernel only needs to read TILING_PARAMS_BYTES bytes of data.
     constexpr uint32_t TILING_PARAMS_BYTES = 48;
     uint8_t tilingParams[TILING_PARAMS_BYTES];
     ReadTilingParams(tilingParams, tilingData, TILING_PARAMS_BYTES);
 
+    // The byte size of the TilingParams structure may exceed TILING_PARAMS_BYTES. 
+    // Please avoid using pointers to access data beyond TILING_PARAMS_BYTES !!!
     TilingParams* tiling = (TilingParams*)(tilingParams);
 
     int64_t strideA = static_cast<int64_t>(tiling->strideA);

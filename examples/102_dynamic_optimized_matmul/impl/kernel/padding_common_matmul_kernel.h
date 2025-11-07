@@ -40,14 +40,13 @@ struct TileCopyDynamicOptimized : public Catlass::Gemm::Tile::TileCopy<ArchTag, 
     using CopyGmToL1B = typename Catlass::Gemm::Tile::CopyGmToL1DynamicOptimized<ArchTag, BType>;
 };
 
-template <class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC,
+template <class ArchTag, class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC,
     PaddingTag paddingTagA, PaddingTag paddingTagB,  PaddingTag paddingTagC>
 [[bisheng::core_ratio(1, 2)]] CATLASS_GLOBAL void PaddingCommonMatmulKernel(uint64_t fftsAddr, __gm__ uint8_t *__restrict__ gmA,
     __gm__ uint8_t *__restrict__ gmB, __gm__ uint8_t *__restrict__ gmC, __gm__ uint8_t *__restrict__ gmWA,
     __gm__ uint8_t *__restrict__ gmWB, __gm__ uint8_t *__restrict__ gmWC, __gm__ uint8_t *__restrict__ tilingData)
 {
     AscendC::SetSyncBaseAddr(fftsAddr);
-    using ArchTag = Catlass::Arch::AtlasA2;
     Catlass::Arch::Resource<ArchTag> resource;
 
     /*
@@ -72,9 +71,12 @@ template <class ElementA, class LayoutA, class ElementB, class LayoutB, class El
     * --------------------------------------------------------------------------------
     */
 
+    // This kernel only needs to read TILING_PARAMS_BYTES bytes of data.
     constexpr uint32_t TILING_PARAMS_BYTES = 48;
     uint8_t tilingParams[TILING_PARAMS_BYTES];
     ReadTilingParams(tilingParams, tilingData, TILING_PARAMS_BYTES);
+    // The byte size of the TilingParams structure may exceed TILING_PARAMS_BYTES. 
+    // Please avoid using pointers to access data beyond TILING_PARAMS_BYTES !!!
     TilingParams* tiling = (TilingParams*)(tilingParams);
 
     int64_t strideA = static_cast<int64_t>(tiling->strideA);
@@ -127,12 +129,11 @@ template <class ElementA, class LayoutA, class ElementB, class LayoutB, class El
     matmul(params, resource);
 }
 
-template <class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC,
+template <class ArchTag, class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC,
     PaddingTag paddingTagA, PaddingTag paddingTagB,  PaddingTag paddingTagC>
 void LaunchPaddingCommonMatmulKernel(aclrtStream &stream, uint64_t fftsAddr, uint8_t *dA, uint8_t *dB, uint8_t *dC,
     uint8_t *dW, uint8_t *dTilingParams, TilingParams &tilingParams)
 {
-    using ArchTag = Catlass::Arch::AtlasA2;
     using PaddingBuilderA = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagA, ArchTag, ElementA, LayoutA>;
     using PaddingBuilderB = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagB, ArchTag, ElementB, LayoutB>;
     using RemovePaddingC = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagC, ArchTag, ElementC, LayoutC>;
@@ -171,15 +172,14 @@ void LaunchPaddingCommonMatmulKernel(aclrtStream &stream, uint64_t fftsAddr, uin
         dWC = dW + sizeWA + sizeWB;
     }
 
-    PaddingCommonMatmulKernel<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC, paddingTagA, paddingTagB, paddingTagC>
+    PaddingCommonMatmulKernel<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC, paddingTagA, paddingTagB, paddingTagC>
         <<<tilingParams.blockDim, nullptr, stream>>>(fftsAddr, dA, dB, dC, dWA, dWB, dWC, dTilingParams);
 }
 
-template <class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC,
+template <class ArchTag, class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC,
     PaddingTag paddingTagA, PaddingTag paddingTagB,  PaddingTag paddingTagC>
 size_t PaddingCommonMatmulKernelGetWorkspaceSize(TilingParams &tilingParams)
 {
-    using ArchTag = Catlass::Arch::AtlasA2;
     using PaddingBuilderA = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagA, ArchTag, ElementA, LayoutA>;
     using PaddingBuilderB = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagB, ArchTag, ElementB, LayoutB>;
     using RemovePaddingC = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagC, ArchTag, ElementC, LayoutC>;
