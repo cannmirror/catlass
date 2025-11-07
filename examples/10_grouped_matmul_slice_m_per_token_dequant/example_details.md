@@ -100,6 +100,8 @@ CATLASS GMM_sliceM_perToken_Dequant样例算子是基于CATLASS Gemm Api实现�
         - 更新stageId，[代码](../../include/catlass/gemm/kernel/grouped_matmul_slice_m_per_token_dequant_multistage_workspace.hpp#L252)
     - 更新gmGroupOffsetA、gmGroupOffsetB、startCoreIdx，[代码](../../include/catlass/gemm/kernel/grouped_matmul_slice_m_per_token_dequant_multistage_workspace.hpp#L255)
 - 异步方案blockMmad完成遗留的计算，[代码](../../include/catlass/gemm/kernel/grouped_matmul_slice_m_per_token_dequant_multistage_workspace.hpp#L261)
+
+AIV计算流程与AIC一致，在调用`blockMmad()`处改为调用`blockEpilogue()`，并在kernel代码内做核间同步，不需要将callBack传入处改为调用blockEpilogue内
 ### 基本块分核方案
 - group内对[currentM, N]按照[L1TileShape::M, L1TileShape::N]切基本块分核
 - group间连续分核，达成不同AIC的负载均衡
@@ -186,6 +188,49 @@ flowchart
     style B12 fill:#fff3e0
     style B13 fill:#fff3e0
     style C10 fill:#fff3e0
+
+```
+
+```mermaid
+flowchart LR
+    subgraph "AIC/AIV核间同步"
+        subgraph "GM上的Block"
+        direction LR
+            A0[Block0]
+            A1[Block1]
+            A2[Block2]
+            A3[...]
+        end
+
+        subgraph "AIC上处理流程"
+        direction LR
+            B00[搬入mmad]
+            B02[搬出]
+            B03[setFlag<br/>PIPE_FIX]
+            B10[搬入mmad]
+            B11[waitFlag]
+            B12[搬出]
+            B13[setFlag<br/>PIPE_FIX]
+            B22[...]
+        end
+        
+        subgraph "AIV上处理流程"
+        direction LR
+            C00[waitFlag]
+            C01[后处理]
+            C03[setFlag<br/>PIPE_MTE3]
+            C10[waitFlag]
+            c22[...]
+        end
+    end
+    A0-->A1-->A2-->A3
+    B00-->B02-->B03-->B10-->B11-->B12-->B13-->B22
+    C00-->C01-->C03-->C10-->c22
+    A0-->B00
+    A1-->B10
+    B03-->C00
+    C03-->B11
+    B13-->C10
 
 ```
 
