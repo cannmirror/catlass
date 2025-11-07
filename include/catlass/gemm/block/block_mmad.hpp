@@ -17,6 +17,7 @@
 
 namespace Catlass::Gemm::Block {
 
+#if defined(CATLASS_ARCH_A2_ENABLED)
 template <
     class DispatchPolicy,
     class L1TileShape,
@@ -30,23 +31,6 @@ template <
 >
 struct BlockMmad {
     static_assert(DEPENDENT_FALSE<DispatchPolicy>, "BlockMmad is not implemented for this DispatchPolicy");
-};
-
-template <
-    class DispatchPolicy,
-    class L1TileShape,
-    class L0TileShape,
-    class ElementA,
-    class ElementB,
-    class ElementC,
-    class ElementBias = void,
-    class TileCopy = Gemm::Tile::PackedTileCopyTla<typename DispatchPolicy::ArchTag, ElementA, layout::RowMajor,
-        ElementB, layout::RowMajor, ElementC, layout::RowMajor, ElementBias, layout::RowMajor>,
-    class TileMmad =
-        Gemm::Tile::TileMmadTla<typename DispatchPolicy::ArchTag, ElementA, typename TileCopy::LayoutTagL1A>
->
-struct BlockMmadTla {
-    static_assert(DEPENDENT_FALSE<DispatchPolicy>, "BlockMmadTla is not implemented for this DispatchPolicy");
 };
 
 /// new add for the reason that i am using the dispatchpolicy which is same as the policy of the optimized_matmul
@@ -65,9 +49,28 @@ template <
 struct BlockGemm {
     static_assert(DEPENDENT_FALSE<DispatchPolicy>, "BlockMmad is not implemented for this DispatchPolicy");
 };
+#endif
+
+template <
+    class DispatchPolicy,
+    class L1TileShape,
+    class L0TileShape,
+    class ElementA,
+    class ElementB,
+    class ElementC,
+    class ElementBias = void,
+    class TileCopy = Gemm::Tile::PackedTileCopyTla<typename DispatchPolicy::ArchTag, ElementA, layout::RowMajor,
+        ElementB, layout::RowMajor, ElementC, layout::RowMajor, ElementBias>,
+    class TileMmad =
+        Gemm::Tile::TileMmadTla<typename DispatchPolicy::ArchTag, ElementA, typename TileCopy::LayoutTagL1A>
+>
+struct BlockMmadTla {
+    static_assert(DEPENDENT_FALSE<DispatchPolicy>, "BlockMmadTla is not implemented for this DispatchPolicy");
+};
 
 } // namespace Catlass::Gemm::Block
 
+#if defined(CATLASS_ARCH_A2_ENABLED)
 #include "catlass/gemm/block/block_mmad_pingpong.hpp"
 #include "catlass/gemm/block/block_mmad_fa_qk.hpp"
 #include "catlass/gemm/block/block_mmad_fa_pv.hpp"
@@ -77,8 +80,6 @@ struct BlockGemm {
 #include "catlass/gemm/block/block_mmad_mla_pv_tp1_spec.hpp"
 #include "catlass/gemm/block/block_mmad_preload.hpp"
 #include "catlass/gemm/block/block_mmad_preload_async.hpp"
-#include "catlass/gemm/block/block_mmad_pingpong_tla.hpp"
-#include "catlass/gemm/block/block_mmad_preload_tla.hpp"
 #include "catlass/gemm/block/block_mmad_preload_async_with_callback.hpp"
 #include "catlass/gemm/block/block_mmad_gemm.hpp"
 #include "catlass/gemm/block/block_mmad_pingpong_bias.hpp"
@@ -92,4 +93,9 @@ struct BlockGemm {
 #include "catlass/gemm/block/block_mmad_dynamic_common.hpp"
 #include "catlass/gemm/block/block_mmad_small.hpp"
 #include "catlass/gemm/block/block_mmad_pingpong_with_prologue.hpp"
+#endif
+
+#include "catlass/gemm/block/block_mmad_pingpong_tla.hpp"
+#include "catlass/gemm/block/block_mmad_preload_tla.hpp"
+
 #endif // CATLASS_GEMM_BLOCK_BLOCK_MMAD_HPP

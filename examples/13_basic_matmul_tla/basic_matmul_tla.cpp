@@ -90,7 +90,9 @@ static void Run(const Options &options)
     auto aicCoreNum = platform_ascendc::PlatformAscendCManager::GetInstance()->GetCoreNumAic();
 
     using ArchTag = Arch::AtlasA2;
-    using DispatchPolicy = Gemm::MmadPingpong<ArchTag, true>;
+    constexpr bool enableUnitFlag = true;
+    constexpr bool useHF32 = false;
+    using DispatchPolicy = Gemm::MmadPingpong<ArchTag, enableUnitFlag, useHF32>;
     using L1TileShape = Shape<_128, _256, _256>;
     using L0TileShape = Shape<_128, _256, _64>;
 
@@ -163,6 +165,9 @@ static void Run(const Options &options)
     ACL_CHECK(aclrtFree(deviceA));
     ACL_CHECK(aclrtFree(deviceB));
     ACL_CHECK(aclrtFree(deviceC));
+    if (sizeWorkspace > 0) {
+        ACL_CHECK(aclrtFree(deviceWorkspace));
+    }
 
     ACL_CHECK(aclrtDestroyStream(stream));
     ACL_CHECK(aclrtResetDevice(options.deviceId));

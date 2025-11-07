@@ -192,22 +192,22 @@ struct CopyGmToL1DynamicOptimized<Arch::AtlasA2, Gemm::GemmType<Element, layout:
 
 /// Partial specialization for AtlasA2, zN in and zN out.
 template <class Element>
-struct CopyGmToL1DynamicOptimized<Arch::AtlasA2, Gemm::GemmType<Element, layout::zN>> : 
+struct CopyGmToL1DynamicOptimized<Arch::AtlasA2, Gemm::GemmType<Element, layout::zN>> :
     public CopyGmToL1<Arch::AtlasA2, Gemm::GemmType<Element, layout::zN>> {};
 
 /// Partial specialization for AtlasA2, nZ in and nZ out.
 template <class Element>
-struct CopyGmToL1DynamicOptimized<Arch::AtlasA2, Gemm::GemmType<Element, layout::nZ>> : 
+struct CopyGmToL1DynamicOptimized<Arch::AtlasA2, Gemm::GemmType<Element, layout::nZ>> :
     public CopyGmToL1<Arch::AtlasA2, Gemm::GemmType<Element, layout::nZ>> {};
 
 /// Partial specialization for AtlasA2, PaddingRowMajor in and zN out.
 template <class Element>
-struct CopyGmToL1DynamicOptimized<Arch::AtlasA2, Gemm::GemmType<Element, layout::PaddingRowMajor>> : 
+struct CopyGmToL1DynamicOptimized<Arch::AtlasA2, Gemm::GemmType<Element, layout::PaddingRowMajor>> :
     public CopyGmToL1<Arch::AtlasA2, Gemm::GemmType<Element, layout::PaddingRowMajor>> {};
 
 /// Partial specialization for AtlasA2, PaddingColumnMajor in and nZ out.
 template <class Element>
-struct CopyGmToL1DynamicOptimized<Arch::AtlasA2, Gemm::GemmType<Element, layout::PaddingColumnMajor>> : 
+struct CopyGmToL1DynamicOptimized<Arch::AtlasA2, Gemm::GemmType<Element, layout::PaddingColumnMajor>> :
     public CopyGmToL1<Arch::AtlasA2, Gemm::GemmType<Element, layout::PaddingColumnMajor>> {};
 
 /// Partial specialization for AtlasA2, RowMajor in and zN out.
@@ -1641,6 +1641,44 @@ struct TileCopyTla<Arch::AtlasA2,
                     repeatParams);
             }
         }
+    }
+};
+
+/// Partial specialization for CopyGmToL1, AtlasA2, VectorLayout in and VectorLayout out.
+template <class ElementSrc, class ElementDst, class LayoutSrc, class LayoutDst, class CoordSrc, class CoordDst>
+struct TileCopyTla<Arch::AtlasA2,
+    tla::Tensor<AscendC::GlobalTensor<ElementSrc>, LayoutSrc, CoordSrc, AscendC::TPosition::GM>,
+    tla::Tensor<AscendC::LocalTensor<ElementDst>, LayoutDst, CoordDst, AscendC::TPosition::A1>,
+    std::enable_if_t<tla::detail::isVector<LayoutSrc>::value &&
+                     tla::detail::isVector<LayoutDst>::value>> {
+    static constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 / sizeof(ElementSrc);
+
+    // Mehtods
+
+    CATLASS_DEVICE
+    TileCopyTla() {};
+
+    template <class TensorDst, class TensorSrc>
+    CATLASS_DEVICE
+    void operator()(TensorDst const &dstTensor, TensorSrc const &srcTensor)
+    {
+        static_assert(tla::detail::isVector<typename TensorSrc::Layout>::value &&
+                      tla::detail::isVector<typename TensorDst::Layout>::value &&
+                      TensorSrc::position == AscendC::TPosition::GM &&
+                      TensorDst::position == AscendC::TPosition::A1,
+            "The input parameters do not match. TensorSrc must be GM and Vector, "
+            "while TensorDst must be L1 and Vector");
+
+        AscendC::DataCopyParams intriParams;
+        intriParams.blockCount = 1;
+        intriParams.blockLen = CeilDiv(tla::get<0>(srcTensor.shape()), ELE_NUM_PER_C0);
+        intriParams.srcStride = 0;
+        intriParams.dstStride = 0;
+
+        auto dstOffset = dstTensor.layout()(dstTensor.coord());
+        auto srcOffset = srcTensor.layout()(srcTensor.coord());
+
+        AscendC::DataCopy(dstTensor.data()[dstOffset], srcTensor.data()[srcOffset], intriParams);
     }
 };
 

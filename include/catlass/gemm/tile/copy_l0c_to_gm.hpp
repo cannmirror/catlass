@@ -37,9 +37,9 @@ struct CopyL0CToGmQuantMode {
 };
 
 // CopyL0CToGm fp32 to fp32
-template <>
+template <class ArchTag>
 struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
+    ArchTag,
     float, float,
     ScaleGranularity::NO_QUANT
 > {
@@ -47,18 +47,18 @@ struct CopyL0CToGmQuantMode<
 };
 
 // CopyL0CToGm cast fp32 to fp16
-template <>
+template <class ArchTag>
 struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
+    ArchTag,
     float, half,
     ScaleGranularity::NO_QUANT
 > {
     static constexpr auto VALUE = QuantMode_t::F322F16;
 };
 
-template <>
+template <class ArchTag>
 struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
+    ArchTag,
     float, half,
     ScaleGranularity::PER_TENSOR
 > {
@@ -66,18 +66,18 @@ struct CopyL0CToGmQuantMode<
 };
 
 // CopyL0CToGm cast fp32 to bf16
-template <>
+template <class ArchTag>
 struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
+    ArchTag,
     float, bfloat16_t,
     ScaleGranularity::NO_QUANT
 > {
     static constexpr auto VALUE = QuantMode_t::F322BF16;
 };
 
-template <>
+template <class ArchTag>
 struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
+    ArchTag,
     float, bfloat16_t,
     ScaleGranularity::PER_TENSOR
 > {
@@ -85,36 +85,36 @@ struct CopyL0CToGmQuantMode<
 };
 
 // CopyL0CToGm cast float to uint8/int8
-template <>
+template <class ArchTag>
 struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
+    ArchTag,
     float, uint8_t,
     ScaleGranularity::PER_TENSOR
 > {
     static constexpr auto VALUE = QuantMode_t::QF322B8_PRE;
 };
 
-template <>
+template <class ArchTag>
 struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
+    ArchTag,
     float, uint8_t,
     ScaleGranularity::PER_CHANNEL
 > {
     static constexpr auto VALUE = QuantMode_t::VQF322B8_PRE;
 };
 
-template <>
+template <class ArchTag>
 struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
+    ArchTag,
     float, int8_t,
     ScaleGranularity::PER_TENSOR
 > {
     static constexpr auto VALUE = QuantMode_t::QF322B8_PRE;
 };
 
-template <>
+template <class ArchTag>
 struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
+    ArchTag,
     float, int8_t,
     ScaleGranularity::PER_CHANNEL
 > {
@@ -122,9 +122,9 @@ struct CopyL0CToGmQuantMode<
 };
 
 // CopyL0CToGm output int32
-template <>
+template <class ArchTag>
 struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
+    ArchTag,
     int32_t, int32_t,
     ScaleGranularity::NO_QUANT
 > {
@@ -132,18 +132,18 @@ struct CopyL0CToGmQuantMode<
 };
 
 // CopyL0CToGm cast int32_t to fp16
-template <>
+template <class ArchTag>
 struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
+    ArchTag,
     int32_t, half,
     ScaleGranularity::PER_TENSOR
 > {
     static constexpr auto VALUE = QuantMode_t::DEQF16;
 };
 
-template <>
+template <class ArchTag>
 struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
+    ArchTag,
     int32_t, half,
     ScaleGranularity::PER_CHANNEL
 > {
@@ -151,36 +151,36 @@ struct CopyL0CToGmQuantMode<
 };
 
 // CopyL0CToGm cast int32 to uint8/int8
-template <>
+template <class ArchTag>
 struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
+    ArchTag,
     int32_t, uint8_t,
     ScaleGranularity::PER_TENSOR
 > {
     static constexpr auto VALUE = QuantMode_t::REQ8;
 };
 
-template <>
+template <class ArchTag>
 struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
+    ArchTag,
     int32_t, uint8_t,
     ScaleGranularity::PER_CHANNEL
 > {
     static constexpr auto VALUE = QuantMode_t::VREQ8;
 };
 
-template <>
+template <class ArchTag>
 struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
+    ArchTag,
     int32_t, int8_t,
     ScaleGranularity::PER_TENSOR
 > {
     static constexpr auto VALUE = QuantMode_t::REQ8;
 };
 
-template <>
+template <class ArchTag>
 struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
+    ArchTag,
     int32_t, int8_t,
     ScaleGranularity::PER_CHANNEL
 > {
@@ -331,7 +331,7 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
     static constexpr auto quantPre = CopyL0CToGmQuantMode<ArchTag, ElementSrc, ElementDst,
         ScaleGranularity::PER_CHANNEL>::VALUE;
     static constexpr auto reluEn = ReluEnable_;
-	
+
     struct Params {};
     Params params;
 
@@ -340,7 +340,7 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
 
     CATLASS_DEVICE
     CopyL0CToGm(Params const &params_) : params(params_) {};
-	
+
     CATLASS_DEVICE
     void operator()(AscendC::GlobalTensor<ElementDst> const &dst, AscendC::LocalTensor<ElementSrc> const &src, AscendC::LocalTensor<uint64_t> const &scale,
         LayoutDst const &dstLayout, LayoutSrc const &srcLayout, uint8_t unitFlag = 0)
@@ -362,7 +362,7 @@ struct CopyL0CToGm<Catlass::Arch::AtlasA2,
         AscendC::SetFixPipeConfig<uint64_t, false>(scale, false);
         AscendC::PipeBarrier<PIPE_FIX>();
         AscendC::Fixpipe<ElementDst, ElementSrc, AscendC::CFG_ROW_MAJOR>(dst, src, intriParams);
-    }    
+    }
 };
 
 template <

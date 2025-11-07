@@ -35,6 +35,11 @@ struct TagToLayout<Element, layout::ColumnMajor> {
 };
 
 template <class Element>
+struct TagToLayout<Element, layout::VectorLayout> {
+    using type = tla::Layout<tla::Shape<uint32_t>, tla::Stride<tla::Int<1>>>;
+};
+
+template <class Element>
 struct TagToLayout<Element, layout::zN> {
     static constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 / sizeof(Element);
     static constexpr uint32_t ELE_NUM_PER_FRACTAL = BYTE_PER_FRACTAL / sizeof(Element);

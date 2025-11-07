@@ -222,6 +222,17 @@ struct L1BiasTypeSelector<Gemm::GemmType<Element, layout::VectorLayout>, Element
     using L0BiasType = Gemm::GemmType<ElementAccumulator, layout::VectorLayout, AscendC::TPosition::C2>;
 };
 
+template<class ArchTag>
+struct L0ALayoutSelector {
+    static_assert(DEPENDENT_FALSE<ArchTag>,
+        "Unsupported layout selector, can not find the specialization.");
+};
+
+template<>
+struct L0ALayoutSelector<Arch::AtlasA2> {
+    using Layout = layout::zZ;
+};
+
 template<class Element, class Layout, class Enable = void>
 struct L1AlignHelperTla {
     static_assert(DEPENDENT_FALSE<Element>, "Unsupported align helper tla, can not find the specialization.");

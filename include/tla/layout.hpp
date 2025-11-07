@@ -242,6 +242,16 @@ struct is_layout<Layout<Shape, Stride>> : true_type {};
 namespace detail {
 
 template <class Layout, class Enable = void>
+struct isVector {
+    static bool const value = false;
+};
+
+template <class Layout>
+struct isVector<Layout, std::enable_if_t<Layout::depth == 1 && Layout::rank == 1>> {
+    static bool const value = (stride<0>(Layout{}) == 1);
+};
+
+template <class Layout, class Enable = void>
 struct isRowMajor {
     static bool const value = false;
 };
@@ -309,6 +319,14 @@ struct isnZ<Element, Layout, std::enable_if_t<Layout::depth == 2 && Layout::rank
 } // end namespace detail
 
 // Advanced Layout constructions
+// Make a vector layout.
+template <class T>
+CATLASS_HOST_DEVICE constexpr
+auto MakeLayout(T const& len)
+{
+    return MakeLayout(MakeShape(len), MakeStride(Int<1>{}));
+}
+
 // Make a inner layout with Rows and Cols.
 template <class Element, class LayoutTag, class T, class U>
 CATLASS_HOST_DEVICE constexpr
@@ -356,9 +374,11 @@ template <class Layout, class ShapeNew>
 CATLASS_HOST_DEVICE constexpr
 auto MakeLayoutTile(Layout const& layout, ShapeNew const& shapeNew)
 {
-    static_assert(is_tuple<ShapeNew>::value && depth_v<ShapeNew> == 1 && rank_v<ShapeNew> == 2);
+    static_assert(
+        is_tuple<ShapeNew>::value && depth_v<ShapeNew> == 1 && (rank_v<ShapeNew> == 1 || rank_v<ShapeNew> == 2)
+    );
 
-    if constexpr (Layout::depth == 1 && Layout::rank == 2) {
+    if constexpr (Layout::depth == 1 && (Layout::rank == 1 || Layout::rank == 2)) {
         return MakeLayout(shapeNew, layout.stride());
     } else if constexpr (is_static<decltype(shape<0, 0>(layout))>::value &&
                          is_static<decltype(shape<1, 0>(layout))>::value) {

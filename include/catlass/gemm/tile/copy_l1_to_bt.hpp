@@ -56,6 +56,43 @@ struct CopyL1ToBT<ArchTag, Catlass::Gemm::GemmType<ElementSrc, layout::VectorLay
     }
 };
 
+/// Partial specialization for CopyL1ToBT, AtlasA2, VectorLayout in and VectorLayout out.
+template <class ElementSrc, class ElementDst, class LayoutSrc, class LayoutDst, class CoordSrc, class CoordDst>
+struct TileCopyTla<Arch::AtlasA2,
+    tla::Tensor<AscendC::LocalTensor<ElementSrc>, LayoutSrc, CoordSrc, AscendC::TPosition::A1>,
+    tla::Tensor<AscendC::LocalTensor<ElementDst>, LayoutDst, CoordDst, AscendC::TPosition::C2>,
+    std::enable_if_t<tla::detail::isVector<LayoutSrc>::value &&
+                     tla::detail::isVector<LayoutDst>::value>> {
+    static constexpr uint32_t ELE_NUM_PER_C2 = BYTE_PER_C2 / sizeof(ElementSrc);
+
+    // Mehtods
+
+    CATLASS_DEVICE
+    TileCopyTla() {};
+
+    template <class TensorDst, class TensorSrc>
+    CATLASS_DEVICE
+    void operator()(TensorDst const &dstTensor, TensorSrc const &srcTensor)
+    {
+        static_assert(tla::detail::isVector<typename TensorSrc::Layout>::value &&
+                      tla::detail::isVector<typename TensorDst::Layout>::value &&
+                      TensorSrc::position == AscendC::TPosition::A1 &&
+                      TensorDst::position == AscendC::TPosition::C2,
+            "The input parameters do not match. TensorSrc must be L1 and Vector, "
+            "while TensorDst must be BT and Vector");
+
+        AscendC::DataCopyParams intriParams;
+        intriParams.blockCount = 1;
+        intriParams.blockLen = CeilDiv(tla::get<0>(srcTensor.shape()), ELE_NUM_PER_C2);
+        intriParams.srcStride = 0;
+        intriParams.dstStride = 0;
+
+        auto dstOffset = dstTensor.layout()(dstTensor.coord());
+        auto srcOffset = srcTensor.layout()(srcTensor.coord());
+
+        AscendC::DataCopy(dstTensor.data()[dstOffset], srcTensor.data()[srcOffset], intriParams);
+    }
+};
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
