@@ -15,11 +15,14 @@ add_custom_target(catlass_examples)
 # Arch specific compile options
 if(CATLASS_BISHENG_ARCH STREQUAL "a2" OR CATLASS_BISHENG_ARCH STREQUAL "a3")
     set(CCE_AICORE_ARCH_BASE dav-c220)
+    add_compile_definitions(
+        $<$<COMPILE_LANGUAGE:ASCEND>:CATLASS_ARCH_A2_ENABLED>) # 暂时手动设置ARCH编译宏，待编译器支持后删除，使用编译器内置宏
     add_compile_options(
         "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-stack-size=0x8000>"
         "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-function-stack-size=0x8000>"
         "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-record-overflow=true>"
         "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-dcci-insert-for-scalar=false>"
+        "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-addr-transform>"
     )
 endif()
 
@@ -27,8 +30,6 @@ endif()
 add_compile_options(
     $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-macro-redefined>
     $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-ignored-attributes>
-
-    "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-addr-transform>"
 )
 
 # Compile options for debug features

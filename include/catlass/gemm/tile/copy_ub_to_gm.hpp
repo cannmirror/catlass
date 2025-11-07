@@ -53,7 +53,7 @@ struct TileCopyTla<Arch::AtlasA2,
         auto dstOffset = dstTensor.layout()(dstTensor.coord());
         auto srcOffset = srcTensor.layout()(srcTensor.coord());
         AscendC::DataCopyPad(dstTensor.data()[dstOffset], srcTensor.data()[srcOffset], dataCopyParams);
-    };
+    }
 };
 
 /// Partial specialization for AtlasA2, RowMajor in and PaddingRowMajor out.
@@ -89,7 +89,7 @@ struct TileCopyTlaExt<Arch::AtlasA2,
         auto dstOffset = dstTensor.layout()(dstTensor.coord());
         auto srcOffset = srcTensor.layout()(srcTensor.coord());
         AscendC::DataCopyPad(dstTensor.data()[dstOffset], srcTensor.data()[srcOffset], dataCopyParams);
-    };
+    }
 };
 
 }  // Catlass::Gemm::Tile

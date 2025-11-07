@@ -46,6 +46,7 @@ struct TileMmad {
          uint32_t m, uint32_t n, uint32_t k,
          bool initC = true, uint8_t unitFlag = 0)
     {
+#if defined(CATLASS_ARCH_A2_ENABLED)
         AscendC::MmadParams mmadParams;
         mmadParams.m = m;
         mmadParams.n = n;
@@ -67,6 +68,7 @@ struct TileMmad {
         if ((m / C0_NUM_PER_FRACTAL) * (n / C0_NUM_PER_FRACTAL) < PIPE_M_BARRIER_THRESHOLD) {
             AscendC::PipeBarrier<PIPE_M>();
         }
+#endif
     }
 
     CATLASS_DEVICE
@@ -77,6 +79,7 @@ struct TileMmad {
          uint32_t m, uint32_t n, uint32_t k,
          bool initC = true, uint8_t unitFlag = 0)
     {
+#if defined(CATLASS_ARCH_A2_ENABLED)
         AscendC::MmadParams mmadParams;
         mmadParams.m = m;
         mmadParams.n = n;
@@ -99,6 +102,7 @@ struct TileMmad {
         if ((m / C0_NUM_PER_FRACTAL) * (n / C0_NUM_PER_FRACTAL) < PIPE_M_BARRIER_THRESHOLD) {
             AscendC::PipeBarrier<PIPE_M>();
         }
+#endif
     }
 };
 
@@ -126,14 +130,14 @@ struct TileMmadTla {
          uint32_t m, uint32_t n, uint32_t k,
          bool initC = true, uint8_t unitFlag = 0)
     {
+#if defined(CATLASS_ARCH_A2_ENABLED)
         AscendC::MmadParams mmadParams;
         mmadParams.m = m;
         mmadParams.n = n;
         mmadParams.k = k;
         mmadParams.unitFlag = unitFlag;
         mmadParams.cmatrixInitVal = initC;
-        if constexpr (std::is_same_v<ArchTag, Arch::AtlasA2> && std::is_same_v<ElementA, float> &&
-                      std::is_same_v<LayoutTagL1A, layout::nZ>) {
+        if constexpr (std::is_same_v<ElementA, float> && std::is_same_v<LayoutTagL1A, layout::nZ>) {
             mmadParams.kDirectionAlign = true;
         }
 
@@ -146,6 +150,40 @@ struct TileMmadTla {
         if ((m / C0_NUM_PER_FRACTAL) * (n / C0_NUM_PER_FRACTAL) < PIPE_M_BARRIER_THRESHOLD) {
             AscendC::PipeBarrier<PIPE_M>();
         }
+#endif
+    }
+
+    template <class TensorC, class TensorA, class TensorB, class TensorBias>
+    CATLASS_DEVICE
+    void operator()(TensorC const &l0CTensor,
+         TensorA const &l0ATensor,
+         TensorB const &l0BTensor,
+         TensorBias const &l0BiasTensor,
+         uint32_t m, uint32_t n, uint32_t k,
+         bool initC = true, uint8_t unitFlag = 0)
+    {
+#if defined(CATLASS_ARCH_A2_ENABLED)
+        AscendC::MmadParams mmadParams;
+        mmadParams.m = m;
+        mmadParams.n = n;
+        mmadParams.k = k;
+        mmadParams.unitFlag = unitFlag;
+        mmadParams.cmatrixInitVal = false;
+        if constexpr (std::is_same_v<ElementA, float> && std::is_same_v<LayoutTagL1A, layout::nZ>) {
+            mmadParams.kDirectionAlign = true;
+        }
+
+        AscendC::Mmad(l0CTensor.data(),
+                      l0ATensor.data(),
+                      l0BTensor.data(),
+                      l0BiasTensor.data(),
+                      mmadParams);
+
+        const uint32_t PIPE_M_BARRIER_THRESHOLD = 10;
+        if ((m / C0_NUM_PER_FRACTAL) * (n / C0_NUM_PER_FRACTAL) < PIPE_M_BARRIER_THRESHOLD) {
+            AscendC::PipeBarrier<PIPE_M>();
+        }
+#endif
     }
 };
 
