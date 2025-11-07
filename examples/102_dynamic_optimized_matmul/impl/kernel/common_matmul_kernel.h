@@ -11,6 +11,7 @@
 #ifndef COMMON_MATMUL_KERNEL_H
 #define COMMON_MATMUL_KERNEL_H
 
+#include "kernel_utils.h"
 #include "tiling_params.h"
 #include "acl/acl.h"
 #include "catlass/catlass.hpp"
@@ -65,46 +66,26 @@ CATLASS_GLOBAL __attribute__((aic)) void CommonMatmulKernel(__gm__ uint8_t *__re
     * | 44-47  | 4    | (reserved)       | -         | unused                        |
     * --------------------------------------------------------------------------------
     */
-    uint8_t tilingParams[48];
-    // Copy data in 64-bit chunks to tilingParams array for efficiency
-    // Copy bytes 0-7: strideA
-    *(uint64_t *)(tilingParams) = *(reinterpret_cast<__gm__ uint64_t *>(tilingData));
-    // Copy bytes 8-15: strideB
-    *(uint64_t *)(tilingParams + 8) = *(reinterpret_cast<__gm__ uint64_t *>(tilingData + 8));
-    // Copy bytes 16-23: strideC
-    *(uint64_t *)(tilingParams + 16) = *(reinterpret_cast<__gm__ uint64_t *>(tilingData + 16));
-    // Copy bytes 24-31: m, n
-    *(uint64_t *)(tilingParams + 24) = *(reinterpret_cast<__gm__ uint64_t *>(tilingData + 24));
-    // Copy bytes 32-39: k, m1, n1
-    *(uint64_t *)(tilingParams + 32) = *(reinterpret_cast<__gm__ uint64_t *>(tilingData + 32));
-    // Copy bytes 40-47: k1, swizzleOffset, swizzleDirection
-    *(uint64_t *)(tilingParams + 40) = *(reinterpret_cast<__gm__ uint64_t *>(tilingData + 40));
 
-    // read strideA: tilingParams[0:7]
-    int64_t strideA = static_cast<int64_t>(*(reinterpret_cast<uint64_t *>(tilingParams)));
-    // read strideB: tilingParams[8:15]
-    int64_t strideB = static_cast<int64_t>(*(reinterpret_cast<uint64_t *>(tilingParams + 8)));
-    // read strideC: tilingParams[16:23]
-    int64_t strideC = static_cast<int64_t>(*(reinterpret_cast<uint64_t *>(tilingParams + 16)));
-    // read m: tilingParams[24:27]
-    uint32_t m = *(reinterpret_cast<uint32_t *>(tilingParams + 24));
-    // read n: tilingParams[28:31]
-    uint32_t n = *(reinterpret_cast<uint32_t *>(tilingParams + 28));
-    // read k: tilingParams[32:35]
-    uint32_t k = *(reinterpret_cast<uint32_t *>(tilingParams + 32));
+    constexpr uint32_t TILING_PARAMS_BYTES = 48;
+    uint8_t tilingParams[TILING_PARAMS_BYTES];
+    ReadTilingParams(tilingParams, tilingData, TILING_PARAMS_BYTES);
 
-    // To save space, tiling parameters (m1, n1, k1) are stored as uint16_t.
-    // read m1: tilingParams[36:37]
-    uint32_t m1 = *(reinterpret_cast<uint16_t *>(tilingParams + 36));
-    // read n1: tilingParams[38:39]
-    uint32_t n1 = *(reinterpret_cast<uint16_t *>(tilingParams + 38));
-    // read k1: tilingParams[40:41]
-    uint32_t k1 = *(reinterpret_cast<uint16_t *>(tilingParams + 40));
+    TilingParams* tiling = (TilingParams*)(tilingParams);
 
-    // read swizzleOffset: tilingParams[42:42]
-    uint32_t swizzleOffset = *(reinterpret_cast<uint8_t *>(tilingParams + 42));
-    // read swizzleDirection: tilingParams[43:43]
-    uint32_t swizzleDirection = *(reinterpret_cast<uint8_t *>(tilingParams + 43));
+    int64_t strideA = static_cast<int64_t>(tiling->strideA);
+    int64_t strideB = static_cast<int64_t>(tiling->strideB);
+    int64_t strideC = static_cast<int64_t>(tiling->strideC);
+    uint32_t m = tiling->m;
+    uint32_t n = tiling->n;
+    uint32_t k = tiling->k;
+
+    uint32_t m1 = static_cast<uint32_t>(tiling->m1);
+    uint32_t n1 = static_cast<uint32_t>(tiling->n1);;
+    uint32_t k1 = static_cast<uint32_t>(tiling->k1);
+
+    uint32_t swizzleOffset = static_cast<uint32_t>(tiling->swizzleOffset);
+    uint32_t swizzleDirection = static_cast<uint32_t>(tiling->swizzleDirection);
 
     Catlass::GemmCoord problemShape(m, n, k);
     Catlass::GemmCoord l1TileShape(m1, n1, k1);
