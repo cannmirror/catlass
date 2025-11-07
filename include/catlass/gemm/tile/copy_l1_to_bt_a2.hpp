@@ -8,13 +8,14 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef CATLASS_GEMM_TILE_COPY_L1_TO_BT_HPP
-#define CATLASS_GEMM_TILE_COPY_L1_TO_BT_HPP
+#ifndef CATLASS_GEMM_TILE_COPY_L1_TO_BT_A2_HPP
+#define CATLASS_GEMM_TILE_COPY_L1_TO_BT_A2_HPP
 
 #include "catlass/catlass.hpp"
 #include "catlass/arch/arch.hpp"
 #include "catlass/layout/layout.hpp"
 #include "catlass/gemm/gemm_type.hpp"
+#include "catlass/gemm/tile/tile_copy_tla.hpp"
 #include "tla/tensor.hpp"
 
 using namespace tla;
@@ -98,4 +99,4 @@ struct TileCopyTla<Arch::AtlasA2,
 
 } // namespace Catlass::Gemm::Tile
 
-#endif // CATLASS_GEMM_TILE_COPY_L1_TO_BT_HPP
+#endif // CATLASS_GEMM_TILE_COPY_L1_TO_BT_A2_HPP

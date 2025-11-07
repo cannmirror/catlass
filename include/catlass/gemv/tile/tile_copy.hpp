@@ -7,7 +7,7 @@
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
- 
+
 #ifndef CATLASS_GEMV_TILE_TILE_COPY_HPP
 #define CATLASS_GEMV_TILE_TILE_COPY_HPP
 
@@ -18,10 +18,10 @@
 #include "catlass/gemv/tile/vec_copy_ub_to_gm.hpp"
 #include "catlass/gemv/tile/matrix_copy_gm_to_ub.hpp"
 
-#include "catlass/gemm/tile/copy_gm_to_l1.hpp"
-#include "catlass/gemm/tile/copy_l0c_to_gm.hpp"
-#include "catlass/gemm/tile/copy_l1_to_l0a.hpp"
-#include "catlass/gemm/tile/copy_l1_to_l0b.hpp"
+#include "catlass/gemm/tile/copy_gm_to_l1_a2.hpp"
+#include "catlass/gemm/tile/copy_l0c_to_gm_a2.hpp"
+#include "catlass/gemm/tile/copy_l1_to_l0a_a2.hpp"
+#include "catlass/gemm/tile/copy_l1_to_l0b_a2.hpp"
 
 #include "catlass/gemm/helper.hpp"
 #include "catlass/gemv/helper.hpp"

@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef CATLASS_GEMM_TILE_COPY_L1_TO_FP_HPP
-#define CATLASS_GEMM_TILE_COPY_L1_TO_FP_HPP
+#ifndef CATLASS_GEMM_TILE_COPY_L1_TO_FB_A2_HPP
+#define CATLASS_GEMM_TILE_COPY_L1_TO_FB_A2_HPP
 
 #include "catlass/catlass.hpp"
 #include "catlass/arch/arch.hpp"
@@ -26,12 +26,12 @@ template <
     class L1Type,
     class L0Type = void
 >
-struct CopyL1ToFP {
+struct CopyL1ToFB {
     static_assert(DEPENDENT_FALSE<ArchTag>, "Unsupported copy l1 to fixpipe buffer, can not find the specialization.");
 };
 
 template<class ArchTag, class ElementSrc, class ElementDst>
-struct CopyL1ToFP<ArchTag, Catlass::Gemm::GemmType<ElementSrc, layout::VectorLayout, AscendC::TPosition::A1>,
+struct CopyL1ToFB<ArchTag, Catlass::Gemm::GemmType<ElementSrc, layout::VectorLayout, AscendC::TPosition::A1>,
     Catlass::Gemm::GemmType<ElementDst, layout::VectorLayout, AscendC::TPosition::C2PIPE2GM>>{
     using LayoutDst = layout::VectorLayout;
     using LayoutSrc = layout::VectorLayout;
@@ -39,7 +39,7 @@ struct CopyL1ToFP<ArchTag, Catlass::Gemm::GemmType<ElementSrc, layout::VectorLay
     static constexpr uint32_t ELE_NUM_PER_FP =  BYTE_PER_BLK_FP / sizeof(ElementSrc);
 
     CATLASS_DEVICE
-    CopyL1ToFP(){}
+    CopyL1ToFB(){}
 
     CATLASS_DEVICE
     void operator()(
@@ -61,4 +61,4 @@ struct CopyL1ToFP<ArchTag, Catlass::Gemm::GemmType<ElementSrc, layout::VectorLay
 
 } // namespace Catlass::Gemm::Tile
 
-#endif // CATLASS_GEMM_TILE_COPY_L1_TO_FP_HPP
+#endif // CATLASS_GEMM_TILE_COPY_L1_TO_FB_A2_HPP

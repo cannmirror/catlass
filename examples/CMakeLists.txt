@@ -26,6 +26,11 @@ if(CATLASS_BISHENG_ARCH STREQUAL "a2" OR CATLASS_BISHENG_ARCH STREQUAL "a3")
     )
 endif()
 
+if(CATLASS_BISHENG_ARCH STREQUAL "a5")
+    set(CCE_AICORE_ARCH_BASE dav-c310)
+    add_compile_definitions($<$<COMPILE_LANGUAGE:ASCEND>:CATLASS_ARCH_A5_ENABLED>)
+endif()
+
 # Common compile options
 add_compile_options(
     $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-macro-redefined>
@@ -117,6 +122,10 @@ foreach(EXAMPLE
 )
     add_subdirectory(${EXAMPLE})
 endforeach()
+
+if(CATLASS_BISHENG_ARCH STREQUAL "a5")
+    add_subdirectory(34_a5_basic_matmul)
+endif()
 
 add_subdirectory(shared_lib)
 add_subdirectory(python_extension)

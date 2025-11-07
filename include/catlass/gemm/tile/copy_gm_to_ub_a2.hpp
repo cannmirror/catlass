@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef CATLASS_GEMM_TILE_COPY_GM_TO_UB_HPP
-#define CATLASS_GEMM_TILE_COPY_GM_TO_UB_HPP
+#ifndef CATLASS_GEMM_TILE_COPY_GM_TO_UB_A2_HPP
+#define CATLASS_GEMM_TILE_COPY_GM_TO_UB_A2_HPP
 
 #include "catlass/catlass.hpp"
 #include "catlass/arch/arch.hpp"
@@ -59,4 +59,4 @@ struct TileCopyTla<Arch::AtlasA2,
 
 }  // Catlass::Gemm::Tile
 
-#endif // CATLASS_GEMM_TILE_COPY_GM_TO_UB_HPP
+#endif // CATLASS_GEMM_TILE_COPY_GM_TO_UB_A2_HPP
