@@ -26,6 +26,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 CMAKE_SOURCE_DIR=$(realpath "$SCRIPT_DIR/..")
 BUILD_DIR="$CMAKE_SOURCE_DIR/build"
 OUTPUT_DIR="$CMAKE_SOURCE_DIR/output"
+EXAMPLES_DIR="$CMAKE_SOURCE_DIR/examples"
 
 TARGET=""
 CMAKE_BUILD_TYPE="Release"
@@ -82,6 +83,14 @@ if [[ ! -v ASCEND_HOME_PATH ]]; then
     exit 1
 fi
 
+if ! NPU_MODEL=$(get_npu_model); then
+    echo -e "${ERROR}No npu-smi detected, please check your environment!"
+    exit 1
+else
+    echo -e "${INFO}Detect NPU_MODEL: ${NPU_MODEL}${NC}"
+    CMAKE_OPTIONS+=("-DNPU_MODEL=${NPU_MODEL}")
+fi
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --clean)
@@ -96,12 +105,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --simulator)
             CMAKE_OPTIONS+=("-DASCEND_ENABLE_SIMULATOR=True")
-            if ! NPU_MODEL=$(get_npu_model); then
-                echo -e "${ERROR}No npu-smi detected, please check your environment!"
-                exit 1
-            else
-                echo -e "${INFO}Detect NPU_MODEL: ${NPU_MODEL}${NC}"
-            fi
             CMAKE_OPTIONS+=("-DSIMULATOR_NPU_MODEL=${NPU_MODEL}")
             POST_BUILD_INFO="${INFO}Please run ${NC}\nexport LD_LIBRARY_PATH=${ASCEND_HOME_PATH}/tools/simulator/${NPU_MODEL}/lib:\$LD_LIBRARY_PATH\n${GREEN}in your terminal before execute examples.${NC}"            
             ;;

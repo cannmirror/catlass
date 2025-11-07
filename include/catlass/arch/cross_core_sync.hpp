@@ -48,7 +48,7 @@ struct CrossCoreFlagWithReverse {
 
 template <uint8_t MODE, int32_t CORE_TYPE>
 struct BarrierFlag {
-    static_assert(MODE != MODE, "Unsupported cross core barrier flag, can not find the specialization.");
+    static_assert(MODE != 255 && MODE == 255, "Unsupported cross core barrier flag, can not find the specialization.");
 };
 
 template <>
