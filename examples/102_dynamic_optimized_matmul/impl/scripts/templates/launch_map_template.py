@@ -69,7 +69,17 @@ std::unordered_map<uint64_t, std::string> funcNameMap = {{
             workspace_func_list=workspace_func_list,
             func_name_list=func_name_list,
         )
-        fd = os.open(os.path.join("../../include", "launch_map.h"),
-                     os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o550) # r-xr-x---
-        with os.fdopen(fd, "w") as f:
-            f.write(content)
+
+        launch_file = os.path.join("../../include", "launch_map.h")
+        try: os.remove(launch_file)
+        except FileNotFoundError: pass
+
+        fd = os.open(launch_file, os.O_CREAT | os.O_WRONLY \
+                                | os.O_TRUNC, 0o550) # r-xr-x---
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(content)
+                fd = None
+        finally:
+            if fd is not None:
+                os.close(fd)
