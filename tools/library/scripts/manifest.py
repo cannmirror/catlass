@@ -171,20 +171,35 @@ void RegisterCatlass{operation_type}Operations(Manifest &manifest)
                 function_calls=function_calls,
                 function_decls=function_decls
             )
-
-            path = f'register_all_{operation_type}_operations.cpp'
-            fd = os.open(os.path.join(operation_subdir, path), 
-                         os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 
-                         0o550) # r-xr-x---
-            with os.fdopen(fd, "w") as f:
-                # e.g. create generated/gemm/register_all_gemm_operations.cpp
-                f.write(operation_register_src)
+            # e.g. create generated/gemm/register_all_gemm_operations.cpp
+            self._write_to_register_file(
+                os.path.join(operation_subdir, 
+                    f'register_all_{operation_type}_operations.cpp'),
+                operation_register_src)
 
         register_all_kernels_src = self.register_all_operations_template.format(
             api_decl_src='\n'.join(api_decl_src), api_call_src='\n'.join(api_call_src)
         )
 
-        fd = os.open(os.path.join(generated_dir, 'register_all_kernels_generated.cpp'), 
-                     os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o550) # r-xr-x---
-        with os.fdopen(fd, "w") as register_all_file:
-            register_all_file.write(register_all_kernels_src)
+        self._write_to_register_file(
+            os.path.join(generated_dir, 'register_all_kernels_generated.cpp'), 
+            register_all_kernels_src)
+
+    @staticmethod
+    def _write_to_register_file(reg_filename, content):
+        try: 
+            os.remove(reg_filename) # remove previous auto-gen
+        except FileNotFoundError: 
+            pass
+
+        fd = None
+        try:
+            fd = os.open(reg_filename, 
+                        os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 
+                        0o550)
+            with os.fdopen(fd, "w") as f:
+                f.write(content)
+                fd = None
+        finally:
+            if fd is not None:
+                os.close(fd)

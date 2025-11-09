@@ -85,7 +85,10 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
                 layout_c=layout_c,
             )
 
-            fd = os.open(os.path.join(Config.WRAPPER_CODE_PATH, file_name),
-                         os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o550) # r-xr-x---
+            fname = os.path.join(Config.WRAPPER_CODE_PATH, file_name)
+            try: os.remove(fname)
+            except FileNotFoundError: pass
+
+            fd = os.open(fname, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o550) # r-xr-x---
             with os.fdopen(fd, "w") as f:
                 f.write(content)
