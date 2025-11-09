@@ -40,29 +40,41 @@ void FillRandomData<int8_t, int>(std::vector<int8_t>& data, int low, int high)
 template <typename T>
 void QuickSort(std::vector<T>& arr, int left, int right)
 {
-    if (left >= right) {
-        return;
-    }
+    std::stack<std::pair<int, int>> stk;
+    stk.push({left, right});
+    
+    while (!stk.empty()) {
+        auto [l, r] = stk.top();
+        stk.pop();
+        
+        if (l >= r) {
+            continue;
+        }
+        
+        T pivot = arr[(l + r) / 2];
+        int i = l;
+        int j = r;  
+        while (i <= j) {
+            while (arr[i] < pivot) {
+                i++;
+            }
+            while (arr[j] > pivot) {
+                j--;
+            }
+            if (i <= j) {
+                std::swap(arr[i], arr[j]);
+                i++;
+                j--;
+            }
+        }
 
-    T pivot = arr[(left + right) / 2];
-    int i = left;
-    int j = right;
-
-    while (i <= j) {
-        while (arr[i] < pivot) {
-            i++;
+        if (l < j) {
+            stk.push({l, j});
         }
-        while (arr[j] > pivot) {
-            j--;
-        }
-        if (i <= j) {
-            std::swap(arr[i], arr[j]);
-            i++;
-            j--;
+        if (i < r) {
+            stk.push({i, r});
         }
     }
-    QuickSort(arr, left, j);
-    QuickSort(arr, i, right);
 }
 
 // Generate an ascending random sequence as grouplist

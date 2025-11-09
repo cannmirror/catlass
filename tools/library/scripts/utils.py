@@ -62,8 +62,12 @@ using namespace Catlass;
             custom_common_decls=custom_common_decls_src
         )
 
-        fd = os.open(os.path.join(workspace_dir, self.file_name),
-                     os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o550) # r-xr-x---
+        fname = os.path.join(workspace_dir, self.file_name)
+        try: os.remove(fname)
+        except FileNotFoundError: pass
+
+        fd = os.open(fname, os.O_CREAT | os.O_WRONLY | \
+                            os.O_TRUNC, 0o550) # r-xr-x---
         with os.fdopen(fd, "w") as f:
             f.write(headers)
             for body in self.body_src:
