@@ -11,6 +11,7 @@
 #ifndef CATLASS_GEMM_HELPER_HPP
 #define CATLASS_GEMM_HELPER_HPP
 
+#include "catlass/arch/arch.hpp"
 #include "catlass/catlass.hpp"
 #include "catlass/layout/layout.hpp"
 #include "catlass/gemm/gemm_type.hpp"

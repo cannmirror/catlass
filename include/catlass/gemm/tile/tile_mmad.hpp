@@ -191,6 +191,39 @@ struct TileMmadTla {
             AscendC::PipeBarrier<PIPE_M>();
         }
     }
+
+    template <class TensorC, class TensorA, class TensorB>
+    CATLASS_DEVICE
+    void operator()(TensorC const &l0CTensor,
+         TensorA const &l0ATensor,
+         TensorB const &l0BTensor,
+         uint32_t m, uint32_t n, uint32_t k,
+         uint32_t l0Batch)
+    {
+        const uint32_t L0AM = tla::get<0, 0>(l0ATensor.shape()) * tla::get<0, 1>(l0ATensor.shape());
+        const uint32_t L0AK = tla::get<1, 0>(l0ATensor.shape()) * tla::get<1, 1>(l0ATensor.shape());
+        const uint32_t L0BK = tla::get<0, 0>(l0BTensor.shape()) * tla::get<0, 1>(l0BTensor.shape());
+        const uint32_t L0BN = tla::get<1, 0>(l0BTensor.shape()) * tla::get<1, 1>(l0BTensor.shape());
+        const uint32_t L0CM = tla::get<0, 0>(l0CTensor.shape()) * tla::get<0, 1>(l0CTensor.shape());
+        const uint32_t L0CN = tla::get<1, 0>(l0CTensor.shape()) * tla::get<1, 1>(l0CTensor.shape());
+
+        AscendC::MmadParams mmadParams;
+        mmadParams.m = m;
+        mmadParams.n = n;
+        mmadParams.k = k;
+        mmadParams.unitFlag = 0;
+        mmadParams.cmatrixInitVal = true;
+#if defined(CATLASS_ARCH_A5_ENABLED)
+        mmadParams.disableGemv = true;
+#endif
+
+        for (uint32_t l0BatchIdx = 0; l0BatchIdx < l0Batch; l0BatchIdx++) {
+            AscendC::Mmad(l0CTensor.data()[l0BatchIdx * L0CM * L0CN],
+                l0ATensor.data()[l0BatchIdx * L0AM * L0AK],
+                l0BTensor.data()[l0BatchIdx * L0BK * L0BN],
+                mmadParams);
+        }
+    }
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
