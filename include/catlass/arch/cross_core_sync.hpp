@@ -15,7 +15,7 @@
 
 namespace Catlass::Arch {
 
-constexpr uint32_t MAX_REVERSE_DEPTH = 16;
+constexpr uint32_t MAX_REVERSE_DEPTH = 15;
 
 using FlagID = uint16_t;
 constexpr FlagID AIV_INTER_BLOCK_BARRIER = 8;
