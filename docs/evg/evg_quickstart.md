@@ -17,7 +17,7 @@ EVG使用"表达式"声明计算逻辑，例如`Matmul+Add`算子的计算式为
 
 `TreeVisitor`采用自下而上的组装逻辑，对于`Matmul+Add`算子，将`C+X`的结果写入全局内存GM(对应于[`Epilogue::Fusion::VisitorAuxStore`](../../include/catlass/epilogue/fusion/visitor_aux_store.hpp))是父节点，前步加法操作可视作子节点。
 
-加法操作过程也可作为一个`TreeVisitor`节点：`Add`计算（对应于[`Epilogue::Fusion::Add`](../../include/catlass/epilogue/fusion/operations.hpp)）作为父节点，从AI Core上读取C矩阵（对应于[`Epilogue::Fusion::VisitorAccLoad`](../../include/catlass/epilogue/fusion/visitor_acc_load.hpp)）、以及从GM上读入X矩阵（对应于[`Epilogue::Fusion::VisitorAuxLoad`](../../include/catlass/epilogue/fusion/visitor_aux_load.hpp)）这两步数据操作作为其子节点。`Matmul+Add`算子的后处理过程如下图所示，所涉及的计算资源包括：
+加法操作过程也可作为一个`TreeVisitor`节点：` Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Add, half>`计算（对应于[`Epilogue::Fusion::Add`](../../include/catlass/epilogue/fusion/operations.hpp)）作为父节点，从AI Core上读取C矩阵（对应于[`Epilogue::Fusion::VisitorAccLoad`](../../include/catlass/epilogue/fusion/visitor_acc_load.hpp)）、以及从GM上读入X矩阵（对应于[`Epilogue::Fusion::VisitorAuxLoad`](../../include/catlass/epilogue/fusion/visitor_aux_load.hpp)）这两步数据操作作为其子节点。`Matmul+Add`算子的后处理过程如下图所示，所涉及的计算资源包括：
 
  - 从GM读入数据：[`Epilogue::Fusion::VisitorAuxLoad`](../../include/catlass/epilogue/fusion/visitor_aux_load.hpp)
  - 从累加器中读出矩阵计算结果：[`Epilogue::Fusion::VisitorAccLoad`](../../include/catlass/epilogue/fusion/visitor_acc_load.hpp)
@@ -35,8 +35,7 @@ graph LR
 
 由此可以组装出一个完整的后处理模板：
 
-<details>
-<summary><strong>核心EVG组装</strong></summary>
+## 核心EVG组装
 
 *以下是`Matmul+Add`算子所需要的特化EVG构造过程*
 ```cpp
@@ -50,17 +49,16 @@ graph LR
 using LayoutX = LayoutC;
 using LayoutD = LayoutC;
 
-using PlusVisitor = Epilogue::Fusion::TreeVisitor<
-    Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Plus, half>,
+using AddVisitor = Epilogue::Fusion::TreeVisitor<
+    Epilogue::Fusion::VisitorCompute<Epilogue::Fusion::Add, half>,
     Epilogue::Fusion::VisitorAccLoad<half>,  // 加载 C (workspace)
     Epilogue::Fusion::VisitorAuxLoad<half, LayoutX>   // 加载 X
 >;
 
 using EVG = Catlass::Epilogue::Fusion::TreeVisitor<
     Epilogue::Fusion::VisitorAuxStore<half, LayoutD>,
-    PlusVisitor>;
+    AddVisitor>;
 ```
-</details>
 
 
 上述计算的核心，即加法操作`Epilogue::Fusion::Add`是对`AscendC::Add`的封装，EVG在使用时只需声明计算逻辑，无需关注搬运/事件/布局细节。
@@ -98,10 +96,13 @@ typename EVG::Arguments evg_args{
 using MatmulKernel = Gemm::Kernel::MatmulVisitor<BlockMmad, BlockEpilogue, BlockScheduler>;
 typename MatmulKernel::Arguments arguments{options.problemShape, deviceA, deviceB, evg_args};
 ```
+模板形态：TreeVisitor<ParentOp, ChildOp1, ChildOp2, ...>
 
-请注意以下两点：
+ 参数顺序：typename EVG::Arguments{ (ChildOp1::Arguments, ChildOp2::Arguments, ...), ParentOp::Arguments }
+
+ 请注意以下两点：
  - 为便于EVG灵活组合使用，需提供`EVG::Arguments`的参数实例`evg_args`并组合进`arguments`中
- - 为匹配EVG使用，Kernel层级请使用[`Gemm::Kernel::MatmulVisitor`](../../include/catlass/gemm/kernel/matmul_visitor.hpp)
+ - 为匹配EVG使用，Kernel层级请使用[`Gemm::Kernel::MatmulVisitor`](../../include/catlass/gemm/kernel/matmul_visitor.hpp)或已经适配好EVG的kernel或者block层，或者将kernel或block层按类似逻辑进行适配。
 
 
 ## 算子编译与执行
