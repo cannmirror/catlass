@@ -5,3 +5,4 @@
 - [catlass_optimize_guidance](./contents/advanced/catlass_optimize_guidance.md) - 介绍模板库下的基础调优方式，包括如何通过Tiling调参、应用不同的Dispatch策略的方式，快速获得性能提升。
 - [swizzle_explanation](./contents/advanced/swizzle_explanation.md) - 对模板库中`Swizzle`策略的基本介绍，这影响了AI Core上计算基本块间的顺序。
 - [dispatch_policies](./contents/advanced/dispatch_policies.md) - 对模板库在`Block`层面上`BlockMmad`中的一个重要模板参数`DispatchPolicy`的介绍。
+- [EVG](./evg/Readme.md) - 对EVG(Epilogue Visitor Graph)，即用于GEMM后处理(Epilogue)的声明式框架的基本介绍与实践说明。
