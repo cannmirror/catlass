@@ -62,6 +62,39 @@ struct TileCopyTla<
         auto dstOffset = dstTensor.layout()(dstTensor.coord());
         AscendC::LoadData(dstTensor.data()[dstOffset], srcTensor.data(), loadDataParams);
     }
+
+    template <class TensorDst, class TensorSrc>
+    CATLASS_DEVICE void operator()(TensorDst const &dstTensor, TensorSrc const &srcTensor, uint32_t l0Batch)
+    {
+        static_assert(
+            tla::detail::iszN<typename TensorSrc::Element, typename TensorSrc::Layout>::value
+                && tla::detail::isnZ<typename TensorDst::Element, typename TensorDst::Layout>::value
+                && TensorSrc::position == AscendC::TPosition::A1 && TensorDst::position == AscendC::TPosition::B2,
+            "The input parameters do not match. TensorSrc must be L1 and zN, while TensorDst must be L0B and nZ"
+        );
+
+        const uint32_t L1K = tla::get<0, 0>(srcTensor.shape()) * tla::get<0, 1>(srcTensor.shape());
+        const uint32_t L1N = tla::get<1, 0>(srcTensor.shape()) * tla::get<1, 1>(srcTensor.shape());
+        const uint32_t L0K = tla::get<0, 0>(dstTensor.shape()) * tla::get<0, 1>(dstTensor.shape());
+        const uint32_t L0N = tla::get<1, 0>(dstTensor.shape()) * tla::get<1, 1>(dstTensor.shape());
+        const uint32_t srcOuterStrideCol = tla::get<1, 1>(srcTensor.stride());
+        const uint32_t dstOuterStrideRow = tla::get<0, 1>(dstTensor.stride());
+
+        AscendC::LoadData2DParamsV2 loadDataParams;
+        loadDataParams.mStartPosition = 0;
+        loadDataParams.kStartPosition = 0;
+        loadDataParams.mStep = CeilDiv<C0_NUM_PER_FRACTAL>(L0K);
+        loadDataParams.kStep = CeilDiv<ELE_NUM_PER_C0>(L0N);
+        loadDataParams.srcStride = CeilDiv<ELE_NUM_PER_FRACTAL>(srcOuterStrideCol);
+        loadDataParams.dstStride = CeilDiv<ELE_NUM_PER_FRACTAL>(dstOuterStrideRow);
+        loadDataParams.ifTranspose = true;
+
+        for (uint32_t l0BatchIdx = 0; l0BatchIdx < l0Batch; l0BatchIdx++) {
+            AscendC::LoadData(
+                dstTensor.data()[l0BatchIdx * L0N * L0K], srcTensor.data()[l0BatchIdx * L1N * L1K], loadDataParams
+            );
+        }
+    }
 };
 
 /// Partial specialization for CopyL1ToL0B, AtlasA5, nZ in and nZ out. (Transpose B)
@@ -106,6 +139,33 @@ struct TileCopyTla<
 
         auto dstOffset = dstTensor.layout()(dstTensor.coord());
         AscendC::LoadData(dstTensor.data()[dstOffset], srcTensor.data(), loadDataParams);
+    }
+
+    template <class TensorDst, class TensorSrc>
+    CATLASS_DEVICE void operator()(TensorDst const &dstTensor, TensorSrc const &srcTensor, uint32_t l0Batch)
+    {
+        static_assert(
+            tla::detail::isnZ<typename TensorSrc::Element, typename TensorSrc::Layout>::value
+                && tla::detail::isnZ<typename TensorDst::Element, typename TensorDst::Layout>::value
+                && TensorSrc::position == AscendC::TPosition::A1 && TensorDst::position == AscendC::TPosition::B2,
+            "The input parameters do not match. TensorSrc must be L1 and nZ, while TensorDst must be L0B and nZ"
+        );
+
+        const uint32_t dstOuterShapeRow = tla::get<0, 1>(dstTensor.shape());
+        const uint32_t dstOuterShapeCol = tla::get<1, 1>(dstTensor.shape());
+        const uint32_t srcOuterStrideRow = tla::get<0, 1>(srcTensor.stride());
+        const uint32_t dstOuterStrideRow = tla::get<0, 1>(dstTensor.stride());
+
+        AscendC::LoadData2DParamsV2 loadDataParams;
+        loadDataParams.mStartPosition = 0;
+        loadDataParams.kStartPosition = 0;
+        loadDataParams.mStep = dstOuterShapeCol;
+        loadDataParams.kStep = dstOuterShapeRow * l0Batch;
+        loadDataParams.srcStride = CeilDiv<ELE_NUM_PER_FRACTAL>(srcOuterStrideRow);
+        loadDataParams.dstStride = CeilDiv<ELE_NUM_PER_FRACTAL>(dstOuterStrideRow);
+        loadDataParams.ifTranspose = false;
+
+        AscendC::LoadData(dstTensor.data(), srcTensor.data(), loadDataParams);
     }
 };
 

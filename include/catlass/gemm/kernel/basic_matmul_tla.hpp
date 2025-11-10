@@ -109,7 +109,8 @@ public:
     /// Executes one Matmul
     template <>
     CATLASS_DEVICE
-    void operator()<AscendC::AIC>(Params const &params) {
+    void operator()<AscendC::AIC>(Params const &params)
+    {
         BlockScheduler matmulBlockScheduler(params.problemShape, MakeCoord(L1_TILE_M, L1_TILE_N));
         uint32_t coreLoops = matmulBlockScheduler.GetCoreLoops();
 
@@ -163,6 +164,10 @@ public:
                 );
                 blockMmad(tensorBlockA, tensorBlockB, tensorBlockC, actualBlockShape, tensorBlockBias);
             }
+        }
+
+        if constexpr (BlockMmad::DispatchPolicy::ASYNC) {
+            blockMmad.template SynchronizeBlock<decltype(tensorC)>();
         }
 
         AscendC::PipeBarrier<PIPE_ALL>();
