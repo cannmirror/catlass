@@ -22,6 +22,7 @@ class PaddingCommonMatmulTemplate:
 void {launch_kernel_func_name}(aclrtStream& stream, uint64_t fftsAddr,
     uint8_t* dA, uint8_t* dB, uint8_t* dC, uint8_t* dW, uint8_t* dTilingParams, TilingParams& tilingParams)
 {{
+    using ArchTag = Catlass::Arch::AtlasA2;
     using ElementA = {element_a};
     using ElementB = {element_b};
     using ElementC = {element_c};
@@ -31,13 +32,14 @@ void {launch_kernel_func_name}(aclrtStream& stream, uint64_t fftsAddr,
     constexpr PaddingTag paddingTagA = {padding_tag_a};
     constexpr PaddingTag paddingTagB = {padding_tag_b};
     constexpr PaddingTag paddingTagC = {padding_tag_c};
-    LaunchPaddingCommonMatmulKernel<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
+    LaunchPaddingCommonMatmulKernel<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
         paddingTagA, paddingTagB, paddingTagC>(
         stream, fftsAddr, dA, dB, dC, dW, dTilingParams, tilingParams);
 }}
 
 size_t {get_workspace_func_name}(TilingParams& tilingParams)
 {{
+    using ArchTag = Catlass::Arch::AtlasA2;
     using ElementA = {element_a};
     using ElementB = {element_b};
     using ElementC = {element_c};
@@ -47,7 +49,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
     constexpr PaddingTag paddingTagA = {padding_tag_a};
     constexpr PaddingTag paddingTagB = {padding_tag_b};
     constexpr PaddingTag paddingTagC = {padding_tag_c};
-    return PaddingCommonMatmulKernelGetWorkspaceSize<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
+    return PaddingCommonMatmulKernelGetWorkspaceSize<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
         paddingTagA, paddingTagB, paddingTagC>(tilingParams);
 }}
 """
