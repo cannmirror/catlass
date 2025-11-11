@@ -127,6 +127,7 @@ if(CATLASS_BISHENG_ARCH STREQUAL "a5")
     add_subdirectory(34_a5_basic_matmul)
     add_subdirectory(35_a5_batched_matmul)
     add_subdirectory(36_a5_multi_core_splitk_matmul)
+    add_subdirectory(37_a5_tail_multi_core_splitk_matmul)
 endif()
 
 add_subdirectory(shared_lib)
