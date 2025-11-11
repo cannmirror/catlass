@@ -85,6 +85,8 @@ struct ReduceAdd {
             tileLen = taskPerAiv;
         }
 
+        constexpr uint32_t ELE_NUM_ALIGN = BYTE_PER_BLK / sizeof(ElementOut);
+
         AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(inputEventIds[0]);
         AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(inputEventIds[1]);
         AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(outputEventIds[0]);
@@ -96,24 +98,47 @@ struct ReduceAdd {
         for (uint32_t loopIdx = aivId; loopIdx < loops; loopIdx += aivNum) {
             uint32_t actualTileLen = tileLen;
             if (loopIdx == loops - 1) {
-                actualTileLen = elementCount - loopIdx * tileLen;
+                actualTileLen = elementCount - static_cast<uint64_t>(loopIdx) * tileLen;
             }
 
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(accumulatorEventIds[bufferIndex]);
-            Gm2Ub(accumulatorBuffer[bufferIndex], src[loopIdx * tileLen], actualTileLen);
+            uint64_t srcOffset = static_cast<uint64_t>(loopIdx) * tileLen;
+            if (tileLen * splitkFactor <= COMPUTE_LENGTH) {
+                AscendC::DataCopyExtParams dataCopyParams(
+                    splitkFactor,
+                    actualTileLen * sizeof(ElementAccumulator),
+                    (elementCount - actualTileLen) * sizeof(ElementAccumulator),
+                    (RoundUp(actualTileLen, ELE_NUM_ALIGN) - actualTileLen) * sizeof(ElementAccumulator) / BYTE_PER_BLK,
+                    0
+                );
+                AscendC::DataCopyPadExtParams<ElementAccumulator> padParams(false, 0, 0, 0);
+                AscendC::DataCopyPad(accumulatorBuffer[bufferIndex], src[srcOffset], dataCopyParams, padParams);
+            } else {
+                Gm2Ub(accumulatorBuffer[bufferIndex], src[srcOffset], actualTileLen);
+            }
             AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(accumulatorEventIds[bufferIndex]);
             AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(accumulatorEventIds[bufferIndex]);
 
-            for (uint32_t sliceIdx = 1; sliceIdx < splitkFactor; ++sliceIdx) {
-                AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(inputEventIds[bufferIndex]);
-                Gm2Ub(inputBuffer[bufferIndex],
-                    src[sliceIdx * elementCount + loopIdx * tileLen], actualTileLen);
-                AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(inputEventIds[bufferIndex]);
-                AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(inputEventIds[bufferIndex]);
+            if (tileLen * splitkFactor <= COMPUTE_LENGTH) {
+                uint64_t offset = 0;
+                for (uint32_t sliceIdx = 1; sliceIdx < splitkFactor; ++sliceIdx) {
+                    offset = RoundUp(actualTileLen, ELE_NUM_ALIGN) * sliceIdx;
+                    AscendC::Add(accumulatorBuffer[bufferIndex][0],
+                        accumulatorBuffer[bufferIndex][0], accumulatorBuffer[bufferIndex][offset], actualTileLen);
+                    AscendC::PipeBarrier<PIPE_V>();
+                }
+            } else {
+                for (uint32_t sliceIdx = 1; sliceIdx < splitkFactor; ++sliceIdx) {
+                    AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(inputEventIds[bufferIndex]);
+                    Gm2Ub(inputBuffer[bufferIndex],
+                        src[sliceIdx * elementCount + static_cast<uint64_t>(loopIdx) * tileLen], actualTileLen);
+                    AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(inputEventIds[bufferIndex]);
+                    AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(inputEventIds[bufferIndex]);
 
-                AscendC::Add(accumulatorBuffer[bufferIndex],
-                    accumulatorBuffer[bufferIndex], inputBuffer[bufferIndex], actualTileLen);
-                AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(inputEventIds[bufferIndex]);
+                    AscendC::Add(accumulatorBuffer[bufferIndex],
+                        accumulatorBuffer[bufferIndex], inputBuffer[bufferIndex], actualTileLen);
+                    AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(inputEventIds[bufferIndex]);
+                }
             }
             AscendC::PipeBarrier<PIPE_V>();
 
@@ -133,7 +158,7 @@ struct ReduceAdd {
 
             AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(outputEventIds[bufferIndex]);
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(outputEventIds[bufferIndex]);
-            Ub2Gm(dst[loopIdx * tileLen], outputBuffer[bufferIndex], actualTileLen);
+            Ub2Gm(dst[static_cast<uint64_t>(loopIdx) * tileLen], outputBuffer[bufferIndex], actualTileLen);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(outputEventIds[bufferIndex]);
 
             bufferIndex = (bufferIndex + 1) % BUFFER_NUM;
