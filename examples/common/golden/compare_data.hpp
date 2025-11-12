@@ -112,6 +112,25 @@ std::vector<uint64_t> CompareData(const std::vector<ElementResult>& result, cons
     return errorIndices;
 }
 
+// Compare for w4a8 GroupedMatmul MSD
+template<class ElementResult, class ElementCompare>
+std::vector<uint64_t> CompareData(const std::vector<ElementResult>& result, const std::vector<ElementCompare>& expect,
+    const float &atol, const float &rtol)
+{
+    std::vector<uint64_t> errorIndices;
+    for (uint64_t i = 0; i < validNum; ++i) {
+        ElementCompare actualValue = static_cast<ElementCompare>(result[i]);
+        ElementCompare expectValue = expect[i];
+        float absDiff = std::fabs(actualValue - expectValue);
+        float rtolTerm = rtol * std::fabs(expectValue);
+        bool isClose = absDiff <= (atol + rtolTerm);
+        if (!isClose) {
+            errorIndices.push_back(i);
+        }
+    }
+    return errorIndices;
+}
+
 }  // namespace Catlass::golden
 
 #endif  // EXAMPLES_COMMON_GOLDEN_COMPARE_DATA_HPP
