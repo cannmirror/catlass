@@ -17,7 +17,6 @@
 #include "catlass/matrix_coord.hpp"
 #include "catlass/arch/resource.hpp"
 #include "catlass/arch/cross_core_sync.hpp"
-// #include "catlass/gemm/kernel/padding_matmul.hpp"
 
 #include "catlass/gemm/helper.hpp"
 #include "catlass/gemm/kernel/padding_matmul.hpp"
@@ -43,21 +42,15 @@ public:
     template<class T, bool isOutType = false, typename = void>
     struct LayoutHelper;
 
-    // 非void类型的特化
     template<class T, bool isOutType>
     struct LayoutHelper<T, isOutType, std::enable_if_t<!std::is_void_v<T>>> {
         using type = std::conditional_t<isOutType, typename T::LayoutOut, typename T::LayoutIn>;
     };
 
-    // void类型的特化
     template<class T, bool isOutType>
     struct LayoutHelper<T, isOutType, std::enable_if_t<std::is_void_v<T>>> {
         using type = void;
     };
-    // template<>
-    // struct LayoutHelper<void> {
-    //     using type = void;
-    // };
 
     /// Process Layout
     using LayoutA = std::conditional_t<
@@ -68,16 +61,6 @@ public:
         std::is_void_v<PrologueA>, typename BlockMmad::LayoutA, typename LayoutHelper<PrologueA, true>::type>;
     using LayoutBOut  = std::conditional_t<
         std::is_void_v<PrologueB>, typename BlockMmad::LayoutB, typename LayoutHelper<PrologueB, true>::type>;
-    // using LayoutAOut = typename std::conditional<
-    //     std::is_void_v<PrologueA>,
-    //     typename BlockMmad::LayoutA,
-    //     typename PrologueA::LayoutOut
-    // >::type;
-    // using LayoutBOut = typename std::conditional<
-    //     std::is_void_v<PrologueB>,
-    //     typename BlockMmad::LayoutB,
-    //     typename PrologueB::LayoutOut
-    // >::type;
 
     template<class T>
     struct ElementHelper {
@@ -167,7 +150,7 @@ public:
     static Params ToUnderlyingArguments(const Arguments &args, uint8_t *workspace)
     {
         LayoutA layoutA = LayoutA::template MakeLayout<ElementA>(args.problemShape.m(), args.problemShape.k());
-        LayoutB layoutB = LayoutB::template MakeLayout<ElementB>(args.problemShape.n(), args.problemShape.k());
+        LayoutB layoutB = LayoutB::template MakeLayout<ElementB>(args.problemShape.k(), args.problemShape.n());
         LayoutC layoutC = LayoutC::template MakeLayout<ElementC>(args.problemShape.m(), args.problemShape.n());
         
         // Malloc memory @[npu device]
@@ -225,30 +208,8 @@ public:
             AscendC::GlobalTensor<ElementA> gmWA;
             gmA.SetGlobalBuffer(reinterpret_cast<__gm__ ElementA *>(params.ptrA));
             gmWA.SetGlobalBuffer(reinterpret_cast<__gm__ ElementA *>(params.ptrWA));
-            // typename BlockMmad::LayoutA layoutWA;
-            // if constexpr (std::is_void_v<PrologueA>) {
-            //     typename BlockMmad::LayoutA layoutWA;
-            // }else if constexpr (!std::is_void_v<PrologueA>) {
-            //     typename PrologueA::LayoutOut layoutA;
-            // }
-            // using LayoutAType = typename std::conditional<
-            //     std::is_void_v<PrologueA>,
-            //     typename BlockMmad::LayoutA,
-            //     typename PrologueA::LayoutOut
-            // >::type;
-
-            // LayoutAType layoutWA;
-            // if constexpr (PrologueA::paddingTag == Catlass::Gemm::Kernel::PaddingTag::PADDING_ND) {
-            //     layoutWA = PrologueA::GetWorkspaceLayout(params.layoutA, 512 / sizeof(ElementA));
-            // } else if constexpr (PrologueA::paddingTag == Catlass::Gemm::Kernel::PaddingTag::PADDING_BLOCK_ND) {
-            //     layoutWA = PrologueA::GetWorkspaceLayout(params.layoutA, L1TileShape::M, L1TileShape::K);
-            // } else if constexpr (PrologueA::paddingTag == Catlass::Gemm::Kernel::PaddingTag::PADDING_NZ) {
-            //     layoutWA = PrologueA::GetWorkspaceLayout(params.layoutA);
-            // }
-
-            // Arch::Resource<ArchTag> resource;
+            
             PrologueA prologueA(resource);
-            // prologueA(gmWA, gmA, layoutWA, params.layoutA);
             prologueA(gmWA, gmA, params.layoutWA, params.layoutA);
         }
 
@@ -257,27 +218,7 @@ public:
             AscendC::GlobalTensor<ElementB> gmWB;
             gmB.SetGlobalBuffer(reinterpret_cast<__gm__ ElementB *>(params.ptrB));
             gmWB.SetGlobalBuffer(reinterpret_cast<__gm__ ElementB *>(params.ptrWB));
-            // typename BlockMmad::LayoutB layoutWB;
 
-            // if constexpr (std::is_void_v<PrologueB>) {
-            //     typename BlockMmad::LayoutB layoutWB;
-            // }else if constexpr (!std::is_void_v<PrologueB>) {
-            //     typename PrologueB::LayoutOut layoutWB;
-            // }
-            // using LayoutBType = typename std::conditional<
-            //     std::is_void_v<PrologueB>,
-            //     typename BlockMmad::LayoutB,
-            //     typename PrologueB::LayoutOut
-            // >::type;
-
-            // LayoutBType layoutWB;
-            // if constexpr (PrologueB::paddingTag == Catlass::Gemm::Kernel::PaddingTag::PADDING_ND) {
-            //     layoutWB = PrologueB::GetWorkspaceLayout(params.layoutB, 512 / sizeof(ElementB));
-            // } else if constexpr (PrologueB::paddingTag == Catlass::Gemm::Kernel::PaddingTag::PADDING_BLOCK_ND) {
-            //     layoutWB = PrologueB::GetWorkspaceLayout(params.layoutB, L1TileShape::K, L1TileShape::N);
-            // } else if constexpr (PrologueB::paddingTag == Catlass::Gemm::Kernel::PaddingTag::PADDING_NZ) {
-            //     layoutWB = PrologueB::GetWorkspaceLayout(params.layoutB);
-            // }
             PrologueB prologueB(resource);
             prologueB(gmWB, gmB, params.layoutWB, params.layoutB);
             // 0x0 synchronization control between AI Core
@@ -320,12 +261,9 @@ public:
             GemmCoord(L1TileShape::M, L1TileShape::N, L1TileShape::K));
         uint32_t coreLoops = matmulBlockScheduler.GetSingleCoreLoops();
 
-        // typename BlockMmad::LayoutA layoutA;
-        // typename BlockMmad::LayoutB layoutB;
-        typename BlockMmad::LayoutC layoutC;
-
         LayoutAOut layoutA;
         LayoutBOut layoutB;
+        typename BlockMmad::LayoutC layoutC;
 
         // Represent the full gm
         AscendC::GlobalTensor<ElementA> gmA;
@@ -334,13 +272,6 @@ public:
             layoutA = params.layoutA;
         } else {
             gmA.SetGlobalBuffer((__gm__ ElementA *)params.ptrWA);
-            // if constexpr (PrologueA::paddingTag == Catlass::Gemm::Kernel::PaddingTag::PADDING_ND) {
-            //     layoutA = PrologueA::GetWorkspaceLayout(params.layoutA, 512 / sizeof(ElementA));
-            // } else if constexpr (PrologueA::paddingTag == Catlass::Gemm::Kernel::PaddingTag::PADDING_BLOCK_ND) {
-            //     layoutA = PrologueA::GetWorkspaceLayout(params.layoutA, L1TileShape::M, L1TileShape::K);
-            // } else if constexpr (PrologueA::paddingTag == Catlass::Gemm::Kernel::PaddingTag::PADDING_NZ) {
-            //     layoutA = PrologueA::GetWorkspaceLayout(params.layoutA);
-            // }
             layoutA = params.layoutWA;
         }
         AscendC::GlobalTensor<ElementB> gmB;
@@ -351,22 +282,6 @@ public:
             layoutB = params.layoutB;
         } else {
             gmB.SetGlobalBuffer((__gm__ ElementB *)params.ptrWB);
-            // if constexpr (std::is_same_v<PrologueB::paddingTag, PaddingTag::PADDING_ND>) {
-            //     layoutB = PrologueB::GetWorkspaceLayout(params.layoutB, 512 / sizeof(ElementB));
-            // }else if constexpr (std::is_same_v<PrologueB::paddingTag, PaddingTag::PADDING_BLOCK_ND>) {
-            //     layoutB = PrologueB::GetWorkspaceLayout(params.layoutB, 512 / sizeof(ElementB));
-            // }else if constexpr (std::is_same_v<PrologueB::paddingTag, PaddingTag::PADDING_NZ>) {
-            //     layoutB = PrologueB::GetWorkspaceLayout(params.layoutB, 512 / sizeof(ElementB));
-            // }
-            // if constexpr (PrologueB::paddingTag == Catlass::Gemm::Kernel::PaddingTag::PADDING_ND) {
-            //     layoutB = PrologueB::GetWorkspaceLayout(params.layoutB, 512 / sizeof(ElementB));
-            // } else if constexpr (PrologueB::paddingTag == Catlass::Gemm::Kernel::PaddingTag::PADDING_BLOCK_ND) {
-            //     layoutB = PrologueB::GetWorkspaceLayout(params.layoutB, L1TileShape::K, L1TileShape::N);
-            // } else if constexpr (PrologueB::paddingTag == Catlass::Gemm::Kernel::PaddingTag::PADDING_NZ) {
-            //     layoutB = PrologueB::GetWorkspaceLayout(params.layoutB);
-            //     // Do nothing because: 
-            //     // LayoutOut::template MakeLayout<Element>(layout.shape(0), layout.shape(1));
-            // }
             layoutB = params.layoutWB;
         }
         AscendC::GlobalTensor<ElementAccumulator> gmC;
@@ -472,13 +387,10 @@ protected:
         } else if constexpr (PrologueB::paddingTag == PaddingTag::PADDING_NZ) {
             return PaddingB::GetWorkspaceSize(args.problemShape.k(), args.problemShape.n());
         } else {
-            return 0;  // 添加默认返回值
+            return 0;  // 默认返回0
         }
     }
 
-    // template <class LayoutAType>
-    // static void SetPaddingALayout(LayoutAOut &layoutWA_, const LayoutAType &layoutA_) 
-    // template <class LayoutAType>
     static void SetPaddingALayout(LayoutAOut &layoutWA_, LayoutA &layoutA_) 
     {
         if constexpr (PrologueA::paddingTag == Catlass::Gemm::Kernel::PaddingTag::PADDING_ND) {
@@ -490,9 +402,6 @@ protected:
         }
     }
 
-    // template <class LayoutBType>
-    // static void SetPaddingBLayout(LayoutBOut &layoutWB_, const LayoutBType &layoutB_)
-    // template <class LayoutBType>
     static void SetPaddingBLayout(LayoutBOut &layoutWB_, const LayoutB &layoutB_)
     {
         if constexpr (PrologueB::paddingTag == Catlass::Gemm::Kernel::PaddingTag::PADDING_ND) {

@@ -14,7 +14,7 @@
 #define K_MAX_SHAPE_DIM 0
 #endif
 
-#include "catlass/gemm/kernel/single_slicek_matmul.hpp"
+#include "catlass/gemm/kernel/single_core_slicek_matmul.hpp"
 
 #include "catlass/arch/arch.hpp"
 #include "catlass/catlass.hpp"
@@ -130,15 +130,13 @@ static void Run(const Options &options) {
 
     constexpr bool enableUnitFlag = false;
     constexpr uint32_t l0CStages = 2;
-    size_t sizeWorkspace = 0;
-    uint8_t *deviceWorkspace = nullptr;
     if ( m > n) {
         constexpr uint32_t l1AStages = 2;
         constexpr uint32_t l1BStages = 1;
-        using L1TileShape = GemmShape<256, 128, 512>;
+        using L1TileShape = GemmShape<128, 256, 512>;
         using L0TileShape = GemmShape<128, 128, 128>;
 
-        using DispatchPolicy = Catlass::Gemm::MmadAtlasA2DynamicSingleCoreSplitk<l1AStages, l1BStages, l0CStages, enableUnitFlag>;
+        using DispatchPolicy = Catlass::Gemm::MmadAtlasA2SingleCoreSplitk<l1AStages, l1BStages, l0CStages, enableUnitFlag>;
         using BlockScheduler = typename Catlass::Gemm::Block::SingleCoreSplitkGemmIdentityBlockSwizzle<20, 0>;
         using BlockMmad = Catlass::Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType, void, TileCopy>;
         
@@ -152,11 +150,10 @@ static void Run(const Options &options) {
     }else {
         constexpr uint32_t l1AStages = 1;
         constexpr uint32_t l1BStages = 2;
-        using L1TileShape = GemmShape<128, 256, 512>;
+        using L1TileShape = GemmShape<256, 128, 512>;
         using L0TileShape = GemmShape<128, 128, 128>;
 
-        using DispatchPolicy = Catlass::Gemm::MmadAtlasA2DynamicSingleCoreSplitk<
-            l1AStages, l1BStages, l0CStages, enableUnitFlag>;
+        using DispatchPolicy = Catlass::Gemm::MmadAtlasA2SingleCoreSplitk<l1AStages, l1BStages, l0CStages, enableUnitFlag>;
         using BlockScheduler = typename Catlass::Gemm::Block::SingleCoreSplitkGemmIdentityBlockSwizzle<20, 1>;
         using BlockMmad = Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType, void, TileCopy>;
 

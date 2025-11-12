@@ -37,7 +37,7 @@ template <
     class TileMmad_
 >
 struct BlockMmad<
-    MmadAtlasA2DynamicSingleCoreSplitk<L1A_STAGES_, L1B_STAGES_, L0C_STAGES_, ENABLE_UNIT_FLAG_>,
+    MmadAtlasA2SingleCoreSplitk<L1A_STAGES_, L1B_STAGES_, L0C_STAGES_, ENABLE_UNIT_FLAG_>,
     L1TileShape_, 
     L0TileShape_, 
     AType_, 
@@ -49,7 +49,7 @@ struct BlockMmad<
 > {
 public:
     // Type Aliases
-    using DispatchPolicy = MmadAtlasA2DynamicSingleCoreSplitk<L1A_STAGES_, L1B_STAGES_, L0C_STAGES_, ENABLE_UNIT_FLAG_>;
+    using DispatchPolicy = MmadAtlasA2SingleCoreSplitk<L1A_STAGES_, L1B_STAGES_, L0C_STAGES_, ENABLE_UNIT_FLAG_>;
     using ArchTag = typename DispatchPolicy::ArchTag;
     using ElementA = typename AType_::Element;
     using L1TileShape = L1TileShape_;
@@ -84,7 +84,24 @@ public:
     
     static constexpr uint32_t L1A_SIZE = L1TileShape::M * L1TileShape::K * sizeof(ElementA);
     static constexpr uint32_t L1B_SIZE = L1TileShape::K * L1TileShape::N * sizeof(ElementB);
+    static constexpr uint32_t L0C_SIZE = L0TileShape::M * L0TileShape::N * sizeof(ElementC);
     
+    // Check L1A & L1B 
+    static_assert((L1A_SIZE * L1A_STAGES + L1B_SIZE * L1B_STAGES) <= ArchTag::L1_SIZE,
+                    "L1TileShape exceeding the L1 space!");
+
+    static constexpr uint32_t L0A_TILE_SIZE = L0TileShape::M * L0TileShape::K * sizeof(ElementA);
+    static constexpr uint32_t L0B_TILE_SIZE = L0TileShape::K * L0TileShape::N * sizeof(ElementB);
+    static constexpr uint32_t L0C_TILE_SIZE = L0TileShape::M * L0TileShape::N * sizeof(ElementAccumulator);
+
+    static_assert((L0C_TILE_SIZE * L0C_STAGES <= ArchTag::L0C_SIZE), "L0TileShape exceeding the L0C space!");
+    static_assert(L0A_TILE_SIZE * L0AB_STAGES <= ArchTag::L0A_SIZE, "L0TileShape exceeding the L0A space!");
+    static_assert(L0B_TILE_SIZE * L0AB_STAGES <= ArchTag::L0B_SIZE, "L0TileShape exceeding the L0B space!");
+
+    static_assert(L0TileShape::K <= L1TileShape::K, "L0TileShape::K cannot exceed L1TileShape::K");
+    static_assert(L0TileShape::M <= L1TileShape::M, "L0TileShape::M cannot exceed L1TileShape::M");
+    static_assert(L0TileShape::N <= L1TileShape::N, "L0TileShape::N cannot exceed L1TileShape::N");
+
     static constexpr uint32_t L0A_PINGPONG_BUF_SIZE = ArchTag::L0A_SIZE / L0AB_STAGES;
     static constexpr uint32_t L0B_PINGPONG_BUF_SIZE = ArchTag::L0B_SIZE / L0AB_STAGES;
     static constexpr uint32_t L0C_PINGPONG_BUF_SIZE = ArchTag::L0C_SIZE / L0C_STAGES;
@@ -96,25 +113,6 @@ public:
     CATLASS_DEVICE
     BlockMmad(Arch::Resource<ArchTag> &resource, uint32_t l1BufAddrStart = 0)
     {
-        // uint32_t L1A_SIZE = L1TileShape::M * L1TileShape::K * sizeof(ElementA);
-        // uint32_t L1B_SIZE = L1TileShape::K * L1TileShape::N * sizeof(ElementB);
-
-        // l0kTile = min(L0A_PINGPONG_BUF_SIZE / sizeof(ElementA) / L0TileShape::M / L1AAlignHelper::ELE_NUM_PER_C0 *
-        //                       L1AAlignHelper::ELE_NUM_PER_C0,
-        //     L0B_PINGPONG_BUF_SIZE / sizeof(ElementB) / L0TileShape::N / L1BAlignHelper::ELE_NUM_PER_C0 *
-        //         L1BAlignHelper::ELE_NUM_PER_C0);
-
-        // if constexpr (std::is_same_v<ElementA, float> && std::is_same_v<ElementB, float>) {
-        //     l0kTile = RoundDown<C0_NUM_PER_FRACTAL>(l0kTile);
-        // }
-        l0kTile = min(L0A_PINGPONG_BUF_SIZE / sizeof(ElementA) 
-            / L0TileShape::M / L1AAlignHelper::ELE_NUM_PER_C0 * L1AAlignHelper::ELE_NUM_PER_C0,
-            L0B_PINGPONG_BUF_SIZE / sizeof(ElementB) / L0TileShape::N / 
-            L1BAlignHelper::ELE_NUM_PER_C0 * L1BAlignHelper::ELE_NUM_PER_C0);
-        if constexpr (std::is_same_v<ElementA, float> && std::is_same_v<ElementB, float>) {
-            l0kTile = RoundDown<C0_NUM_PER_FRACTAL>(l0kTile);
-        }
-
         uint32_t l1AOffset = l1BufAddrStart;
         uint32_t l1BOffset = l1BufAddrStart + L1A_SIZE * L1A_STAGES;
         // Init buffers
@@ -246,16 +244,16 @@ public:
                 }
 
                 // Get the loop nums on L0
-                uint32_t l1kLoops = CeilDiv(actualShape.k(), l0kTile);
+                uint32_t l1kLoops = CeilDiv(actualShape.k(), L0TileShape::K);
                 for (uint32_t l1kLoopIdx = 0; l1kLoopIdx < l1kLoops; l1kLoopIdx++) {
                     uint32_t kActual =
-                        (l1kLoopIdx < l1kLoops - 1) ? l0kTile : (actualShape.k() - l1kLoopIdx * l0kTile);
+                        (l1kLoopIdx < l1kLoops - 1) ? L0TileShape::K : (actualShape.k() - l1kLoopIdx * L0TileShape::K);
 
                     // Locate the current tile on L0A
                     auto l0ATile = l0ATensorList[l0ABufId];
                     LayoutAInL0 layoutAInL0 = LayoutAInL0::template MakeLayout<ElementA>(mRound, kActual);
                     // Locate the current tile of matrix A on L1
-                    MatrixCoord l1ACoord{l1mLoopIdx * L0TileShape::M, l1kLoopIdx * l0kTile};
+                    MatrixCoord l1ACoord{l1mLoopIdx * L0TileShape::M, l1kLoopIdx * L0TileShape::K};
                     auto l1ATile = l1ATensor[layoutAInL1.GetOffset(l1ACoord)];
 
                     AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0AEventList[l0ABufId]);
@@ -273,7 +271,7 @@ public:
                     auto l0BTile = l0BTensorList[l0BBufId];
                     LayoutBInL0 layoutBInL0 = LayoutBInL0::template MakeLayout<ElementB>(kActual, nRound);
                     // Locate the current tile of matrix B on L1
-                    MatrixCoord l1BCoord{l1kLoopIdx * l0kTile, l1nLoopIdx * L0TileShape::N};
+                    MatrixCoord l1BCoord{l1kLoopIdx * L0TileShape::K, l1nLoopIdx * L0TileShape::N};
                     auto l1BTile = l1BTensor[layoutBInL1.GetOffset(l1BCoord)];
 
                     // Wait for mmad finished
@@ -378,9 +376,6 @@ protected:
     uint32_t l1AListId{0};
     uint32_t l1BListId{0};
     uint32_t l0CListId{0};
-    // GemmCoord l1TileShape;
-    // GemmCoord l0TileShape;
-    uint32_t l0kTile;
 
     TileMmad tileMmad;
     CopyGmToL1A copyGmToL1A;
