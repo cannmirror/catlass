@@ -138,7 +138,7 @@ static void Run(const Options &options) {
         using L1TileShape = GemmShape<256, 128, 512>;
         using L0TileShape = GemmShape<128, 128, 128>;
 
-        using DispatchPolicy = Catlass::Gemm::MmadAtlasA2DynamicSingleCoreSplitk<l1AStages, l1BStages, l0CStages, enableUnitFlag>;
+        using DispatchPolicy = Catlass::Gemm::MmadAtlasA2SingleCoreSplitk<l1AStages, l1BStages, l0CStages, enableUnitFlag>;
         using BlockScheduler = typename Catlass::Gemm::Block::SingleCoreSplitkGemmIdentityBlockSwizzle<20, 0>;
         using BlockMmad = Catlass::Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType, void, TileCopy>;
         
