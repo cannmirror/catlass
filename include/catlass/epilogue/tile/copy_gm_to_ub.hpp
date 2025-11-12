@@ -182,6 +182,47 @@ struct CopyGm2UbAligned<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>
     };
 };
 
+/// @brief This copy instruction is used to separate the matmul results of the high and low 4 bits of int8.
+/// Move the data of odd rows to the first half of Dst, and the data of even rows to the second half of Dst.
+/// @tparam ArchTag: Architecture tag.
+/// @tparam GmType: Type of data on GM.
+template <
+    class ArchTag,
+    class GmType
+>
+struct CopyGm2Ub4MSD {
+    static_assert(DEPENDENT_FALSE<ArchTag>, "Unsupported copy gm to ub, can not find the specialization.");
+};
+
+template <typename Element>
+struct CopyGm2Ub4MSD<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>> {
+    using LayoutSrc = layout::RowMajor;
+    using LayoutDst = layout::RowMajor;
+
+    static constexpr uint32_t ELE_NUM_PER_BLK = BYTE_PER_BLK / sizeof(Element);
+
+    CATLASS_DEVICE
+    CopyGm2Ub4MSD() = default;
+
+    CATLASS_DEVICE
+    void operator()(
+        AscendC::LocalTensor<Element> const &dstTensor,
+        AscendC::GlobalTensor<Element> const &srcTensor,
+        layout::RowMajor const &layoutDst,
+        layout::RowMajor const &layoutSrc)
+    {
+        AscendC::DataCopyExtParams dataCopyParams(
+            layoutSrc.shape(0) / 2,
+            layoutSrc.shape(1) * sizeof(Element),
+            (2 * layoutSrc.stride(0) - layoutSrc.shape(1)) * sizeof(Element), // skip one row 
+            (layoutDst.stride(0) - layoutDst.shape(1)) / ELE_NUM_PER_BLK,
+            0
+        );
+        AscendC::DataCopyPadExtParams<Element> padParams(true, 0, 0, 0);
+        AscendC::DataCopyPad(dstTensor, srcTensor, dataCopyParams, padParams);
+    };
+};
+
 }  // Catlass::Epilogue::Tile
 
 #endif
