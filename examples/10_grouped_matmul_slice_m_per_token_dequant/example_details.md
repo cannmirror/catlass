@@ -191,47 +191,6 @@ flowchart
 
 ```
 
-```mermaid
-flowchart LR
-    subgraph "AIC/AIV核间同步"
-        subgraph "GM上的Block"
-        direction LR
-            A0[Block0]
-            A1[Block1]
-            A2[Block2]
-            A3[...]
-        end
-
-        subgraph "AIC上处理流程"
-        direction LR
-            B00[搬入mmad]
-            B02[搬出]
-            B03[setFlag<br/>PIPE_FIX]
-            B10[搬入mmad]
-            B11[waitFlag]
-            B12[搬出]
-            B13[setFlag<br/>PIPE_FIX]
-            B22[...]
-        end
-        
-        subgraph "AIV上处理流程"
-        direction LR
-            C00[waitFlag]
-            C01[后处理]
-            C03[setFlag<br/>PIPE_MTE3]
-            C10[waitFlag]
-            c22[...]
-        end
-    end
-    A0-->A1-->A2-->A3
-    B00-->B02-->B03-->B10-->B11-->B12-->B13-->B22
-    C00-->C01-->C03-->C10-->c22
-    A0-->B00
-    A1-->B10
-    B03-->C00
-    C03-->B11
-    B13-->C10
-
-```
-
 ## BlockMmad实现
+
+## BlockEpilogue实现
