@@ -1160,6 +1160,81 @@ struct CopyGmToL1<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>> {
     }
 };
 
+template <>
+struct CopyGmToL1<Arch::AtlasA2, Gemm::GemmType<AscendC::int4b_t, layout::RowMajor>> {
+    using Element = AscendC::int4b_t;
+    using LayoutDst = layout::zN;
+    using LayoutSrc = layout::RowMajor;
+
+    static constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 * 2;
+
+    // Mehtods
+
+    CATLASS_DEVICE
+    CopyGmToL1() {};
+
+    CATLASS_DEVICE
+    void operator()(
+        AscendC::LocalTensor<Element> const &dstTensor,
+        AscendC::GlobalTensor<Element> const &srcTensor,
+        LayoutDst const &layoutDst, LayoutSrc const &layoutSrc)
+    {
+        AscendC::Nd2NzParams intriParams;
+
+        intriParams.ndNum = 1;
+        intriParams.dValue = layoutSrc.shape(1) / 2;
+        intriParams.srcNdMatrixStride = 0;
+        intriParams.dstNzC0Stride = layoutDst.stride(3) / ELE_NUM_PER_C0;
+        intriParams.dstNzMatrixStride = 0;
+
+        if (layoutSrc.stride(0) < STRIDE_LIMIT) {
+            intriParams.nValue = layoutSrc.shape(0);
+            intriParams.srcDValue = layoutSrc.stride(0) / 2;
+            intriParams.dstNzNStride = layoutDst.stride(0) / ELE_NUM_PER_C0;
+            AscendC::DataCopy(dstTensor, srcTensor, intriParams);
+        } else {
+            intriParams.nValue = 1;
+            intriParams.srcDValue = 0;
+            intriParams.dstNzNStride = 0;
+            for (uint32_t i = 0; i < layoutSrc.shape(0); i++) {
+                AscendC::DataCopy(dstTensor[i * ELE_NUM_PER_C0], srcTensor[i * layoutSrc.stride(0)], intriParams);
+            }
+        }
+    }
+
+    // layoutSrc must be the layout of one of the src matrices
+    CATLASS_DEVICE
+    void operator()(
+        AscendC::LocalTensor<Element> const &dstTensor,
+        AscendC::GlobalTensor<Element> const &srcTensor,
+        LayoutDst const &layoutDst, LayoutSrc const &layoutSrc,
+        uint32_t ndNum, uint32_t srcNdMatrixStride,
+        uint32_t dstNzNStride, uint32_t dstNzMatrixStride,
+        uint32_t dstNzC0Stride)
+    {
+        AscendC::Nd2NzParams intriParams;
+
+        intriParams.nValue = layoutSrc.shape(0);
+        intriParams.dValue = layoutSrc.shape(1);
+        intriParams.srcDValue = layoutSrc.stride(0);
+        intriParams.dstNzNStride = dstNzNStride;
+        intriParams.dstNzC0Stride = dstNzC0Stride;
+        if (srcNdMatrixStride < STRIDE_LIMIT) {
+            intriParams.ndNum = ndNum;
+            intriParams.srcNdMatrixStride = srcNdMatrixStride;
+            intriParams.dstNzMatrixStride = dstNzMatrixStride;
+            AscendC::DataCopy(dstTensor, srcTensor, intriParams);
+        } else {
+            intriParams.ndNum = 1;
+            intriParams.srcNdMatrixStride = 0;
+            intriParams.dstNzMatrixStride = 0;
+            for (uint32_t i = 0; i < ndNum; i++) {
+                AscendC::DataCopy(dstTensor[i * ELE_NUM_PER_C0], srcTensor[i * srcNdMatrixStride], intriParams);
+            }
+        }
+    }
+};
+
 /// Partial specialization for AtlasA2, ColumnMajor in and nZ out.
 template <
     class Element
@@ -1215,6 +1290,51 @@ struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::zN>> {
     using LayoutSrc = layout::zN;
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 / sizeof(Element);
+
+    // Mehtods
+
+    CATLASS_DEVICE
+    CopyGmToL1() {};
+
+    CATLASS_DEVICE
+    void operator()(
+        AscendC::LocalTensor<Element> const &dstTensor,
+        AscendC::GlobalTensor<Element> const &srcTensor,
+        LayoutDst const &layoutDst, LayoutSrc const &layoutSrc)
+    {
+        uint32_t blockCount = CeilDiv<ELE_NUM_PER_C0>(layoutSrc.orgShape(1));
+        uint32_t blockLen = RoundUp<C0_NUM_PER_FRACTAL>(layoutSrc.orgShape(0));
+
+        AscendC::DataCopyParams repeatParams;
+
+        if (layoutSrc.stride(3) / ELE_NUM_PER_C0 < STRIDE_LIMIT) {
+            repeatParams.blockCount = blockCount;
+            repeatParams.blockLen = blockLen;
+            repeatParams.srcStride = layoutSrc.stride(3) / ELE_NUM_PER_C0 - blockLen;
+            repeatParams.dstStride = layoutDst.stride(3) / ELE_NUM_PER_C0 - blockLen;
+            AscendC::DataCopy(dstTensor, srcTensor, repeatParams);
+        } else {
+            repeatParams.blockCount = 1;
+            repeatParams.blockLen = blockLen;
+            repeatParams.srcStride = 0;
+            repeatParams.dstStride = 0;
+            for (uint32_t i = 0; i < blockCount; i++) {
+                uint64_t dstOffset = i * layoutDst.stride(3);
+                uint64_t srcOffset = i * layoutSrc.stride(3);
+                AscendC::DataCopy(dstTensor[dstOffset], srcTensor[srcOffset], repeatParams);
+            }
+        }
+    }
+};
+
+template <class ArchTag>
+struct CopyGmToL1<ArchTag, Gemm::GemmType<AscendC::int4b_t, layout::zN>>
+{
+    using Element = AscendC::int4b_t;
+    using LayoutDst = layout::zN;
+    using LayoutSrc = layout::zN;
+
+    static constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 * 2;
 
     // Mehtods
 
@@ -1951,6 +2071,36 @@ struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::VectorLayout, AscendC
     }
 };
 
+// For copying fused per channel/group dequant scale from GM to L1.
+// Copy one line at a time.
+template <class ArchTag, class Element>
+struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::RowMajor, AscendC::TPosition::GM>,
+    Gemm::GemmType<Element, layout::VectorLayout, AscendC::TPosition::A1>> {
+    using LayoutDst = layout::VectorLayout;
+    using LayoutSrc = layout::RowMajor;
+
+    static constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 / sizeof(Element);
+
+    // Mehtods
+
+    CATLASS_DEVICE
+    CopyGmToL1() {};
+
+    CATLASS_DEVICE
+    void operator()(
+        AscendC::LocalTensor<Element> const &dstTensor,
+        AscendC::GlobalTensor<Element> const &srcTensor,
+        LayoutDst const &layoutDst, LayoutSrc const &layoutSrc)
+    {
+        // Ensure layoutDst.shape(0) equals to 1
+        AscendC::DataCopyParams intriParams;
+        intriParams.blockCount = 1;
+        intriParams.blockLen = layoutDst.shape(0) / ELE_NUM_PER_C0;
+        intriParams.srcStride = 0;
+        intriParams.dstStride = 0;
+        AscendC::DataCopy(dstTensor, srcTensor, intriParams);
+    }
+};
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
