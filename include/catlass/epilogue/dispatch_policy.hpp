@@ -84,6 +84,11 @@ struct EpilogueAtlasA2PerTokenDequant {
     using ArchTag = Arch::AtlasA2;
     static constexpr uint32_t UB_STAGES = UB_STAGES_;
 };
+
+// For AtlasA2, W4A8GmmMSD
+struct EpilogueAtlasA2W4A8GmmMSD {
+    using ArchTag = Arch::AtlasA2;
+};
 ////////////////////////////
 /// new add
 // For AtlasA2, GEMM
