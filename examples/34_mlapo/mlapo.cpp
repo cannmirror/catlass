@@ -20,11 +20,12 @@ using namespace std;
 
 // This code section describes the parameters to execute the run function.
 struct Options {
-    static constexpr auto HELPER = "Usage: 34_mla_preprocess $rmsNumCol2 $quantMode $dtype $device\n";
+    static constexpr auto HELPER = "Usage: 34_mla_preprocess $rmsNumCol2 $n $quantMode $dtype $device\n";
     static constexpr auto MIN_ARGS = 5;
 
     // Define default value.
     uint32_t rmsNumCol2{0};
+    uint32_t n{0};
 
     QuantMode quantMode = QuantMode::PER_TENSOR_ASYMM_QUANT;
     uint32_t deviceId{0};
@@ -44,10 +45,10 @@ struct Options {
 
         // Allocate arguments to parameters.
         rmsNumCol2 = atoi(argv[1]);
-        // he = atoi(argv[2]);
-        quantMode = static_cast<QuantMode>(std::atoi(argv[2]));
-        dataType = string(argv[3]);
-        deviceId = atoi(argv[4]);
+        n = atoi(argv[2]);
+        quantMode = static_cast<QuantMode>(std::atoi(argv[3]));
+        dataType = string(argv[4]);
+        deviceId = atoi(argv[5]);
 
         return 0;
     }
@@ -110,7 +111,7 @@ void Run(const Options &options)
     ACL_CHECK(aclrtMemcpy(deviceGamma3, sizeGamma3, hostGamma3, sizeGamma3, ACL_MEMCPY_HOST_TO_DEVICE));
 
     AllocMem(&hostSlotMapping1, &deviceSlotMapping1, sizeSlotMapping1);
-    ReadFile(dataPath + "/SlotMapping.bin", hostSlotMapping1, sizeSlotMapping1);
+    ReadFile(dataPath + "/slotMapping.bin", hostSlotMapping1, sizeSlotMapping1);
     ACL_CHECK(aclrtMemcpy(deviceSlotMapping1, sizeSlotMapping1, hostSlotMapping1, sizeSlotMapping1, ACL_MEMCPY_HOST_TO_DEVICE));
 
     AllocMem(&hostDescale1, &deviceDescale1, sizeDescale1);
@@ -133,17 +134,21 @@ void Run(const Options &options)
     ReadFile(dataPath + "/s5.bin", hostS5, sizeS5);
     ACL_CHECK(aclrtMemcpy(deviceS5, sizeS5, hostS5, sizeS5, ACL_MEMCPY_HOST_TO_DEVICE));
 
+    AllocMem(&hostCos1, &deviceCos1, sizeCos1);
+    ReadFile(dataPath + "/cos1.bin", hostCos1, sizeCos1);
+    ACL_CHECK(aclrtMemcpy(deviceCos1, sizeCos1, hostCos1, sizeCos1, ACL_MEMCPY_HOST_TO_DEVICE));
+
     AllocMem(&hostQuantScale3, &deviceQuantScale3, sizeQuantScale3);
-    ReadFile(dataPath + "/QuantScale3.bin", hostS5, sizeS5);
+    ReadFile(dataPath + "/quantScale3.bin", hostS5, sizeS5);
     ACL_CHECK(aclrtMemcpy(deviceQuantScale3, sizeQuantScale3, hostQuantScale3, sizeQuantScale3, ACL_MEMCPY_HOST_TO_DEVICE));
 
-    // std::vector<int8_t> expectedKeycache1(sizeKeycache1);
-    // ReadFile(dataPath + "/keycache1.bin", expectedKeycache1.data(), sizeKeycache1);
-    // std::vector<int8_t> expectedKeycache2(sizeKeycache2);
-    // ReadFile(dataPath + "/keycache2.bin", expectedkeycache2.data(), sizeKeycache2);
+    std::vector<int8_t> expectedKeycache1(sizeKeycache1);
+    ReadFile(dataPath + "/keycache1.bin", expectedKeycache1.data(), sizeKeycache1);
+    std::vector<int8_t> expectedKeycache2(sizeKeycache2);
+    ReadFile(dataPath + "/keycache2.bin", expectedKeycache2.data(), sizeKeycache2);
 
-    // ACL_CHECK(aclrtMalloc((void **)&deviceKeycache1, sizeKeycache1, ACL_MEM_MALLOC_HUGE_FIRST));
-    // ACL_CHECK(aclrtMalloc((void **)&deviceKeycache2, sizeKeycache2, ACL_MEM_MALLOC_HUGE_FIRST));
+    ACL_CHECK(aclrtMalloc((void **)&deviceKeycache1, sizeKeycache1, ACL_MEM_MALLOC_HUGE_FIRST));
+    ACL_CHECK(aclrtMalloc((void **)&deviceKeycache2, sizeKeycache2, ACL_MEM_MALLOC_HUGE_FIRST));
 
     // get tiling
     uint32_t sizeTiling = sizeof(MlaPreprocessTilingData);
@@ -162,9 +167,10 @@ void Run(const Options &options)
     RT_CHECK(rtGetC2cCtrlAddr(&fftsAddr, &fftsLen));
 
     if (dataType == "float16") {
-        MlaPreprocessFp16<<<aicoreNum, nullptr, stream>>>(fftsAddr, deviceGamma3, deviceSlotMapping1, deviceDescale1, deviceS2, deviceS3, deviceSin1, deviceS5, deviceCos1, deviceQuantScale3, deviceTiling);
+        printf("MlaPreprocessFp16 start, aicoreNum = %d\n", aicoreNum);
+        MlaPreprocessFp16<<<aicoreNum, nullptr, stream>>>(fftsAddr, deviceGamma3, deviceSlotMapping1, deviceDescale1, deviceS2, deviceS3, deviceSin1, deviceS5, deviceCos1, deviceKeycache1, deviceKeycache2, deviceQuantScale3, deviceTiling);
     } else {
-        MlaPreprocessBf16<<<aicoreNum, nullptr, stream>>>(fftsAddr, deviceGamma3, deviceSlotMapping1, deviceDescale1, deviceS2, deviceS3, deviceSin1, deviceS5, deviceCos1, deviceQuantScale3, deviceTiling);
+        MlaPreprocessBf16<<<aicoreNum, nullptr, stream>>>(fftsAddr, deviceGamma3, deviceSlotMapping1, deviceDescale1, deviceS2, deviceS3, deviceSin1, deviceS5, deviceCos1, deviceKeycache1, deviceKeycache2, deviceQuantScale3, deviceTiling);
     }
     ACL_CHECK(aclrtSynchronizeStream(stream));
 

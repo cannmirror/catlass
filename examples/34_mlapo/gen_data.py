@@ -132,7 +132,7 @@ class test_kvcache:
         deScale11 = self.deScale1[:576]      # [576]
         deScale12 = self.deScale1[576:]    # [1536]
 
-        # deScale11.numpy().tofile("data/deScale11.bin")
+        deScale11.numpy().tofile("data/deScale11.bin")
         print("deScale11_shape={}, dtype={}".format(deScale11.shape, deScale11.dtype))
 
         if quant_mode == 0:
@@ -178,6 +178,10 @@ class test_kvcache:
         self.headNum = headNum
         self.epsilon = 1e-6#1e-6
         self.dtype = data_type
+
+        self.quantScale3 = torch.from_numpy(np.random.uniform(-2.0, 2.0, size=(1))).to(data_type)
+        self.quantScale3.numpy().tofile("data/quantScale3.bin")
+        print("quantScale3_shape={}, dtype={}".format(self.quantScale3.shape, self.quantScale3.dtype))
 
         self.input1 = torch.from_numpy(np.random.uniform(-2.0, 2.0, size=(N, 7168))).to(data_type)  
         self.gamma1 = torch.from_numpy(np.random.uniform(-1.0, 1.0, size=(hiddenStrate))).to(data_type)

@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef CATLASS_GEMM_BLOCK_RMS_NORM_QUANT_HPP
-#define CATLASS_GEMM_BLOCK_RMS_NORM_QUANT_HPP
+#ifndef CATLASS_GEMM_BLOCK_RMS_NORM_AND_ROPE_CONVERGENCE_HPP
+#define CATLASS_GEMM_BLOCK_RMS_NORM_AND_ROPE_CONVERGENCE_HPP
 
 #include "catlass/catlass.hpp"
 #include "catlass/coord.hpp"
@@ -20,10 +20,24 @@
 #include "catlass/epilogue/tile/copy_gm_to_ub.hpp"
 #include "catlass/epilogue/tile/copy_ub_to_gm.hpp"
 
+enum class QuantMode : int32_t {
+    PER_TENSOR_ASYMM_QUANT = 0,
+    PER_TOKEN_SYMM_QUANT = 1,
+    PER_TOKEN_ASYMM_QUANT = 2,
+    NO_QUANT = 3,
+};
+
+enum class CacheMode : int32_t {
+    CACHE_MODE_KVCACHE = 0,
+    CACHE_MODE_KROPE_CTKV = 1,
+    CACHE_MODE_INT8_NZCACHE = 2,
+    CACHE_MODE_NZCACHE = 3,
+};
+
 namespace Catlass::Gemm::Block {
 
 template <class ArchTag_, typename T_, bool WithBeta_, bool FastComputeMode_ = false,
-          QuantMode quantMode_ = QuantMode::PER_TENSOR_ASYMM_QUANT, bool NeedDequant_ = false>
+          QuantMode quantMode_ = QuantMode::PER_TENSOR_ASYMM_QUANT, CacheMode CACHE_MODE = CacheMode::CACHE_MODE_INT8_NZCACHE, bool NeedDequant_ = false>
 struct RmsNormAndRopeConvergence {
 public:
     // 芯片类型
@@ -31,15 +45,15 @@ public:
     // 输入数据类型
     using T = T_;
     // 其他模板参数
-    using WithBeta = WithBeta_;
-    using FastComputeMode = FastComputeMode_;
-    using quantMode = quantMode_;
-    using NeedDequant = NeedDequant_;
-    // 引入需要的Tile
-    using CopyGm2Ub = Catlass::Epilogue::Tile::CopyGm2Ub<ArchTag, Gemm::GemmType<int8_t, Catlass::layout::RowMajor>>;
-    using CopyUb2Gm = Catlass::Epilogue::Tile::CopyUb2Gm<ArchTag, Gemm::GemmType<half, Catlass::layout::RowMajor>>;
-    using CopyGm2UbFP32 = Catlass::Epilogue::Tile::CopyGm2Ub<ArchTag, Gemm::GemmType<float, Catlass::layout::RowMajor>>;
-    using CopyUb2GmFP32 = Catlass::Epilogue::Tile::CopyUb2Gm<ArchTag, Gemm::GemmType<float, Catlass::layout::RowMajor>>;
+    // using WithBeta = WithBeta_;
+    // using FastComputeMode = FastComputeMode_;
+    // using quantMode = quantMode_;
+    // using NeedDequant = NeedDequant_;
+    // // 引入需要的Tile
+    // using CopyGm2Ub = Catlass::Epilogue::Tile::CopyGm2Ub<ArchTag, Gemm::GemmType<int8_t, Catlass::layout::RowMajor>>;
+    // using CopyUb2Gm = Catlass::Epilogue::Tile::CopyUb2Gm<ArchTag, Gemm::GemmType<half, Catlass::layout::RowMajor>>;
+    // using CopyGm2UbFP32 = Catlass::Epilogue::Tile::CopyGm2Ub<ArchTag, Gemm::GemmType<float, Catlass::layout::RowMajor>>;
+    // using CopyUb2GmFP32 = Catlass::Epilogue::Tile::CopyUb2Gm<ArchTag, Gemm::GemmType<float, Catlass::layout::RowMajor>>;
 
     static const uint32_t BUF_FACTOR = 3;        // 1(g) + 1(sqx) + 1(sum) = 3
     static const uint32_t OFFSET_GAMMA = 0;      // the offset of gamma is 0
@@ -49,19 +63,20 @@ public:
     static const uint32_t OFFSET_WORKSPACE = 4;  // the offset of workspace is 4
     static const uint32_t REPEAT_TIME_64 = 64;   // 64 default stride
 
-    constexpr uint32_t MM1_OUT_SIZE = 2112;
-    constexpr uint32_t SPLIT_SIZE_TWO = 1536;
-    constexpr uint32_t SPLIT_RMSNRORM_SIZE_TWO = 64;
-    constexpr uint32_t SPLIT_SIZE_ONE = 576;
-    constexpr uint64_t BLOCK_SIZE_16 = 16;
-    constexpr static uint32_t I8_C0_SIZE = 32;
-    constexpr static uint32_t C0_SIZE = 16;
-    constexpr uint32_t SPLIT_RMSNRORM_SIZE_ONE = 512;
+    static const uint32_t MM1_OUT_SIZE = 2112;
+    static const uint32_t SPLIT_SIZE_TWO = 1536;
+    static const uint32_t SPLIT_RMSNRORM_SIZE_TWO = 64;
+    static const uint32_t SPLIT_SIZE_ONE = 576;
+    static const uint64_t BLOCK_SIZE_16 = 16;
+    static const uint32_t I8_C0_SIZE = 32;
+    static const uint32_t C0_SIZE = 16;
+    static const uint32_t SPLIT_RMSNRORM_SIZE_ONE = 512;
 
-    CopyGm2Ub copyGm2Ub;
-    CopyUb2Gm copyUb2Gm;
-    CopyGm2UbFP32 copyGm2UbFP32;
-    CopyUb2GmFP32 copyUb2GmFP32;
+    static const int32_t NUM_PER_REP_FP32 = 64;
+    // CopyGm2Ub copyGm2Ub;
+    // CopyUb2Gm copyUb2Gm;
+    // CopyGm2UbFP32 copyGm2UbFP32;
+    // CopyUb2GmFP32 copyUb2GmFP32;
 
     CATLASS_DEVICE
     RmsNormAndRopeConvergence()
@@ -110,7 +125,7 @@ public:
         repeatParams.src1BlkStride = 1;
         repeatParams.dstRepStride = 0;
         repeatParams.dstBlkStride = 1;
-        Duplicate(work_local, ZERO, NUM_PER_REP_FP32);
+        Duplicate(work_local, (float)0, NUM_PER_REP_FP32);
         AscendC::PipeBarrier<PIPE_V>();
         if (likely(repeatTimes > 0)) {
             Add(work_local, src_local, work_local, mask, repeatTimes, repeatParams);
@@ -121,12 +136,7 @@ public:
             AscendC::PipeBarrier<PIPE_V>();
         }
         AscendC::AscendCUtils::SetMask<float>(NUM_PER_REP_FP32);
-        cadd_v<ArchType::ASCEND_V220, float>(dst_local,  // dst
-                                            work_local, // src
-                                            1,          // repeat
-                                            0,          // dstRepeatStride
-                                            1,          // srcBlockStride
-                                            0);         // srcRepeatStride
+        AscendC::RepeatReduceSum<float, false>(dst_local, work_local, 1, 0, 0, 1, 0, 0);
         AscendC::PipeBarrier<PIPE_V>();
 
     }
@@ -157,10 +167,10 @@ public:
     void operator()(
         const uint32_t sN,
 
-        AscendC::GlobalTensor<InDtype> gamma3GmTensor, AscendC::GlobalTensor<int32_t> slotMappingGmTensor, AscendC::GlobalTensor<int32_t> descale1gmTensor,
-        uint32_t rmsNumCol2, AscendC::GlobalTensor<int32_t> s2GmTensor, AscendC::GlobalTensor<int32_t> s3GmTensor, AscendC::GlobalTensor<InDtype> sin1GmTensor,
-        AscendC::GlobalTensor<float> s5GmTensor, AscendC::GlobalTensor<InDtype> cos1GmTensor, AscendC::GlobalTensor<K_NOPE_DTYPE> keycacheGmTensor1,
-        AscendC::GlobalTensor<InDtype> keycacheGmTensor2, AscendC::GlobalTensor<InDtype> quantScale3GmTensor)
+        AscendC::GlobalTensor<T> gamma3GmTensor, AscendC::GlobalTensor<int32_t> slotMappingGmTensor, AscendC::GlobalTensor<float> descale1gmTensor,
+        uint32_t rmsNumCol2, AscendC::GlobalTensor<int32_t> s2GmTensor, AscendC::GlobalTensor<int32_t> s3GmTensor, AscendC::GlobalTensor<T> sin1GmTensor,
+        AscendC::GlobalTensor<float> s5GmTensor, AscendC::GlobalTensor<T> cos1GmTensor, AscendC::GlobalTensor<int8_t> keycacheGmTensor1,
+        AscendC::GlobalTensor<T> keycacheGmTensor2, AscendC::GlobalTensor<T> quantScale3GmTensor)
     {
         AscendC::DataCopy(quantScaleTensor, quantScale3GmTensor, AscendC::DataCopyParams(1, 1, 0, 0));
         AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(EVENT_ID1);
@@ -173,7 +183,7 @@ public:
 
         num_col_2 = rmsNumCol2;
         uint32_t blockIdx = AscendC::GetBlockIdx();
-        uint32_t sub_block_idx = static_cast<uint64_t>(GetSubBlockidx());
+        uint32_t sub_block_idx = static_cast<uint64_t>(AscendC::GetSubBlockIdx());
         uint32_t vectorBlockIdx = (blockIdx / 2) * 2 + sub_block_idx;
         int64_t slotMapGmOffset = vectorBlockIdx * row_work;
         AscendC::DataCopy(gammaTensor, gamma3GmTensor, SPLIT_RMSNRORM_SIZE_ONE); //从gamma3GmTensor连续搬运512到gammaTensor
@@ -196,7 +206,7 @@ public:
         //leftPadding连续搬运数据块左侧需要补充的数据范围，单位为元素个数。
         //rightPadding连续搬运数据块右侧需要补充的数据范围，单位为元素个数
         //paddingValue左右两侧需要填充的数据值，需要保证在数据占用字节范围内。
-        if constexpr (quantMode == QuantMode::PER_TOKEN_SYMM_QUANT) {
+        if constexpr (quantMode_ == QuantMode::PER_TOKEN_SYMM_QUANT) {
             mmTensor = calTensor.ReinterpretCast<int32_t>()[SPLIT_SIZE_ONE];
             deScaleTensor = calTensor.ReinterpretCast<float>()[SPLIT_SIZE_ONE * 2];
             AscendC::DataCopy(deScaleTensor, descale1gmTensor, AscendC::DataCopyParams(1, SPLIT_SIZE_ONE / 8, 0, 0));
@@ -217,7 +227,7 @@ public:
             if (slotValue == -1) {
                 continue;
             }
-            if constexpr (quantMode == QuantMode::PER_TENSOR_ASYMM_QUANT) {
+            if constexpr (quantMode_ == QuantMode::PER_TENSOR_ASYMM_QUANT) {
                 AscendC::DataCopy(srcTensor, s3GmTensor[offset],
                                   AscendC::DataCopyParams(1, MM1_OUT_SIZE / BLOCK_SIZE_16, 0, 0));
             } else {
@@ -239,7 +249,7 @@ public:
             AscendC::SetFlag<AscendC::HardEvent::S_MTE3>(EVENT_ID0);
             /* RmsNorm start */
             AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(EVENT_ID0);
-            if constexpr (quantMode == QuantMode::PER_TOKEN_SYMM_QUANT) {
+            if constexpr (quantMode_ == QuantMode::PER_TOKEN_SYMM_QUANT) {
                 /* DeQuant */
                 AscendC::Cast(mmTensor.ReinterpretCast<float>(), mmTensor, AscendC::RoundMode::CAST_NONE,
                               SPLIT_SIZE_ONE);
@@ -250,8 +260,8 @@ public:
                 //dst src0、src1 count参与计算的元素个数
                 AscendC::PipeBarrier<PIPE_V>();
                 float perTokenDescale = s5GmTensor.GetValue(row_work * vectorBlockIdx + loop);
-                SET_FLAG(S, V, EVENT_ID0);
-                WAIT_FLAG(S, V, EVENT_ID0);
+                AscendC::SetFlag<AscendC::HardEvent::S_V>(EVENT_ID0);
+                AscendC::WaitFlag<AscendC::HardEvent::S_V>(EVENT_ID0);
                 AscendC::Muls(mmTensor.ReinterpretCast<float>(), mmTensor.ReinterpretCast<float>(), perTokenDescale,
                               SPLIT_SIZE_ONE);
                 AscendC::PipeBarrier<PIPE_V>();
@@ -284,7 +294,7 @@ public:
             Mul(rmsNormTensor, gammaFp32, calTensor, SPLIT_RMSNRORM_SIZE_ONE);
 
             AscendC::PipeBarrier<PIPE_V>();
-            if constexpr (CACHE_MODE == CACHE_MODE_INT8_NZCACHE) {
+            if constexpr (CACHE_MODE == CacheMode::CACHE_MODE_INT8_NZCACHE) {
                 // quant
                 Muls(rmsNormTensor, rmsNormTensor, quantScale3, SPLIT_RMSNRORM_SIZE_ONE);
                 AscendC::PipeBarrier<PIPE_V>();
@@ -294,7 +304,7 @@ public:
                 AscendC::PipeBarrier<PIPE_V>();
             } else {
                 AscendC::PipeBarrier<PIPE_V>();
-                if (std::is_same<T1, __bf16>::value) {
+                if (std::is_same<T, __bf16>::value) {
                     Cast(outTmpTensor, rmsNormTensor, AscendC::RoundMode::CAST_RINT, SPLIT_RMSNRORM_SIZE_ONE);
                 } else {
                     Cast(outTmpTensor, rmsNormTensor, AscendC::RoundMode::CAST_NONE, SPLIT_RMSNRORM_SIZE_ONE);
@@ -323,7 +333,7 @@ public:
             AscendC::PipeBarrier<PIPE_V>();
             Add(ropeKRevertTensor, ropeKTensor, ropeKRevertTensor, SPLIT_RMSNRORM_SIZE_TWO);
             AscendC::PipeBarrier<PIPE_V>();
-            if (std::is_same<T1, __bf16>::value) {
+            if (std::is_same<T, __bf16>::value) {
                 Cast(outTmpTensor[SPLIT_RMSNRORM_SIZE_ONE], ropeKRevertTensor, AscendC::RoundMode::CAST_RINT,
                      SPLIT_RMSNRORM_SIZE_TWO);
             } else {
@@ -335,9 +345,9 @@ public:
             AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID0);
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID0);
             AscendC::WaitFlag<AscendC::HardEvent::S_MTE3>(EVENT_ID0);
-            if constexpr (CACHE_MODE == CACHE_MODE_KVCACHE) {
+            if constexpr (CACHE_MODE == CacheMode::CACHE_MODE_KVCACHE) {
                 DataCopy(keycacheGmTensor1[cacheStart], outTmpTensor, SPLIT_SIZE_ONE);
-            } else if constexpr (CACHE_MODE == CACHE_MODE_INT8_NZCACHE) {
+            } else if constexpr (CACHE_MODE == CacheMode::CACHE_MODE_INT8_NZCACHE) {
                 uint64_t cacheSatartI8Nz1 = outer_idx * 128 * 512 + inner_idx * I8_C0_SIZE;
                 uint64_t cacheSatartNz2 = outer_idx * 128 * 64 + inner_idx * C0_SIZE;
                 // nope:int8 nz
@@ -353,27 +363,27 @@ public:
                 DataCopyPad(keycacheGmTensor1[cacheSatartI8Nz1], int8OutTensor, outExt);
                 //提供数据非对齐搬运的功能，其中从Global Memory搬运数据至Local Memory时，可以根据开发者的需要自行填充数据。
                 //dst src dataCopyParams padParams
-                // rope:T1 nz
+                // rope:T nz
                 outExt.blockCount = SPLIT_RMSNRORM_SIZE_TWO / C0_SIZE;
-                outExt.blockLen = C0_SIZE * sizeof(T1);
+                outExt.blockLen = C0_SIZE * sizeof(T);
                 outExt.srcStride = 0;
-                outExt.dstStride = (128 * C0_SIZE - C0_SIZE) * sizeof(T1);
+                outExt.dstStride = (128 * C0_SIZE - C0_SIZE) * sizeof(T);
                 DataCopyPad(keycacheGmTensor2[cacheSatartNz2], outTmpTensor[SPLIT_RMSNRORM_SIZE_ONE], outExt);
-            } else if constexpr (CACHE_MODE == CACHE_MODE_NZCACHE) {
+            } else if constexpr (CACHE_MODE == CacheMode::CACHE_MODE_NZCACHE) {
                 uint64_t cacheSatartNz1 = outer_idx * 128 * 512 + inner_idx * C0_SIZE;
                 uint64_t cacheSatartNz2 = outer_idx * 128 * 64 + inner_idx * C0_SIZE;
-                // nope:T1 nz
+                // nope:T nz
                 AscendC::DataCopyExtParams outExt;
                 outExt.blockCount = SPLIT_RMSNRORM_SIZE_ONE / C0_SIZE;
-                outExt.blockLen = C0_SIZE * sizeof(T1);
+                outExt.blockLen = C0_SIZE * sizeof(T);
                 outExt.srcStride = 0;
-                outExt.dstStride = (128 * C0_SIZE - C0_SIZE) * sizeof(T1);
+                outExt.dstStride = (128 * C0_SIZE - C0_SIZE) * sizeof(T);
                 DataCopyPad(keycacheGmTensor1[cacheSatartNz1], outTmpTensor, outExt);
-                // rope:T1 nz
+                // rope:T nz
                 outExt.blockCount = SPLIT_RMSNRORM_SIZE_TWO / C0_SIZE;
-                outExt.blockLen = C0_SIZE * sizeof(T1);
+                outExt.blockLen = C0_SIZE * sizeof(T);
                 outExt.srcStride = 0;
-                outExt.dstStride = (128 * C0_SIZE - C0_SIZE) * sizeof(T1);
+                outExt.dstStride = (128 * C0_SIZE - C0_SIZE) * sizeof(T);
                 DataCopyPad(keycacheGmTensor2[cacheSatartNz2], outTmpTensor[SPLIT_RMSNRORM_SIZE_ONE], outExt);
             } else {
                 // keycache1
@@ -402,6 +412,7 @@ private:
     AscendC::LocalTensor<half> tmpfp16;
     AscendC::LocalTensor<int8_t> int8OutTensor;
     AscendC::LocalTensor<T> quantScaleTensor;
+    AscendC::LocalTensor<float> floatQuantScaleTensor;
 
     AscendC::LocalTensor<int32_t> mmTensor;
     AscendC::LocalTensor<float> deScaleTensor;

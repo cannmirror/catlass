@@ -9,4 +9,4 @@
 # ----------------------------------------------------------------------------
 
 set_source_files_properties(mlapo.cpp PROPERTIES LANGUAGE ASCEND)
-catlass_example_add_executable(34_mlapo cube mlapo.cpp)
+catlass_example_add_executable(34_mlapo mix mlapo.cpp)

@@ -22,16 +22,19 @@ using namespace std;
 struct MlaPreprocessTilingData {
     // basic
     uint32_t rmsNumCol2 = 0;
+    uint32_t n = 0;
 };
 
 namespace MlaPreprocessTiling {
 
 struct MlaPreprocessInfo {
     uint32_t rmsNumCol2 = 0;
+    uint32_t n = 0;
 };
 
 void FillBasicTilingData(const MlaPreprocessInfo &mpInfo, MlaPreprocessTilingData &mpTilingData) {
     mpTilingData.rmsNumCol2 = mpInfo.rmsNumCol2;
+    mpTilingData.n = mpInfo.n;
 }
 
 int32_t GetMpTilingParam(const MlaPreprocessInfo &mpInfo, MlaPreprocessTilingData &mpTilingData) {
