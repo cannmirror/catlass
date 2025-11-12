@@ -117,6 +117,25 @@ struct TileCopyPerTokenDequant {
     using CopyGmToUbPerTokenScale = CopyPerTokenScale2Ub<ArchTag, PerTokenScaleType>;
     using CopyUbToGmD = CopyUb2Gm<ArchTag, DType>;
 };
+
+template <
+    class ArchTag,
+    class CType,
+    class BiasType,
+    class PerTokenScaleType,
+    class DType
+>
+struct TileCopyW4A8GmmMSD {
+    using ElementC = typename CType::Element;
+    using ElementBias = typename BiasType::Element;
+    using ElementPerTokenScale = typename PerTokenScaleType::Element;
+    using ElementD = typename DType::Element;
+
+    using CopyGmToUbC = CopyGm2Ub4MSD<ArchTag, CType>;
+    using CopyGmToUbBias = CopyGm2Ub<ArchTag, BiasType>;
+    using CopyGmToUbPerTokenScale = CopyGm2Ub<ArchTag, PerTokenScaleType>;
+    using CopyUbToGmD = CopyUb2Gm<ArchTag, DType>;
+};
 } // namespace Catlass::Epilogue::Tile
 
 #endif  // CATLASS_EPILOGUE_TILE_TILE_COPY_HPP
