@@ -194,6 +194,18 @@ private:
         this->args_.ptrScale = arguments->ptrScale;
         this->args_.ptrPerTokenScale = arguments->ptrPerTokenScale;
     }
+<<<<<<< HEAD
+=======
+
+    virtual Status Run(
+        aclrtStream stream,
+        uint32_t blockDim,
+        uint64_t fftsAddr
+    ) override
+    {
+        return this->op_.Run(stream, blockDim, fftsAddr);
+    }
+>>>>>>> 18fa3e6841361e2d6626e44c1a7f97a879a8c98a
 private:
 };
 /********************* quant matmul end *********************/
