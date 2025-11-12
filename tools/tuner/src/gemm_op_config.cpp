@@ -247,8 +247,8 @@ bool QuantMatmulGemmOpConfig::CheckArgument(const Library::QuantMatmulGemmOperat
     if (!SafeMul<uint32_t>({config_.m, config_.k}, argSize.lenA) ||
         !SafeMul<uint32_t>({config_.k, config_.n}, argSize.lenB) ||
         !SafeMul<uint32_t>({config_.m, config_.n}, argSize.lenC) ||
-        !SafeMul<uint32_t>({1, config_.n}, argSize.lenScale) ||
-        !SafeMul<uint32_t>({config_.m, 1}, argSize.lenPerTokenScale) ||
+        !SafeMul<uint32_t>({config_.n}, argSize.lenScale) ||
+        !SafeMul<uint32_t>({config_.m}, argSize.lenPerTokenScale) ||
         !SafeMul<size_t>({argSize.lenA, LibraryHelper::GetDataTypeSize(mdesp.A.element)}, argSize.sizeA) ||
         !SafeMul<size_t>({argSize.lenB, LibraryHelper::GetDataTypeSize(mdesp.B.element)}, argSize.sizeB) ||
         !SafeMul<size_t>({argSize.lenC, LibraryHelper::GetDataTypeSize(mdesp.C.element)}, argSize.sizeC) ||
