@@ -51,20 +51,10 @@
     <td class="tg-0pky">在<code>uint32_t</code>范围内</td>
   </tr>
   <tr>
-    <td class="tg-xh1d">deviceA</td>
-    <td class="tg-0pky">Device侧为左矩阵A申请的空间</td>
-    <td class="tg-0pky"><code>M*K*sizeof(ElementA)</code></td>
-  </tr>
-  <tr>
-    <td class="tg-xh1d">deviceB</td>
-    <td class="tg-0pky">Device侧为右矩阵B申请的空间</td>
-    <td class="tg-0pky"><code>K*N*sizeof(ElementB)</code></td>
-  </tr>
-  <tr>
-    <td class="tg-xh1d">deviceC</td>
-    <td class="tg-0pky">Device侧为结果矩阵C申请的空间</td>
-    <td class="tg-0pky"><code>M*N*sizeof(ElementC)</code></td>
-  </tr>
+    <td class="tg-0pky">deviceId</td>
+    <td class="tg-0pky">使用的NPU卡ID（默认0）</td>
+    <td class="tg-0pky">在设备的NPU有效范围内</td>
+  </tr>  
 
 </tbody>
 </table>
