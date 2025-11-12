@@ -32,6 +32,7 @@
 .tg .tg-0pky{border-color:inherit;text-align:left;vertical-align:top}
 .tg .tg-xh1d{border-color:inherit;font-family:Verdana, Geneva, sans-serif !important;text-align:left;vertical-align:top}
 </style>
+
 <table class="tg" style="undefined;table-layout: fixed; width: 500px"><colgroup>
 <col style="width: 100px">
 <col style="width: 200px">
