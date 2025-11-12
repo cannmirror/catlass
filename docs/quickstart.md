@@ -32,22 +32,7 @@ graph LR
 
 ## 环境准备
 
-根据[昇腾产品类别](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)下载CANN开发套件包，点击[下载链接](https://www.hiascend.com/zh/developer/download/community/result?module=cann)选择对应的开发套件包`Ascend-cann-toolkit_<version>_linux-<arch>.run`。 CANN开发套件包依赖固件驱动，如需安装请查阅[安装NPU驱动固件](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/800alpha002/softwareinst/instg/instg_0005.html?Mode=PmIns&OS=Ubuntu&Software=cannToolKit)页面（CATLASS的版本支持情况，可[软件硬件配套说明](../README.md#软件硬件配套说明)）。
-
-随后安装CANN开发套件包（详请参考[CANN安装指南](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/83RC1/softwareinst/instg/instg_0008.html?Mode=PmIns&InstallType=local&OS=openEuler&Software=cannToolKit))。
-
-```bash
-chmod +x Ascend-cann-toolkit_<version>_linux-<arch>.run
-./Ascend-cann-toolkit_<version>_linux-<arch>.run --install
-```
-
-安装完成后，执行`set_env.sh`即可使能CANN环境。
-
-```bash
-source /usr/local/Ascend/ascend-toolkit/set_env.sh
-```
-
-
+模板库依赖于[CANN](https://www.hiascend.com/zh/developer/download/community/result?module=cann)环境，您可查阅[环境准备](../README.md#环境准备)一节以了解具体配置过程。
 
 ## Matmul算子开发
 
