@@ -464,6 +464,35 @@ private:
     Stride stride_;
 };
 
+#if defined(__CCE__)
+namespace Catlass {
+    using int4b_t = AscendC::int4b_t;
+}
+#else
+namespace Catlass {
+    struct int4b_t {};
+}
+
+template <>
+CATLASS_HOST_DEVICE constexpr
+nZ nZ::MakeLayout<AscendC::int4b_t>(Index orgRows, Index orgCols)
+{
+    constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 * 2;
+    constexpr uint32_t ELE_NUM_PER_FRACTAL = BYTE_PER_FRACTAL * 2;
+    Index rowsRound = RoundUp<ELE_NUM_PER_C0>(orgRows);
+    Index colsRound = RoundUp<C0_NUM_PER_FRACTAL>(orgCols);
+    return nZ(orgRows,
+                orgCols,
+                ELE_NUM_PER_C0,
+                rowsRound / ELE_NUM_PER_C0,
+                C0_NUM_PER_FRACTAL,
+                colsRound / C0_NUM_PER_FRACTAL,
+                1,
+                colsRound * ELE_NUM_PER_C0,
+                ELE_NUM_PER_C0,
+                ELE_NUM_PER_FRACTAL);
+}
+
 /// Mapping function for zN matrices which is row-major inside fractal and col-major between fractal
 struct zN {
 public:
@@ -655,6 +684,26 @@ private:
     Stride stride_;
 };
 
+template <>
+CATLASS_HOST_DEVICE constexpr
+zN zN::MakeLayout<AscendC::int4b_t>(Index orgRows, Index orgCols)
+{
+    constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 * 2;
+    constexpr uint32_t ELE_NUM_PER_FRACTAL = BYTE_PER_FRACTAL * 2;
+    Index rowsRound = RoundUp<C0_NUM_PER_FRACTAL>(orgRows);
+    Index colsRound = RoundUp<ELE_NUM_PER_C0>(orgCols);
+    return zN(orgRows,
+                orgCols,
+                C0_NUM_PER_FRACTAL,
+                rowsRound / C0_NUM_PER_FRACTAL,
+                ELE_NUM_PER_C0,
+                colsRound / ELE_NUM_PER_C0,
+                ELE_NUM_PER_C0,
+                ELE_NUM_PER_FRACTAL,
+                1,
+                rowsRound * ELE_NUM_PER_C0);
+}
+
 /// Mapping function for zN matrices which is row-major inside fractal and row-major between fractal
 struct zZ {
 public:
@@ -811,6 +860,27 @@ private:
     /// Stride data member
     Stride stride_;
 };
+
+template <>
+CATLASS_HOST_DEVICE constexpr
+zZ zZ::MakeLayout<AscendC::int4b_t>(Index orgRows, Index orgCols)
+{
+    constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 * 2;
+    constexpr uint32_t ELE_NUM_PER_FRACTAL = BYTE_PER_FRACTAL * 2;
+    Index rowsRound = RoundUp<C0_NUM_PER_FRACTAL>(orgRows);
+    Index colsRound = RoundUp<ELE_NUM_PER_C0>(orgCols);
+    return zZ(orgRows,
+                orgCols,
+                C0_NUM_PER_FRACTAL,
+                rowsRound / C0_NUM_PER_FRACTAL,
+                ELE_NUM_PER_C0,
+                colsRound / ELE_NUM_PER_C0,
+                ELE_NUM_PER_C0,
+                colsRound * C0_NUM_PER_FRACTAL,
+                1,
+                ELE_NUM_PER_FRACTAL);
+}
+#endif
 
 /// Mapping function for padding rowmajor matrices
 /// A special data layout designed to improve the efficiency of matrix operations in non-512B aligned scenarios.
