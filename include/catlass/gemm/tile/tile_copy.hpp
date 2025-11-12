@@ -400,6 +400,34 @@ struct QuantTileCopy : public TileCopy<ArchTag, AType, BType, CType, BiasType> {
     >;
 };
 
+// fixpipe开启随路量化 融合per channel和per group
+template <
+    class ArchTag,
+    class AType,
+    class BType,
+    class CType,
+    class BiasType = void,
+    ScaleGranularity SCALE_GRANU = ScaleGranularity::PER_CHANNEL
+>
+struct QuantTileCopyPerChannelPerGroup : public QuantTileCopy<ArchTag, AType, BType, CType, BiasType,
+    SCALE_GRANU> {
+
+    using ElementAccumulator = typename QuantTileCopy<ArchTag, AType, BType, CType, BiasType,
+        SCALE_GRANU>::ElementAccumulator;
+    using CopyL0CToGm = Gemm::Tile::CopyL0CToGm<ArchTag, ElementAccumulator, CType,
+        SCALE_GRANU, false>;
+
+    using CopyGmToL1Scale = Gemm::Tile::CopyGmToL1<ArchTag,
+        Gemm::GemmType<uint64_t, layout::RowMajor, AscendC::TPosition::GM>,
+        Gemm::GemmType<uint64_t, layout::VectorLayout, AscendC::TPosition::A1>
+    >;
+
+    using CopyL1ToFP = Gemm::Tile::CopyL1ToFP<ArchTag,
+        Gemm::GemmType<uint64_t, layout::VectorLayout, AscendC::TPosition::A1>,
+        Gemm::GemmType<uint64_t, layout::VectorLayout, AscendC::TPosition::C2PIPE2GM>
+    >;
+};
+
 } // namespace Catlass::Gemm::Tile
 
 #endif // CATLASS_GEMM_TILE_TILE_COPY_HPP
