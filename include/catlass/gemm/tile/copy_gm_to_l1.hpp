@@ -1951,6 +1951,38 @@ struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::VectorLayout, AscendC
     }
 };
 
+// For copying fused per channel/group dequant scale from GM to L1.
+// Copy one line at a time.
+template <class ArchTag, class Element>
+struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::RowMajor, AscendC::TPosition::GM>,
+    Gemm::GemmType<Element, layout::VectorLayout, AscendC::TPosition::A1>> {
+    using LayoutDst = layout::VectorLayout;
+    using LayoutSrc = layout::RowMajor;
+
+    static constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 / sizeof(Element);
+
+    // Mehtods
+
+    CATLASS_DEVICE
+    CopyGmToL1() {};
+
+    CATLASS_DEVICE
+    void operator()(
+        AscendC::LocalTensor<Element> const &dstTensor,
+        AscendC::GlobalTensor<Element> const &srcTensor,
+        LayoutDst const &layoutDst, LayoutSrc const &layoutSrc)
+    {
+        // Ensure layoutDst.shape(0) equals to 1
+        AscendC::DataCopyExtParams dataCopyParams(
+            1,
+            layoutDst.shape(0) * sizeof(Element),
+            0,
+            0,
+            0
+        );
+        AscendC::DataCopyPad(dstTensor, srcTensor, dataCopyParams);
+    }
+};
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
