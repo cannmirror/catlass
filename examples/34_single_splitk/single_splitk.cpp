@@ -135,7 +135,7 @@ static void Run(const Options &options) {
     if ( m > n) {
         constexpr uint32_t l1AStages = 2;
         constexpr uint32_t l1BStages = 1;
-        using L1TileShape = GemmShape<256, 128, 512>;
+        using L1TileShape = GemmShape<128, 256, 512>;
         using L0TileShape = GemmShape<128, 128, 128>;
 
         using DispatchPolicy = Catlass::Gemm::MmadAtlasA2SingleCoreSplitk<l1AStages, l1BStages, l0CStages, enableUnitFlag>;
@@ -152,7 +152,7 @@ static void Run(const Options &options) {
     }else {
         constexpr uint32_t l1AStages = 1;
         constexpr uint32_t l1BStages = 2;
-        using L1TileShape = GemmShape<128, 256, 512>;
+        using L1TileShape = GemmShape<256, 128, 512>;
         using L0TileShape = GemmShape<128, 128, 128>;
 
         using DispatchPolicy = Catlass::Gemm::MmadAtlasA2SingleCoreSplitk<l1AStages, l1BStages, l0CStages, enableUnitFlag>;
