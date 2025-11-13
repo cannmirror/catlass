@@ -11,11 +11,11 @@
 #ifndef TLA_UTIL_TYPE_TRAITS_HPP
 #define TLA_UTIL_TYPE_TRAITS_HPP
 
-#ifdef ASCENDC_MODULE_OPERATOR_H
+#if defined ASCENDC_MODULE_OPERATOR_H && defined BISHENG_TIMESTAMP && BISHENG_TIMESTAMP < 20250723112413
 #undef inline
 #endif
 #include <tuple>
-#ifdef ASCENDC_MODULE_OPERATOR_H
+#if defined ASCENDC_MODULE_OPERATOR_H && defined BISHENG_TIMESTAMP && BISHENG_TIMESTAMP < 20250723112413
 #define inline __inline__ __attribute__((always_inline))
 #endif
 
