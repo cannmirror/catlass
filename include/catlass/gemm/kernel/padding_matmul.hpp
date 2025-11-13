@@ -755,6 +755,19 @@ struct PaddingBuilder<PaddingTag::PADDING_BLOCK_ND, ArchTag, Element, LayoutIn, 
     >;
 };
 
+template <class ArchTag, class Element, class LayoutIn, uint32_t COMPUTE_LENGTH>
+struct PaddingBuilder<PaddingTag::PADDING_NZ, ArchTag, Element, LayoutIn, COMPUTE_LENGTH> {
+    using LayoutAfterPadding = std::conditional_t<std::is_same_v<LayoutIn, layout::RowMajor>,
+        layout::zN, layout::nZ>;
+    using Padding = std::conditional_t<
+        (COMPUTE_LENGTH > 0),
+        Catlass::Gemm::Kernel::PaddingMatrixNZ<ArchTag, Element, LayoutIn, LayoutAfterPadding, COMPUTE_LENGTH>,
+        Catlass::Gemm::Kernel::PaddingMatrixNZ<
+            ArchTag, Element, LayoutIn, LayoutAfterPadding, 48 * 1024 / sizeof(Element)>
+    >;
+};
+
+
 template<
     PaddingTag paddingTag_,
     class ArchTag_,
@@ -975,17 +988,6 @@ private:
         std::is_same_v<LayoutIn, layout::ColumnMajor>, "Unsported layout for RemovePaddingNDAndCast!");
 };
 
-template <class ArchTag, class Element, class LayoutIn, uint32_t COMPUTE_LENGTH>
-struct PaddingBuilder<PaddingTag::PADDING_NZ, ArchTag, Element, LayoutIn, COMPUTE_LENGTH> {
-    using LayoutAfterPadding = std::conditional_t<std::is_same_v<LayoutIn, layout::RowMajor>,
-        layout::zN, layout::nZ>;
-    using Padding = std::conditional_t<
-        (COMPUTE_LENGTH > 0),
-        Catlass::Gemm::Kernel::PaddingMatrixNZ<ArchTag, Element, LayoutIn, LayoutAfterPadding, COMPUTE_LENGTH>,
-        Catlass::Gemm::Kernel::PaddingMatrixNZ<
-            ArchTag, Element, LayoutIn, LayoutAfterPadding, 48 * 1024 / sizeof(Element)>
-    >;
-};
 
 template <
     class BlockMmad_,

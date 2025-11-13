@@ -196,6 +196,16 @@ struct MmadAtlasA2DynamicStreamk : public MmadAtlasA2 {
     static constexpr bool ENABLE_SHUFFLE_K = ENABLE_SHUFFLE_K_;
 };
 
+template <uint32_t L1A_STAGES_, uint32_t L1B_STAGES_, uint32_t L0C_STAGES_, bool ENABLE_UNIT_FLAG_ = false>
+struct MmadAtlasA2DynamicSingleCoreSplitk : public MmadAtlasA2 {
+    static constexpr uint32_t L1A_STAGES = L1A_STAGES_;
+    static constexpr uint32_t L1B_STAGES = L1B_STAGES_;
+    static constexpr uint32_t L0AB_STAGES = 2;
+    static constexpr uint32_t L0C_STAGES = L0C_STAGES_;
+    static constexpr bool ENABLE_UNIT_FLAG = ENABLE_UNIT_FLAG_;
+    static_assert(!(ENABLE_UNIT_FLAG && (L0C_STAGES > 1)), "When L0C_STAGES > 1, can not enable unitflag");
+};
+
 template <uint32_t STAGES_, bool ENABLE_UNIT_FLAG_ = false, bool ENABLE_SHUFFLE_K_ = false>
 struct MmadAtlasA2Small : public MmadAtlasA2 {
     static constexpr uint32_t STAGES = STAGES_;
