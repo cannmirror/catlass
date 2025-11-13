@@ -39,17 +39,17 @@ message(STATUS "Catlass library operator code was generated successfully.")
 
 list(APPEND CATLASS_LIBRARY_GENERATED_SRCS src/manifest.cpp)
 
-set_source_files_properties(${CATLASS_LIBRARY_GENERATED_SRCS} PROPERTIES LANGUAGE ASCEND)
+set_source_files_properties(${CATLASS_LIBRARY_GENERATED_SRCS} PROPERTIES LANGUAGE ASC)
 
 add_compile_options(
-    $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-macro-redefined>
-    $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-ignored-attributes>
+    $<$<COMPILE_LANGUAGE:ASC>:-Wno-macro-redefined>
+    $<$<COMPILE_LANGUAGE:ASC>:-Wno-ignored-attributes>
 
-    "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-stack-size=0x8000>"
-    "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-function-stack-size=0x8000>"
-    "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-record-overflow=true>"
-    "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-addr-transform>"
-    "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-dcci-insert-for-scalar=false>"
+    "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-mllvm -cce-aicore-stack-size=0x8000>"
+    "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-mllvm -cce-aicore-function-stack-size=0x8000>"
+    "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-mllvm -cce-aicore-record-overflow=true>"
+    "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-mllvm -cce-aicore-addr-transform>"
+    "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-mllvm -cce-aicore-dcci-insert-for-scalar=false>"
 )
 
 add_compile_definitions(L2_CACHE_HINT)
@@ -61,7 +61,7 @@ add_library(catlass_kernels SHARED
 )
 
 set(AICORE_ARCH dav-c220)
-target_compile_options(catlass_kernels PRIVATE $<$<COMPILE_LANGUAGE:ASCEND>:--cce-aicore-arch=${AICORE_ARCH}>)
+target_compile_options(catlass_kernels PRIVATE $<$<COMPILE_LANGUAGE:ASC>:--cce-aicore-arch=${AICORE_ARCH}>)
 
 set_target_properties(catlass_kernels PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
@@ -70,7 +70,7 @@ target_include_directories(catlass_kernels PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../include
     ${CMAKE_CURRENT_SOURCE_DIR}/../../examples/common
-    ${_CMAKE_ASCEND_HOME_PATH}/include
+    ${_CMAKE_ASC_HOME_PATH}/include
 )
 
 set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/../../output CACHE PATH "Installation prefix for CATLASS" FORCE)
