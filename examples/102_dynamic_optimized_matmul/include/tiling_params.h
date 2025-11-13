@@ -92,6 +92,9 @@ struct TilingParams {
     uint16_t n1{0};
     uint16_t k1{0};
     uint16_t splitkFactor{1};
+    uint16_t m0{0};
+    uint16_t n0{0};
+    uint16_t k0{0};
     // The following parameters are only used in tiling and are not read by the kernel.
     uint8_t layoutTagA;
     uint8_t layoutTagB;
