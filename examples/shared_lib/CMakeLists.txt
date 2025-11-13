@@ -12,7 +12,7 @@
 add_compile_definitions(TILING_KEY_VAR)
 add_compile_options(--cce-aicore-arch=${CCE_AICORE_ARCH_BASE})
 file(GLOB CATLASS_SHARED_LIB_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/kernels/*.cpp)
-set_source_files_properties(${CATLASS_SHARED_LIB_SRC} PROPERTIES LANGUAGE ASCEND)
+set_source_files_properties(${CATLASS_SHARED_LIB_SRC} PROPERTIES LANGUAGE ASC)
 
 add_library(catlass_kernel SHARED ${CATLASS_SHARED_LIB_SRC})
 add_library(catlass_kernel_static STATIC ${CATLASS_SHARED_LIB_SRC})

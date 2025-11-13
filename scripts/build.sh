@@ -85,11 +85,13 @@ fi
 
 if ! NPU_MODEL=$(get_npu_model); then
     echo -e "${ERROR}No npu-smi detected, please check your environment!"
-    exit 1
+    # exit 1
 else
     echo -e "${INFO}Detect NPU_MODEL: ${NPU_MODEL}${NC}"
     CMAKE_OPTIONS+=("-DNPU_MODEL=${NPU_MODEL}")
 fi
+
+CMAKE_OPTIONS+=("-DCMAKE_PREFIX_PATH=${SCRIPT_DIR}/../cmake")
 
 while [[ $# -gt 0 ]]; do
     case "$1" in

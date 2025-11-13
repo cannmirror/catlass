@@ -8,4 +8,4 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # ----------------------------------------------------------------------------
 
-set(CMAKE_ASCEND_COMPILER_WORKS 1 CACHE INTERNAL "")
+set(CMAKE_ASC_COMPILER_WORKS 1 CACHE INTERNAL "")
