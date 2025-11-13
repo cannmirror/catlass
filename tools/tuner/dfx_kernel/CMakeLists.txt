@@ -11,5 +11,5 @@
 add_compile_definitions(TILING_KEY_VAR)
 add_compile_options(--cce-aicore-arch=dav-c220)
 file(GLOB DFX_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-set_source_files_properties(${DFX_SRC} PROPERTIES LANGUAGE ASCEND)
+set_source_files_properties(${DFX_SRC} PROPERTIES LANGUAGE ASC)
 add_library(dfx_kernel STATIC ${DFX_SRC})

@@ -91,6 +91,12 @@ else
     CMAKE_OPTIONS+=("-DNPU_MODEL=${NPU_MODEL}")
 fi
 
+if [[ -z "${CMAKE_PREFIX_PATH:-}" ]]; then
+    export CMAKE_PREFIX_PATH=${SCRIPT_DIR}/../cmake
+else
+    export CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:${SCRIPT_DIR}/../cmake
+fi
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --clean)

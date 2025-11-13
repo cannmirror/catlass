@@ -558,7 +558,7 @@ int main(int argc, const char **argv)
 <summary><strong><code>CMakeLists.txt</code> 配置</strong></summary>
 
 ```cmake
-set_source_files_properties(splitk_matmul.cpp PROPERTIES LANGUAGE ASCEND)
+set_source_files_properties(splitk_matmul.cpp PROPERTIES LANGUAGE ASC)
 catlass_example_add_executable(
     splitk_matmul # 可执行程序名称
     mix
@@ -890,7 +890,7 @@ int main(int argc, const char **argv)
 <summary><strong><code>CMakeLists.txt</code> 配置</strong></summary>
 
 ```cmake
-set_source_files_properties(grouped_matmul.cpp PROPERTIES LANGUAGE ASCEND)
+set_source_files_properties(grouped_matmul.cpp PROPERTIES LANGUAGE ASC)
 catlass_example_add_executable(
     grouped_matmul # 可执行程序名称
     cube

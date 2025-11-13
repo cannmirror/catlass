@@ -147,7 +147,7 @@ BasicMatmul<<<BLOCK_NUM, nullptr, stream>>>(
 CATLASS使用CMake进行项目管理，在样例同级目录下创建CMakeLists.txt如下（可参考[CMakeLists.txt](../examples/00_basic_matmul/CMakeLists.txt)）,以支撑算子编译：
 ```
 # CMakeLists.txt
-set_source_files_properties(basic_matmul.cpp PROPERTIES LANGUAGE ASCEND)
+set_source_files_properties(basic_matmul.cpp PROPERTIES LANGUAGE ASC)
 catlass_example_add_executable(
     00_basic_matmul
     cube
