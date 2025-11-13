@@ -150,7 +150,7 @@ public:
     static Params ToUnderlyingArguments(const Arguments &args, uint8_t *workspace)
     {
         LayoutA layoutA = LayoutA::template MakeLayout<ElementA>(args.problemShape.m(), args.problemShape.k());
-        LayoutB layoutB = LayoutB::template MakeLayout<ElementB>(args.problemShape.n(), args.problemShape.k());
+        LayoutB layoutB = LayoutB::template MakeLayout<ElementB>(args.problemShape.k(), args.problemShape.n());
         LayoutC layoutC = LayoutC::template MakeLayout<ElementC>(args.problemShape.m(), args.problemShape.n());
         
         // Malloc memory @[npu device]
