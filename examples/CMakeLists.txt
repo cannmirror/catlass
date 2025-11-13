@@ -115,6 +115,7 @@ foreach(EXAMPLE
     33_basic_conv2d
     32_matmul_add_evg
     33_cast_evg
+    42_matmul_silu_evg
     12_quant_matmul_evg
     102_dynamic_optimized_matmul
 )

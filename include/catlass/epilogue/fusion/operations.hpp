@@ -30,6 +30,20 @@ struct Relu {
     }
 };
 
+// Silu
+template <typename T>
+struct Silu {
+    CATLASS_DEVICE
+    void operator()(
+        AscendC::LocalTensor<T>& dst,
+        uint32_t compute_length,
+        AscendC::LocalTensor<T> const& src
+    ) const {
+        AscendC::Silu(dst, src, compute_length);
+    }
+};
+
+
 
 template <
     typename T,
