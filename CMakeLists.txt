@@ -42,6 +42,20 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_link_options(-s)
 endif()
 
+execute_process(
+    COMMAND ${CMAKE_CXX_COMPILER} -dumpversion
+    OUTPUT_VARIABLE CMAKE_CXX_COMPILER_MAJOR_VERSION
+)
+
+if(CMAKE_CXX_COMPILER_MAJOR_VERSION GREATER_EQUAL 13)
+    message(FATAL_ERROR "Your environment has gcc>=13 installed, but bisheng compiler does not support gcc>=13.")
+    message(FATAL_ERROR "Use `-DCMAKE_CXX_COMPILER=/path/to/gcc` to set a gcc<13.")
+endif()
+
+add_compile_options("SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:--gcc-toolchain=/usr/lib/gcc/${CMAKE_SYSTEM_PROCESSOR}-linux-gnu/${CMAKE_CXX_COMPILER_MAJOR_VERSION}>")
+add_compile_options("SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-isystem /usr/include/c++/${CMAKE_CXX_COMPILER_MAJOR_VERSION}>")
+add_compile_options("SHELL:$<$<COMPILE_LANGUAGE:ASCEND>: -isystem /usr/include/${CMAKE_SYSTEM_PROCESSOR}-linux-gnu/c++/${CMAKE_CXX_COMPILER_MAJOR_VERSION}>")
+
 add_subdirectory(examples)
 add_subdirectory(tools)
 
