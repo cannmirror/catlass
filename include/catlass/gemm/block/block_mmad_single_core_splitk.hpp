@@ -37,7 +37,7 @@ template <
     class TileMmad_
 >
 struct BlockMmad<
-    MmadAtlasA2DynamicSingleCoreSplitk<L1A_STAGES_, L1B_STAGES_, L0C_STAGES_, ENABLE_UNIT_FLAG_>,
+    MmadAtlasA2SingleCoreSplitk<L1A_STAGES_, L1B_STAGES_, L0C_STAGES_, ENABLE_UNIT_FLAG_>,
     L1TileShape_, 
     L0TileShape_, 
     AType_, 
@@ -49,7 +49,7 @@ struct BlockMmad<
 > {
 public:
     // Type Aliases
-    using DispatchPolicy = MmadAtlasA2DynamicSingleCoreSplitk<L1A_STAGES_, L1B_STAGES_, L0C_STAGES_, ENABLE_UNIT_FLAG_>;
+    using DispatchPolicy = MmadAtlasA2SingleCoreSplitk<L1A_STAGES_, L1B_STAGES_, L0C_STAGES_, ENABLE_UNIT_FLAG_>;
     using ArchTag = typename DispatchPolicy::ArchTag;
     using ElementA = typename AType_::Element;
     using L1TileShape = L1TileShape_;
