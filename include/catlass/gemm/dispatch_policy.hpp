@@ -40,6 +40,16 @@ struct MmadAtlasA2PingpongSliceK : public MmadAtlasA2  {
     static constexpr bool ENABLE_UNIT_FLAG = ENABLE_UNIT_FLAG_;
 };
 
+template <uint32_t L1A_STAGES_, uint32_t L1B_STAGES_, uint32_t L0C_STAGES_, bool ENABLE_UNIT_FLAG_ = false>
+struct MmadAtlasA2SingleCoreSplitk : public MmadAtlasA2 {
+    static constexpr uint32_t L1A_STAGES = L1A_STAGES_;
+    static constexpr uint32_t L1B_STAGES = L1B_STAGES_;
+    static constexpr uint32_t L0AB_STAGES = 2;
+    static constexpr uint32_t L0C_STAGES = L0C_STAGES_;
+    static constexpr bool ENABLE_UNIT_FLAG = ENABLE_UNIT_FLAG_;
+    static_assert(!(ENABLE_UNIT_FLAG && (L0C_STAGES > 1)), "When L0C_STAGES > 1, can not enable unitflag");
+};
+
 template <bool ENABLE_UNIT_FLAG_ = false>
 struct MmadAtlasA2PingPongWithPrologue : public MmadAtlasA2 {
     static constexpr uint32_t STAGES = 2;
