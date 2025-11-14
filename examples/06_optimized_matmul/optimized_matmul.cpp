@@ -128,18 +128,20 @@ static void Run(const Options &options) {
 
     // PaddingTag can be NO_PADDING, PADDING_BLOCK_ND, or PADDING_ND.
     using PaddingTag = Catlass::Gemm::Kernel::PaddingTag;
-    // Layout zN or layout nZ does not require padding operation.
+    // Layout zN or layout nZ does not require padding operation for PADDING_NZ.
+    // Changing PADDING_NZ to PADDING_BLOCK_ND is another option worth trying.
+    // If using PADDING_BLOCK_ND, COMPUTE_LENGTH_A/COMPUTE_LENGTH_B should change 48KB to 96KB which is used in UB.
     constexpr PaddingTag paddingTagA = (std::is_same_v<LayoutA, layout::zN> || std::is_same_v<LayoutA, layout::nZ>)
                                            ? PaddingTag::NO_PADDING
-                                           : PaddingTag::PADDING_BLOCK_ND;
+                                           : PaddingTag::PADDING_NZ;
     constexpr PaddingTag paddingTagB = (std::is_same_v<LayoutB, layout::zN> || std::is_same_v<LayoutB, layout::nZ>)
                                            ? PaddingTag::NO_PADDING
-                                           : PaddingTag::PADDING_BLOCK_ND;
-    static const uint32_t COMPUTE_LENGTH_A = 96 * 1024 / sizeof(ElementA);
+                                           : PaddingTag::PADDING_NZ;
+    static const uint32_t COMPUTE_LENGTH_A = 48 * 1024 / sizeof(ElementA);
     using PaddingBuilderA = Catlass::Gemm::Kernel::PaddingBuilder<
         paddingTagA, ArchTag, ElementA, LayoutA, COMPUTE_LENGTH_A>;
     using GlobalPaddingA = typename PaddingBuilderA::Padding;
-    static const uint32_t COMPUTE_LENGTH_B = 96 * 1024 / sizeof(ElementB);
+    static const uint32_t COMPUTE_LENGTH_B = 48 * 1024 / sizeof(ElementB);
     using PaddingBuilderB = Catlass::Gemm::Kernel::PaddingBuilder<
         paddingTagB, ArchTag, ElementB, LayoutB, COMPUTE_LENGTH_B>;
     using GlobalPaddingB = typename PaddingBuilderB::Padding;
