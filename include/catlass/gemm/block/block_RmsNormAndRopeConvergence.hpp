@@ -91,16 +91,16 @@ public:
         gammaTensor = resource.ubBuf.template GetBufferByByte<T>(MM1_OUT_SIZE * 2);
         sinTensor = resource.ubBuf.template GetBufferByByte<T>(MM1_OUT_SIZE * 2 + SPLIT_RMSNRORM_SIZE_ONE * 2);
         cosTensor = resource.ubBuf.template GetBufferByByte<T>(MM1_OUT_SIZE * 2 + SPLIT_RMSNRORM_SIZE_ONE * 2 + SPLIT_RMSNRORM_SIZE_TWO * 2);
-        slotMappingTensor = resource.ubBuf.template GetBufferByByte<int8_t>(MM1_OUT_SIZE * 2 + SPLIT_RMSNRORM_SIZE_ONE * 2 + SPLIT_RMSNRORM_SIZE_TWO * 4);
+        slotMappingTensor = resource.ubBuf.template GetBufferByByte<int32_t>(MM1_OUT_SIZE * 2 + SPLIT_RMSNRORM_SIZE_ONE * 2 + SPLIT_RMSNRORM_SIZE_TWO * 4);
         rmsNormTensor = resource.ubBuf.template GetBufferByByte<float>(MM1_OUT_SIZE * 2 + SPLIT_RMSNRORM_SIZE_ONE * 2 + SPLIT_RMSNRORM_SIZE_TWO * 4 + 4096 * 32);
         gammaFp32 = resource.ubBuf.template GetBufferByByte<float>(MM1_OUT_SIZE * 2 + SPLIT_RMSNRORM_SIZE_ONE * 2 + SPLIT_RMSNRORM_SIZE_TWO * 4 + 4096 * 32 + SPLIT_RMSNRORM_SIZE_ONE);
         ropeKTensor = resource.ubBuf.template GetBufferByByte<float>(MM1_OUT_SIZE * 2 + SPLIT_RMSNRORM_SIZE_ONE * 2 + SPLIT_RMSNRORM_SIZE_TWO * 4 + 4096 * 32 + SPLIT_RMSNRORM_SIZE_ONE * 2);
         ropeKRevertTensor = resource.ubBuf.template GetBufferByByte<float>(MM1_OUT_SIZE * 2 + SPLIT_RMSNRORM_SIZE_ONE * 2 + SPLIT_RMSNRORM_SIZE_TWO * 4 + 4096 * 32 + SPLIT_RMSNRORM_SIZE_ONE * 2 + SPLIT_RMSNRORM_SIZE_TWO);
         calTensor = resource.ubBuf.template GetBufferByByte<float>(MM1_OUT_SIZE * 2 + SPLIT_RMSNRORM_SIZE_ONE * 2 + SPLIT_RMSNRORM_SIZE_TWO * 4 + 4096 * 32 + SPLIT_RMSNRORM_SIZE_ONE * 2 + SPLIT_RMSNRORM_SIZE_TWO * 2);
-        outTmpTensor = resource.ubBuf.template GetBufferByByte<float>(MM1_OUT_SIZE * 2 + SPLIT_RMSNRORM_SIZE_ONE * 2 + SPLIT_RMSNRORM_SIZE_TWO * 4 + 4096 * 32 + SPLIT_RMSNRORM_SIZE_ONE * 3 * 4 + SPLIT_RMSNRORM_SIZE_TWO * 2 * 4 + MM1_OUT_SIZE * 4 * 2 + 32);
+        outTmpTensor = resource.ubBuf.template GetBufferByByte<T>(MM1_OUT_SIZE * 2 + SPLIT_RMSNRORM_SIZE_ONE * 2 + SPLIT_RMSNRORM_SIZE_TWO * 4 + 4096 * 32 + SPLIT_RMSNRORM_SIZE_ONE * 3 * 4 + SPLIT_RMSNRORM_SIZE_TWO * 2 * 4 + MM1_OUT_SIZE * 4 * 2 + 32);
         
         tmpfp16 = resource.ubBuf.template GetBufferByByte<half>(MM1_OUT_SIZE * 2 + SPLIT_RMSNRORM_SIZE_ONE * 2 + SPLIT_RMSNRORM_SIZE_TWO * 4 + 4096 * 32 + SPLIT_RMSNRORM_SIZE_ONE * sizeof(float) * 2);
-        int8OutTensor = resource.ubBuf.template GetBufferByByte<half>(MM1_OUT_SIZE * 2 + SPLIT_RMSNRORM_SIZE_ONE * 2 + SPLIT_RMSNRORM_SIZE_TWO * 4 +
+        int8OutTensor = resource.ubBuf.template GetBufferByByte<int8_t>(MM1_OUT_SIZE * 2 + SPLIT_RMSNRORM_SIZE_ONE * 2 + SPLIT_RMSNRORM_SIZE_TWO * 4 +
                                 4096 * 32 + SPLIT_RMSNRORM_SIZE_ONE * 3 * 4 + SPLIT_RMSNRORM_SIZE_TWO * 2 * 4 +
                                 MM1_OUT_SIZE * 4 * 2 + 32);
 
@@ -155,11 +155,11 @@ public:
         AscendC::PipeBarrier<PIPE_V>();
         Mins(in, in, (half)127, count); // 127: limit
         AscendC::PipeBarrier<PIPE_V>();
-    #if defined(__CCE_KT_TEST__) || (__CCE_AICORE__ == 220)
+    // #if defined(__CCE_KT_TEST__) || (__CCE_AICORE__ == 220)
         Cast(out, in, AscendC::RoundMode::CAST_RINT, count);
-    #else
-        Cast(out, in, AscendC::RoundMode::CAST_NONE, count);
-    #endif
+    // #else
+        // Cast(out, in, AscendC::RoundMode::CAST_NONE, count);
+    // #endif
         AscendC::PipeBarrier<PIPE_V>();
     }
 
@@ -168,11 +168,13 @@ public:
         const uint32_t sN,
 
         AscendC::GlobalTensor<T> gamma3GmTensor, AscendC::GlobalTensor<int32_t> slotMappingGmTensor, AscendC::GlobalTensor<float> descale1gmTensor,
-        uint32_t rmsNumCol2, AscendC::GlobalTensor<int32_t> s2GmTensor, AscendC::GlobalTensor<int32_t> s3GmTensor, AscendC::GlobalTensor<T> sin1GmTensor,
+        uint32_t rmsNumCol2, AscendC::GlobalTensor<int32_t> s2GmTensor, AscendC::GlobalTensor<T> s3GmTensor, AscendC::GlobalTensor<T> sin1GmTensor,
         AscendC::GlobalTensor<float> s5GmTensor, AscendC::GlobalTensor<T> cos1GmTensor, AscendC::GlobalTensor<int8_t> keycacheGmTensor1,
-        AscendC::GlobalTensor<T> keycacheGmTensor2, AscendC::GlobalTensor<T> quantScale3GmTensor)
+        AscendC::GlobalTensor<T> keycacheGmTensor2, AscendC::GlobalTensor<T> quantScale3GmTensor, uint64_t rowStart)
     {
         AscendC::DataCopy(quantScaleTensor, quantScale3GmTensor, AscendC::DataCopyParams(1, 1, 0, 0));
+        // cce::printf("quantScale3GmTensor:%f\n",quantScale3GmTensor.GetValue(0)); //bf16
+        // cce::printf("quantScaleTensor:%f\n",quantScaleTensor.GetValue(0)); //bf16
         AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(EVENT_ID1);
         AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(EVENT_ID1);
 
@@ -181,15 +183,25 @@ public:
         AscendC::WaitFlag<AscendC::HardEvent::V_S>(EVENT_ID1);
         float quantScale3 = 1 / (float)(floatQuantScaleTensor.GetValue(0));
 
+        cce::printf("quantScale3:%f\n",quantScale3);
+        cce::printf("floatQuantScaleTensor:%f\n",(float)(floatQuantScaleTensor.GetValue(0)));
+
         num_col_2 = rmsNumCol2;
-        uint32_t blockIdx = AscendC::GetBlockIdx();
-        uint32_t sub_block_idx = static_cast<uint64_t>(AscendC::GetSubBlockIdx());
-        uint32_t vectorBlockIdx = (blockIdx / 2) * 2 + sub_block_idx;
-        int64_t slotMapGmOffset = vectorBlockIdx * row_work;
+        // uint32_t vectorBlockIdx = AscendC::GetBlockIdx();  // 0，1，2，39 //subBlockIdx 0 1 0 1 0 1(对应0 1 2 3 4 5 6)
+        // cce::printf("vectorBlockIdx:%d\n",vectorBlockIdx);
+        // int64_t slotMapGmOffset = vectorBlockIdx * sN;
+        int64_t slotMapGmOffset = rowStart;
+        cce::printf("slotMapGmOffset:%d\n",slotMapGmOffset);
         AscendC::DataCopy(gammaTensor, gamma3GmTensor, SPLIT_RMSNRORM_SIZE_ONE); //从gamma3GmTensor连续搬运512到gammaTensor
         AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(EVENT_ID1); //vector流水线等待mte2
         AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(EVENT_ID1); //vector流水线等待mte2
         Cast(gammaFp32, gammaTensor, AscendC::RoundMode::CAST_NONE, SPLIT_RMSNRORM_SIZE_ONE);
+
+        // AscendC::SetFlag<AscendC::HardEvent::V_S>(EVENT_ID0);
+        // AscendC::WaitFlag<AscendC::HardEvent::V_S>(EVENT_ID0);
+        // for(int i = 0; i < 16; i++){
+        //     cce::printf("i = %d, gamma = %f\n", i , gammaFp32.GetValue(i));
+        // }
         //根据源操作数和目的操作数Tensor的数据类型进行精度转换。Cast(const LocalTensor<T>& dst, const LocalTensor<U>& src, const RoundMode& round_mode, const uint32_t count)，
         //CAST_NONE = 0, 在转换有精度损失时表示CAST_RINT模式，不涉及精度损失时表示不舍入
         //CAST_RINT,四舍六入五成双舍入
@@ -206,6 +218,8 @@ public:
         //leftPadding连续搬运数据块左侧需要补充的数据范围，单位为元素个数。
         //rightPadding连续搬运数据块右侧需要补充的数据范围，单位为元素个数
         //paddingValue左右两侧需要填充的数据值，需要保证在数据占用字节范围内。
+
+        //跑的pertensor
         if constexpr (quantMode_ == QuantMode::PER_TOKEN_SYMM_QUANT) {
             mmTensor = calTensor.ReinterpretCast<int32_t>()[SPLIT_SIZE_ONE];
             deScaleTensor = calTensor.ReinterpretCast<float>()[SPLIT_SIZE_ONE * 2];
@@ -216,27 +230,42 @@ public:
         AscendC::SetFlag<AscendC::HardEvent::MTE2_S>(EVENT_ID2);
         AscendC::WaitFlag<AscendC::HardEvent::MTE2_S>(EVENT_ID2); //vector流水线等待mte2
 
+        cce::printf("sN:%d\n",sN);
+
         for (uint64_t loop = 0; loop < sN; ++loop) {
-            uint64_t offset = vectorBlockIdx * static_cast<uint64_t>(row_work) * num_col_2 + loop * MM1_OUT_SIZE; 
+            uint64_t offset = rowStart * num_col_2 + loop * MM1_OUT_SIZE;  //因为在kernel中是不split的
+            cce::printf("offset:%d\n",static_cast<int32_t>(offset));
+
+            // for(int i = 0; i < 16; i++){
+            //     cce::printf("i = %d, s3GmTensor = %f\n", i , s3GmTensor.GetValue(i));
+            // }
+            // for(int j = 0; j < 16; j++){
+            //     cce::printf("j = %d, s3GmTensor[offset] = %f\n", j , s3GmTensor.GetValue(offset+j));
+            // }
             //vectorBlockIdx = (blockIdx / 2) * 2 + sub_block_idx;  blockIdx = AscendC::GetBlockIdx();获取当前核的index，用于代码内部的多核逻辑控制及多核偏移量计算等。  
             //sub_block_idx = static_cast<uint64_t>(GetSubBlockidx());获取AI Core上Vector核的ID。
             //this->num_col_2 = mlaParams_.rmsNumCol2;
-            //row_work = (num_row + num_core_ - 1) / num_core_;
+            //sN = (num_row + num_core_ - 1) / num_core_;
             //MM1_OUT_SIZE = 2112
             int64_t slotValue = static_cast<int64_t>(slotMappingTensor.GetValue(loop));
-            if (slotValue == -1) {
-                continue;
-            }
+            cce::printf("slotValue:%d\n",slotValue);
+            // if (slotValue == -1) {
+            //     continue;
+            // }
             if constexpr (quantMode_ == QuantMode::PER_TENSOR_ASYMM_QUANT) {
                 AscendC::DataCopy(srcTensor, s3GmTensor[offset],
-                                  AscendC::DataCopyParams(1, MM1_OUT_SIZE / BLOCK_SIZE_16, 0, 0));
+                                  AscendC::DataCopyParams(1, MM1_OUT_SIZE / BLOCK_SIZE_16, 0, 0)); //block cnt,blockLen,srcStride,dstStride
             } else {
                 // quantMode == QuantMode::PER_TOKEN_SYMM_QUANT
                 AscendC::DataCopy(mmTensor, s2GmTensor[offset], AscendC::DataCopyParams(1, SPLIT_SIZE_ONE / 8, 0, 0));
             }
-            AscendC::DataCopy(sinTensor, sin1GmTensor[(row_work * vectorBlockIdx + loop) * SPLIT_RMSNRORM_SIZE_TWO],
+            // AscendC::DataCopy(sinTensor, sin1GmTensor[(sN * vectorBlockIdx + loop) * SPLIT_RMSNRORM_SIZE_TWO],
+            //                   SPLIT_RMSNRORM_SIZE_TWO);
+            AscendC::DataCopy(sinTensor, sin1GmTensor[(rowStart + loop) * SPLIT_RMSNRORM_SIZE_TWO],
                               SPLIT_RMSNRORM_SIZE_TWO);
-            AscendC::DataCopy(cosTensor, cos1GmTensor[(row_work * vectorBlockIdx + loop) * SPLIT_RMSNRORM_SIZE_TWO],
+            // AscendC::DataCopy(cosTensor, cos1GmTensor[(sN * vectorBlockIdx + loop) * SPLIT_RMSNRORM_SIZE_TWO],
+            //                   SPLIT_RMSNRORM_SIZE_TWO);
+            AscendC::DataCopy(cosTensor, cos1GmTensor[(rowStart + loop) * SPLIT_RMSNRORM_SIZE_TWO],
                               SPLIT_RMSNRORM_SIZE_TWO);
             AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(EVENT_ID0);
             // ND
@@ -254,12 +283,14 @@ public:
                 AscendC::Cast(mmTensor.ReinterpretCast<float>(), mmTensor, AscendC::RoundMode::CAST_NONE,
                               SPLIT_SIZE_ONE);
                 AscendC::PipeBarrier<PIPE_V>();
+
                 // 阻塞相同流水，具有数据依赖的相同流水之间需要插此同步。
                 AscendC::Mul(mmTensor.ReinterpretCast<float>(), mmTensor.ReinterpretCast<float>(), deScaleTensor,
                              SPLIT_SIZE_ONE);
                 //dst src0、src1 count参与计算的元素个数
                 AscendC::PipeBarrier<PIPE_V>();
-                float perTokenDescale = s5GmTensor.GetValue(row_work * vectorBlockIdx + loop);
+                // float perTokenDescale = s5GmTensor.GetValue(sN * vectorBlockIdx + loop);
+                float perTokenDescale = s5GmTensor.GetValue(rowStart + loop);
                 AscendC::SetFlag<AscendC::HardEvent::S_V>(EVENT_ID0);
                 AscendC::WaitFlag<AscendC::HardEvent::S_V>(EVENT_ID0);
                 AscendC::Muls(mmTensor.ReinterpretCast<float>(), mmTensor.ReinterpretCast<float>(), perTokenDescale,
@@ -272,6 +303,13 @@ public:
                 AscendC::PipeBarrier<PIPE_V>();
             }
             Cast(rmsNormTensor, srcTensor, AscendC::RoundMode::CAST_NONE, SPLIT_RMSNRORM_SIZE_ONE);
+
+            // AscendC::SetFlag<AscendC::HardEvent::V_S>(EVENT_ID0);
+            // AscendC::WaitFlag<AscendC::HardEvent::V_S>(EVENT_ID0);
+            // for(int i = 0; i < 16; i++){
+            //     cce::printf("i = %d, rmsNormTensor = %f\n", i , rmsNormTensor.GetValue(i));
+            // }
+
             AscendC::PipeBarrier<PIPE_V>();
             Mul(calTensor, rmsNormTensor, rmsNormTensor, SPLIT_RMSNRORM_SIZE_ONE);
             AscendC::PipeBarrier<PIPE_V>();
@@ -292,16 +330,43 @@ public:
             //dst src0 src1(dst = src0 / src1) count参与计算的元素个数
             AscendC::PipeBarrier<PIPE_V>();
             Mul(rmsNormTensor, gammaFp32, calTensor, SPLIT_RMSNRORM_SIZE_ONE);
-
+            // AscendC::SetFlag<AscendC::HardEvent::V_S>(EVENT_ID0);
+            // AscendC::WaitFlag<AscendC::HardEvent::V_S>(EVENT_ID0);
+            // for(int i = 0; i < 16; i++){
+            //     cce::printf("i = %d, rmsNormTensor_gamma = %f\n", i , rmsNormTensor.GetValue(i));
+            // }
             AscendC::PipeBarrier<PIPE_V>();
             if constexpr (CACHE_MODE == CacheMode::CACHE_MODE_INT8_NZCACHE) {
                 // quant
                 Muls(rmsNormTensor, rmsNormTensor, quantScale3, SPLIT_RMSNRORM_SIZE_ONE);
+
+                // AscendC::SetFlag<AscendC::HardEvent::V_S>(EVENT_ID0);
+                // AscendC::WaitFlag<AscendC::HardEvent::V_S>(EVENT_ID0);
+                // for(int i = 0; i < 16; i++){
+                //     cce::printf("i = %d, rmsNormTensor_quant = %f\n", i , rmsNormTensor.GetValue(i));
+                // }
+
+
+
                 AscendC::PipeBarrier<PIPE_V>();
                 CastFrom32To16(tmpfp16, rmsNormTensor, SPLIT_RMSNRORM_SIZE_ONE);
                 AscendC::PipeBarrier<PIPE_V>();
+
+                // AscendC::SetFlag<AscendC::HardEvent::V_S>(EVENT_ID0);
+                // AscendC::WaitFlag<AscendC::HardEvent::V_S>(EVENT_ID0);
+                // for(int i = 0; i < 16; i++){
+                //     cce::printf("i = %d, tmpfp16 = %f\n", i , tmpfp16.GetValue(i));
+                // }
+
                 CastFromF16ToI8(int8OutTensor, tmpfp16, -128, SPLIT_RMSNRORM_SIZE_ONE);
                 AscendC::PipeBarrier<PIPE_V>();
+                
+                // AscendC::SetFlag<AscendC::HardEvent::V_S>(EVENT_ID0);
+                // AscendC::WaitFlag<AscendC::HardEvent::V_S>(EVENT_ID0);
+                // for(int i = 0; i < 16; i++){
+                //     cce::printf("i = %d, int8OutTensor = %d\n", i , int8OutTensor.GetValue(i));
+                // }
+
             } else {
                 AscendC::PipeBarrier<PIPE_V>();
                 if (std::is_same<T, __bf16>::value) {
@@ -333,12 +398,24 @@ public:
             AscendC::PipeBarrier<PIPE_V>();
             Add(ropeKRevertTensor, ropeKTensor, ropeKRevertTensor, SPLIT_RMSNRORM_SIZE_TWO);
             AscendC::PipeBarrier<PIPE_V>();
+
+            // AscendC::SetFlag<AscendC::HardEvent::V_S>(EVENT_ID0);
+            // AscendC::WaitFlag<AscendC::HardEvent::V_S>(EVENT_ID0);
+            // for(int i = 0; i < 16; i++){
+            //     cce::printf("i = %d, int8OutTensor = %f\n", i , int8OutTensor.GetValue(i));
+            // }
+            
             if (std::is_same<T, __bf16>::value) {
                 Cast(outTmpTensor[SPLIT_RMSNRORM_SIZE_ONE], ropeKRevertTensor, AscendC::RoundMode::CAST_RINT,
                      SPLIT_RMSNRORM_SIZE_TWO);
             } else {
                 Cast(outTmpTensor[SPLIT_RMSNRORM_SIZE_ONE], ropeKRevertTensor, AscendC::RoundMode::CAST_NONE,
                      SPLIT_RMSNRORM_SIZE_TWO);
+
+                // AscendC::SetFlag<AscendC::HardEvent::V_S>(EVENT_ID0);
+                // AscendC::WaitFlag<AscendC::HardEvent::V_S>(EVENT_ID0);
+                // cce::printf("outTmpTensor[SPLIT_RMSNRORM_SIZE_ONE] = %f\n", outTmpTensor.GetValue(SPLIT_RMSNRORM_SIZE_ONE));
+                
             }
             AscendC::PipeBarrier<PIPE_V>();
             /* Rope K end */
@@ -348,6 +425,7 @@ public:
             if constexpr (CACHE_MODE == CacheMode::CACHE_MODE_KVCACHE) {
                 DataCopy(keycacheGmTensor1[cacheStart], outTmpTensor, SPLIT_SIZE_ONE);
             } else if constexpr (CACHE_MODE == CacheMode::CACHE_MODE_INT8_NZCACHE) {
+                // cce::printf("go to CACHE_MODE_INT8_NZCACHE\n");
                 uint64_t cacheSatartI8Nz1 = outer_idx * 128 * 512 + inner_idx * I8_C0_SIZE;
                 uint64_t cacheSatartNz2 = outer_idx * 128 * 64 + inner_idx * C0_SIZE;
                 // nope:int8 nz
@@ -369,6 +447,7 @@ public:
                 outExt.srcStride = 0;
                 outExt.dstStride = (128 * C0_SIZE - C0_SIZE) * sizeof(T);
                 DataCopyPad(keycacheGmTensor2[cacheSatartNz2], outTmpTensor[SPLIT_RMSNRORM_SIZE_ONE], outExt);
+                // cce::printf("keycacheGmTensor2[cacheSatartNz2] = %f\n", keycacheGmTensor2.GetValue(cacheSatartNz2));
             } else if constexpr (CACHE_MODE == CacheMode::CACHE_MODE_NZCACHE) {
                 uint64_t cacheSatartNz1 = outer_idx * 128 * 512 + inner_idx * C0_SIZE;
                 uint64_t cacheSatartNz2 = outer_idx * 128 * 64 + inner_idx * C0_SIZE;
@@ -418,7 +497,7 @@ private:
     AscendC::LocalTensor<float> deScaleTensor;
 
 
-    uint32_t row_work{0};       // 需要计算多少行
+    uint32_t sN{0};       // 需要计算多少行
 
     float epsilon_{1e-12f}; // norm平滑参数
 

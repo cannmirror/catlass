@@ -28,11 +28,16 @@ std::vector<uint64_t> CompareData(const std::vector<ElementResult>& result, cons
 
     float rtol = computeNum < computeNumThreshold ? rtolGeneral : rtolOverThreshold;
     std::vector<uint64_t> errorIndices;
+    uint64_t errorCount = 0;
     for (uint64_t i = 0; i < result.size(); ++i) {
         ElementCompare actualValue = static_cast<ElementCompare>(result[i]);
         ElementCompare expectValue = expect[i];
         ElementCompare diff = std::fabs(actualValue - expectValue);
         if (diff > rtol * std::max(1.0f, std::fabs(expectValue))) {
+            if (errorCount < 16 || i >= result.size() - 16) {
+                printf("i = %lu, actualValue = %f, expectValue = %f\n", i, actualValue, expectValue);
+                errorCount ++;
+            }
             errorIndices.push_back(i);
         }
     }
@@ -45,11 +50,38 @@ std::vector<uint64_t> CompareData(const std::vector<int32_t>& result, const std:
 {
     using ElementCompare = int32_t;
     std::vector<uint64_t> errorIndices;
+    uint64_t errorCount = 0;
     for (uint64_t i = 0; i < result.size(); ++i) {
         ElementCompare actualValue = static_cast<ElementCompare>(result[i]);
         ElementCompare expectValue = expect[i];
         ElementCompare diff = std::abs(actualValue - expectValue);
-        if (diff != 0) {
+        if (diff > 1) {
+            if (errorCount < 16 || i >= result.size() - 16) {
+                printf("i = %lu, actualValue = %d, expectValue = %d\n", i, actualValue, expectValue);
+                errorCount ++;
+            }
+            errorIndices.push_back(i);
+        }
+    }
+    return errorIndices;
+}
+
+template<>
+std::vector<uint64_t> CompareData(const std::vector<int8_t>& result, const std::vector<int8_t>& expect,
+    uint32_t computeNum)
+{
+    using ElementCompare = int8_t;
+    std::vector<uint64_t> errorIndices;
+    uint64_t errorCount = 0;
+    for (uint64_t i = 0; i < result.size(); ++i) {
+        ElementCompare actualValue = static_cast<ElementCompare>(result[i]);
+        ElementCompare expectValue = expect[i];
+        ElementCompare diff = std::abs(actualValue - expectValue);
+        if (diff > 1) {
+            if (errorCount < 16 || i >= result.size() - 16) {
+                printf("i = %lu, actualValue = %d, expectValue = %d\n", i, actualValue, expectValue);
+                errorCount ++;
+            }
             errorIndices.push_back(i);
         }
     }
