@@ -755,6 +755,226 @@ struct PaddingBuilder<PaddingTag::PADDING_BLOCK_ND, ArchTag, Element, LayoutIn, 
     >;
 };
 
+template<
+    PaddingTag paddingTag_,
+    class ArchTag_,
+    class ElementIn_,
+    class ElementOut_,
+    class Layout_
+>
+struct RemovePaddingNDAndCast {
+public:
+    using ArchTag = ArchTag_;
+    using ElementIn = ElementIn_;
+    using ElementOut = ElementOut_;
+    using Layout = Layout_;
+    using CopyGm2Ub = Catlass::Epilogue::Tile::CopyGm2Ub<
+        ArchTag, Gemm::GemmType<ElementIn, Catlass::layout::RowMajor>>;
+    using CopyUb2Gm = Catlass::Epilogue::Tile::CopyUb2Gm<
+        ArchTag, Gemm::GemmType<ElementOut, Catlass::layout::RowMajor>>;
+    using ComputeLayout = Catlass::layout::RowMajor;
+
+    constexpr static uint32_t ELE_NUM_PER_C0 = std::max(BYTE_PER_C0 / sizeof(ElementIn), BYTE_PER_C0 / sizeof(ElementOut));
+
+    static const PaddingTag paddingTag = paddingTag_;
+    using LayoutIn = Layout_;
+    using LayoutOut = Layout_;
+    CATLASS_HOST_DEVICE static
+    LayoutOut GetWorkspaceLayout(const LayoutIn& layout, uint32_t align)
+    {
+        if constexpr (std::is_same_v<LayoutIn, layout::RowMajor>) {
+            return LayoutOut{layout.shape(0), layout.shape(1), RoundUp(layout.shape(1), align)};
+        } else {
+            return LayoutOut{layout.shape(0), layout.shape(1), RoundUp(layout.shape(0), align)};
+        }
+    }
+    static size_t GetWorkspaceSize(uint32_t rows, uint32_t cols, uint32_t align = 1)
+    {
+        if constexpr (std::is_same_v<LayoutIn, layout::RowMajor>) {
+            return static_cast<size_t>(rows) * RoundUp(cols, align) * sizeof(ElementIn);
+        } else {
+            return static_cast<size_t>(cols) * RoundUp(rows, align) * sizeof(ElementIn);
+        }
+    }
+
+    CopyGm2Ub copyGm2Ub;
+    CopyUb2Gm copyUb2Gm;
+
+    CATLASS_DEVICE
+    RemovePaddingNDAndCast(Arch::Resource<ArchTag> &resource)
+    {
+        int64_t bufferOffset = 0;
+        constexpr uint32_t inputBufSize = COMPUTE_LENGTH * sizeof(ElementIn);
+        for (uint32_t i = 0; i < BUFFER_NUM; i++) {
+            inputBuffer[i] = resource.ubBuf.template GetBufferByByte<ElementIn>(bufferOffset + inputBufSize * i);
+        }
+        if constexpr (!std::is_same_v<ElementIn, ElementOut>) {
+            constexpr uint32_t outputBufSize = COMPUTE_LENGTH * sizeof(ElementOut);
+            bufferOffset = inputBufSize * BUFFER_NUM;
+            for (uint32_t i = 0; i < BUFFER_NUM; i++) {
+                outputBuffer[i] = resource.ubBuf.template GetBufferByByte<ElementOut>(bufferOffset + outputBufSize * i);
+            }
+        }
+    }
+
+    CATLASS_DEVICE
+    ComputeLayout GetPaddingComputeLayout(layout::RowMajor const &layout)
+    {
+        return ComputeLayout(layout.shape(0), layout.shape(1), layout.stride(0));
+    }
+
+    CATLASS_DEVICE
+    ComputeLayout GetPaddingComputeLayout(layout::ColumnMajor const &layout)
+    {
+        return ComputeLayout(layout.shape(1), layout.shape(0), layout.stride(1));
+    }
+
+    CATLASS_DEVICE
+    void operator()(AscendC::GlobalTensor<ElementOut> const &dst,
+                    AscendC::GlobalTensor<ElementIn> const &src,
+                    Layout const &layoutDst, Layout const &layoutSrc)
+    {
+        ComputeLayout computeLayoutSrc = GetPaddingComputeLayout(layoutSrc);
+        ComputeLayout computeLayoutDst = GetPaddingComputeLayout(layoutDst);
+
+        uint32_t aivNum = AscendC::GetBlockNum() * AscendC::GetSubBlockNum();
+        uint32_t aivId = AscendC::GetBlockIdx();
+
+        // Each line is a tile.
+        uint32_t tilesNum = computeLayoutSrc.shape(0);
+        uint32_t tileLen = computeLayoutSrc.shape(1);
+        uint32_t roundTileLen = RoundUp(computeLayoutSrc.shape(1), ELE_NUM_PER_C0);
+
+        uint32_t tilesPerAiv = tilesNum / aivNum;
+        uint32_t tileRemain = tilesNum % aivNum;
+        if (aivId < tileRemain) {
+            tilesPerAiv++;
+        }
+        uint32_t mIdx = aivId * tilesPerAiv;
+        if (aivId >= tileRemain) {
+            mIdx += tileRemain;
+        }
+        MatrixCoord blockOffset(mIdx, 0);
+
+        AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[0]);
+        AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[1]);
+        uint32_t coreLoops{ 0 };
+        if (roundTileLen > COMPUTE_LENGTH) {
+            // Handle the same tile on multiple loops.
+            uint32_t loopsPerTile = (tileLen + COMPUTE_LENGTH - 1) / COMPUTE_LENGTH;
+            coreLoops = tilesPerAiv * loopsPerTile;
+            for (uint32_t loopIdx = 0; loopIdx < coreLoops; ++loopIdx) {
+                uint32_t tileIdx = loopIdx / loopsPerTile;
+                uint32_t inTileLoopIdx = loopIdx % loopsPerTile;
+                MatrixCoord loopOffset(tileIdx, inTileLoopIdx * COMPUTE_LENGTH);
+                uint64_t gmSrcOffset = computeLayoutSrc.GetOffset(blockOffset + loopOffset);
+                uint32_t actualDataNum = COMPUTE_LENGTH;
+                if (tileLen - inTileLoopIdx * COMPUTE_LENGTH < COMPUTE_LENGTH) {
+                    actualDataNum = tileLen - inTileLoopIdx * COMPUTE_LENGTH;
+                }
+
+                AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[bufferIndex]);
+                ComputeLayout dstLayout = computeLayoutDst.GetTileLayout(MatrixCoord(1, actualDataNum));
+                ComputeLayout srcLayout = computeLayoutSrc.GetTileLayout(MatrixCoord(1, actualDataNum));
+                ComputeLayout &ubLayout = dstLayout;
+
+                copyGm2Ub(inputBuffer[bufferIndex], src[gmSrcOffset], ubLayout, srcLayout);
+                if constexpr (!std::is_same_v<ElementIn, ElementOut>) {
+                    AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventIds[bufferIndex]);
+                    AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventIds[bufferIndex]);
+                    if constexpr (std::is_same_v<ElementOut, half>) {
+                        AscendC::Cast(outputBuffer[bufferIndex], inputBuffer[bufferIndex], AscendC::RoundMode::CAST_NONE, actualDataNum);
+                    } else {
+                        AscendC::Cast(outputBuffer[bufferIndex], inputBuffer[bufferIndex], AscendC::RoundMode::CAST_RINT, actualDataNum);
+                    }
+                    AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(eventIds[bufferIndex]);
+                    AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(eventIds[bufferIndex]);
+
+                    uint64_t gmDstOffset = computeLayoutDst.GetOffset(blockOffset + loopOffset);
+                    copyUb2Gm(dst[gmDstOffset], outputBuffer[bufferIndex], dstLayout, ubLayout);
+                    AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[bufferIndex]);
+                } else {
+                    AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(eventIds[bufferIndex]);
+                    AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE3>(eventIds[bufferIndex]);
+                    uint64_t gmDstOffset = computeLayoutDst.GetOffset(blockOffset + loopOffset);
+                    copyUb2Gm(dst[gmDstOffset], inputBuffer[bufferIndex], dstLayout, ubLayout);
+                    AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[bufferIndex]);
+                }
+
+
+                bufferIndex = (bufferIndex + 1) % BUFFER_NUM;
+            }
+        } else {
+            // Handle multiple tile each loop.
+            uint32_t tilesPerLoop = COMPUTE_LENGTH / roundTileLen;
+            coreLoops = (tilesPerAiv + tilesPerLoop - 1) / tilesPerLoop;
+            for (uint32_t loopIdx = 0; loopIdx < coreLoops; ++loopIdx) {
+                uint32_t tileIdx = loopIdx * tilesPerLoop;
+                MatrixCoord tileOffset(tileIdx, 0);
+                uint64_t gmSrcOffset = computeLayoutSrc.GetOffset(blockOffset + tileOffset);
+                uint32_t actualTilesNum = tilesPerLoop;
+                if (tilesPerAiv - tileIdx < tilesPerLoop) {
+                    actualTilesNum = tilesPerAiv - tileIdx;
+                }
+
+                AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[bufferIndex]);
+                ComputeLayout dstLayout = computeLayoutDst.GetTileLayout(MatrixCoord(actualTilesNum, tileLen));
+                ComputeLayout srcLayout = computeLayoutSrc.GetTileLayout(MatrixCoord(actualTilesNum, tileLen));
+                ComputeLayout ubLayout = ComputeLayout{actualTilesNum, tileLen, roundTileLen};
+
+                copyGm2Ub(inputBuffer[bufferIndex], src[gmSrcOffset], ubLayout, srcLayout);
+                if constexpr (!std::is_same_v<ElementIn, ElementOut>) {
+                    AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventIds[bufferIndex]);
+                    AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventIds[bufferIndex]);
+                    uint32_t castDataNum = actualTilesNum * roundTileLen;
+                    if constexpr (std::is_same_v<ElementOut, half>) {
+                        AscendC::Cast(outputBuffer[bufferIndex], inputBuffer[bufferIndex], AscendC::RoundMode::CAST_NONE, castDataNum);
+                    } else {
+                        AscendC::Cast(outputBuffer[bufferIndex], inputBuffer[bufferIndex], AscendC::RoundMode::CAST_RINT, castDataNum);
+                    }
+                    AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(eventIds[bufferIndex]);
+                    AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(eventIds[bufferIndex]);
+
+                    uint64_t gmDstOffset = computeLayoutDst.GetOffset(blockOffset + tileOffset);
+                    copyUb2Gm(dst[gmDstOffset], outputBuffer[bufferIndex], dstLayout, ubLayout);
+                    AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[bufferIndex]);
+                } else {
+                    AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE3>(eventIds[bufferIndex]);
+                    AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE3>(eventIds[bufferIndex]);
+                    uint64_t gmDstOffset = computeLayoutDst.GetOffset(blockOffset + tileOffset);
+                    copyUb2Gm(dst[gmDstOffset], inputBuffer[bufferIndex], dstLayout, ubLayout);
+                    AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[bufferIndex]);
+                }
+
+                bufferIndex = (bufferIndex + 1) % BUFFER_NUM;
+            }
+        }
+        AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[0]);
+        AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[1]);
+    }
+
+    CATLASS_DEVICE
+    ~RemovePaddingNDAndCast() {}
+private:
+    static const uint32_t BUFFER_NUM = 2;
+    AscendC::LocalTensor<ElementIn> inputBuffer[BUFFER_NUM];
+    AscendC::LocalTensor<ElementOut> outputBuffer[BUFFER_NUM];
+    AscendC::TEventID eventIds[BUFFER_NUM] = {EVENT_ID0, EVENT_ID1};
+    uint32_t bufferIndex{ 0 };
+    static constexpr uint32_t COMPUTE_LENGTH = 
+        std::is_same_v<ElementIn, ElementOut> ? 
+        ArchTag::UB_SIZE / sizeof(ElementIn) / BUFFER_NUM :
+        ArchTag::UB_SIZE / (sizeof(ElementIn) + sizeof(ElementOut)) / BUFFER_NUM;
+    static_assert(
+        std::is_same_v<ElementIn, ElementOut> ? 
+        BUFFER_NUM * COMPUTE_LENGTH * sizeof(ElementIn) <= ArchTag::UB_SIZE :
+        BUFFER_NUM * COMPUTE_LENGTH * (sizeof(ElementIn) + sizeof(ElementOut)) <= ArchTag::UB_SIZE,
+        "Excedding the UB space!");
+
+    static_assert(std::is_same_v<LayoutIn, layout::RowMajor> || 
+        std::is_same_v<LayoutIn, layout::ColumnMajor>, "Unsported layout for RemovePaddingNDAndCast!");
+};
+
 template <class ArchTag, class Element, class LayoutIn, uint32_t COMPUTE_LENGTH>
 struct PaddingBuilder<PaddingTag::PADDING_NZ, ArchTag, Element, LayoutIn, COMPUTE_LENGTH> {
     using LayoutAfterPadding = std::conditional_t<std::is_same_v<LayoutIn, layout::RowMajor>,
