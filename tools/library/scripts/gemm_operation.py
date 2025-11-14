@@ -43,6 +43,7 @@ class GemmOperation:
         self.kernel_instance_generators = {
             'basic_matmul': BasicMatmulKernelInstance,
             'grouped_matmul': GroupedMatmulKernelInstance,
+            'quant_matmul': QuantMatmulKernelInstance,
         }
 
         self.body_template = """
@@ -265,6 +266,89 @@ class GroupedMatmulKernelInstance:
             layout_b=gemm_operation.b_type.layout.to_code(),
             layout_c=gemm_operation.c_type.layout.to_code(),
             block_swizzle=gemm_operation.block_swizzle
+        )
+        return src
+
+class QuantMatmulKernelInstance:
+    def __init__(self):
+        self.cpp_instance = 'QuantMatmulGemmOperation'
+        self.custom_headers = '''
+                #include "catlass/arch/arch.hpp"
+                #include "catlass/catlass.hpp"
+                #include "catlass/epilogue/block/block_epilogue.hpp"
+                #include "catlass/epilogue/dispatch_policy.hpp"
+                #include "catlass/epilogue/tile/tile_broadcast_mul.hpp"
+                #include "catlass/epilogue/tile/tile_broadcast_one_blk.hpp"
+                #include "catlass/epilogue/tile/tile_swizzle.hpp"
+                #include "catlass/gemm/block/block_mmad.hpp"
+                #include "catlass/gemm/block/block_swizzle.hpp"
+                #include "catlass/gemm/device/device_gemm.hpp"
+                #include "catlass/gemm/dispatch_policy.hpp"
+                #include "catlass/gemm/gemm_type.hpp"
+                #include "catlass/gemm/kernel/quant_matmul_multistage_workspace.hpp"
+ '''
+        self.custom_common_decls = ''
+        self.template = """
+        Gemm::Device::DeviceGemm<
+            Gemm::Kernel::QuantMatmulMultiStageWorkspace<
+                Gemm::Block::BlockMmad<
+                    Gemm::MmadAtlasA2PreloadAsyncWithCallback<1,2,2,2,1,false,true>,
+                    GemmShape<{l1_m}, {l1_n}, {l1_k}>,
+                    GemmShape<{l0_m}, {l0_n}, {l0_k}>,
+                    Gemm::GemmType<{element_a},  {layout_a}>,
+                    Gemm::GemmType<{element_b},  {layout_b}>,
+                    Gemm::GemmType<int32_t, layout::RowMajor>
+                >,
+                Epilogue::Block::BlockEpilogue<
+                        Epilogue::EpilogueAtlasA2PerTokenDequant<2>,
+                        Gemm::GemmType<int32_t, layout::RowMajor>,
+                        Gemm::GemmType<half, layout::VectorLayout>,
+                        Gemm::GemmType<half, layout::VectorLayout>, 
+                        Gemm::GemmType<{element_c}, {layout_c}>, 
+                        Epilogue::Tile::TileRowBroadcastMul<
+                            {arch}, 
+                            Gemm::GemmType<float, layout::RowMajor>, 
+                            MatrixShape<32, 256>
+                        >,
+                        Epilogue::Tile::TileBroadcastOneBlk<{arch}, 
+                            Gemm::GemmType<float, layout::RowMajor>, 
+                            MatrixShape<32, 256>::ROW
+                        >,
+                        Epilogue::Tile::TileOneBlkColumnBroadcastMul<{arch},
+                                Gemm::GemmType<float, layout::RowMajor>,
+                                MatrixShape<32, 256>
+                        >,
+                        Epilogue::Tile::TileCopy<{arch},
+                                Gemm::GemmType<int32_t, layout::RowMajor>,
+                                Gemm::GemmType<half, layout::VectorLayout>,
+                                Gemm::GemmType<half, layout::VectorLayout>, 
+                                Gemm::GemmType<half, layout::RowMajor>
+                        >,
+                        Epilogue::Tile::EpilogueHorizontalTileSwizzle
+                >,
+                {block_swizzle},
+                2
+            >
+        >"""
+        
+# {block_swizzle},
+
+    def gen_src(self, gemm_operation):
+        src = self.template.format(
+            l1_m=str(gemm_operation.l1_tile_shape[0]),
+            l1_n=str(gemm_operation.l1_tile_shape[1]),
+            l1_k=str(gemm_operation.l1_tile_shape[2]),
+            l0_m=str(gemm_operation.l0_tile_shape[0]),
+            l0_n=str(gemm_operation.l0_tile_shape[1]),
+            l0_k=str(gemm_operation.l0_tile_shape[2]),
+            element_a=gemm_operation.a_type.element_type.to_code(),
+            element_b=gemm_operation.b_type.element_type.to_code(),
+            element_c=gemm_operation.c_type.element_type.to_code(),
+            layout_a=gemm_operation.a_type.layout.to_code(),
+            layout_b=gemm_operation.b_type.layout.to_code(),
+            layout_c=gemm_operation.c_type.layout.to_code(),
+            block_swizzle=gemm_operation.block_swizzle,
+            arch=gemm_operation.arch.to_code()
         )
         return src
 
