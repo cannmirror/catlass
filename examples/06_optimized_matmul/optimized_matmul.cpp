@@ -128,7 +128,9 @@ static void Run(const Options &options) {
 
     // PaddingTag can be NO_PADDING, PADDING_BLOCK_ND, or PADDING_ND.
     using PaddingTag = Catlass::Gemm::Kernel::PaddingTag;
-    // Layout zN or layout nZ does not require padding operation.
+    // Layout zN or layout nZ does not require padding operation for PADDING_BLOCK_ND.
+    // Changing PADDING_BLOCK_ND to PADDING_NZ is another option worth trying.
+    // If using PADDING_NZ, COMPUTE_LENGTH_A/COMPUTE_LENGTH_B should change 96KB to 48KB which is used in UB.
     constexpr PaddingTag paddingTagA = (std::is_same_v<LayoutA, layout::zN> || std::is_same_v<LayoutA, layout::nZ>)
                                            ? PaddingTag::NO_PADDING
                                            : PaddingTag::PADDING_BLOCK_ND;
