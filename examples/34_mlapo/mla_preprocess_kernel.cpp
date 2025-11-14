@@ -81,56 +81,57 @@ class MlaPreprocessKernel {
     template <>
     CATLASS_DEVICE void operator()<AscendC::AIV>(MlaPreprocessKernelParams const &params) {
         // Get tiling parameters
-        // __gm__ MlaPreprocessTilingData *mpTilingData = reinterpret_cast<__gm__ MlaPreprocessTilingData *>(params.tiling);
-        // uint32_t rmsNumCol2 = mpTilingData->rmsNumCol2;
-        // uint32_t n = mpTilingData->n;
-        // cce::printf("--------------------rmsNumCol2=%d---------------------------------------\n",rmsNumCol2);
-        // cce::printf("--------------------n=%d---------------------------------------\n",n);
+        __gm__ MlaPreprocessTilingData *mpTilingData = reinterpret_cast<__gm__ MlaPreprocessTilingData *>(params.tiling);
+        uint32_t rmsNumCol2 = mpTilingData->rmsNumCol2;
+        uint32_t n = mpTilingData->n;
 
-        // // Get the memory offset address of the input on Global Memory
-        // // AscendC::GlobalTensor<T> hiddenStateGm;
-        // // hiddenStateGm.SetGlobalBuffer((__gm__ T *)params.hiddenState);
-        // AscendC::GlobalTensor<T> gamma3Gm;
-        // gamma3Gm.SetGlobalBuffer((__gm__ T *)params.gamma3);
-        // AscendC::GlobalTensor<T> slotMappingGm;
-        // slotMappingGm.SetGlobalBuffer((__gm__ T *)params.slotMapping);
-        // AscendC::GlobalTensor<T> descale1Gm;
-        // descale1Gm.SetGlobalBuffer((__gm__ T *)params.descale1);
-        // AscendC::GlobalTensor<int8_t> s2Gm;
-        // s2Gm.SetGlobalBuffer((__gm__ int8_t *)params.s2);
-        // AscendC::GlobalTensor<int8_t> s3Gm;
-        // s3Gm.SetGlobalBuffer((__gm__ int8_t *)params.s3);
-        // AscendC::GlobalTensor<float> sin1Gm;
-        // sin1Gm.SetGlobalBuffer((__gm__ float *)params.sin1);
-        // AscendC::GlobalTensor<int8_t> s5Gm;
-        // s5Gm.SetGlobalBuffer((__gm__ int8_t *)params.s5);
-        // AscendC::GlobalTensor<float> cos1Gm;
-        // cos1Gm.SetGlobalBuffer((__gm__ float *)params.cos1);
-        // AscendC::GlobalTensor<float> keycache1Gm;
-        // keycache1Gm.SetGlobalBuffer((__gm__ float *)params.keycache1);
-        // AscendC::GlobalTensor<float> keycache2Gm;
-        // keycache2Gm.SetGlobalBuffer((__gm__ float *)params.keycache2);
-        // AscendC::GlobalTensor<float> quantScale3Gm;
-        // quantScale3Gm.SetGlobalBuffer((__gm__ float *)params.quantScale3);
+        // Get the memory offset address of the input on Global Memory
+        // AscendC::GlobalTensor<T> hiddenStateGm;
+        // hiddenStateGm.SetGlobalBuffer((__gm__ T *)params.hiddenState);
+        AscendC::GlobalTensor<T> gamma3Gm;
+        gamma3Gm.SetGlobalBuffer((__gm__ T *)params.gamma3);
+        AscendC::GlobalTensor<int32_t> slotMappingGm;
+        slotMappingGm.SetGlobalBuffer((__gm__ int32_t *)params.slotMapping);
+        AscendC::GlobalTensor<float> descale1Gm;
+        descale1Gm.SetGlobalBuffer((__gm__ float *)params.descale1);
+        AscendC::GlobalTensor<int32_t> s2Gm;
+        s2Gm.SetGlobalBuffer((__gm__ int32_t *)params.s2);
+        AscendC::GlobalTensor<T> s3Gm;
+        s3Gm.SetGlobalBuffer((__gm__ T *)params.s3);
+        AscendC::GlobalTensor<T> sin1Gm;
+        sin1Gm.SetGlobalBuffer((__gm__ T *)params.sin1);
+        AscendC::GlobalTensor<float> s5Gm;
+        s5Gm.SetGlobalBuffer((__gm__ float *)params.s5);
+        AscendC::GlobalTensor<T> cos1Gm;
+        cos1Gm.SetGlobalBuffer((__gm__ T *)params.cos1);
+        AscendC::GlobalTensor<int8_t> keycache1Gm;
+        keycache1Gm.SetGlobalBuffer((__gm__ int8_t *)params.keycache1);
+        AscendC::GlobalTensor<T> keycache2Gm;
+        keycache2Gm.SetGlobalBuffer((__gm__ T *)params.keycache2);
+        AscendC::GlobalTensor<T> quantScale3Gm;
+        quantScale3Gm.SetGlobalBuffer((__gm__ T *)params.quantScale3);
 
-        // BlockRmsNormAndRopeConvergence blockRmsNormAndRopeConvergence(resource);
+        BlockRmsNormAndRopeConvergence blockRmsNormAndRopeConvergence(resource);
 
-        // // Split core
-        // auto aicoreNum = AscendC::GetBlockNum();
-        // uint32_t row_work = (n + aicoreNum - 1) / aicoreNum; // 每个核处理多少行
-        // uint32_t need_core = (n + row_work - 1) / row_work; // 需要多少个核
-
-        // // Go through each task.
-        // uint32_t blockIdx = AscendC::GetBlockIdx();
-        // cce::printf("--------------------need_core=%d---------------------------------------\n",need_core);
-        // cce::printf("--------------------blockIdx=%d---------------------------------------\n",blockIdx);
-        // // if (blockIdx < need_core) {
-        // //     uint32_t row_work_ = (blockIdx == need_core - 1) ? n - (need_core - 1) * row_work : row_work;
-        // //     blockRmsNormAndRopeConvergence(
-        // //         row_work_, gamma3Gm, slotMappingGm, descale1Gm, rmsNumCol2, s2Gm, s3Gm, sin1Gm, 
-        // //         s5Gm, cos1Gm, keycache1Gm, keycache2Gm, quantScale3Gm
-        // //     );
-        // // }
+        // Split core
+        auto aicoreNum = AscendC::GetBlockNum(); //24
+        uint32_t row_work = (n + aicoreNum - 1) / aicoreNum; // 每个核处理多少行
+        uint32_t need_core = (n + row_work - 1) / row_work; // 需要多少个核
+        
+        
+        // cce::printf("need_core:%d\n",need_core);
+        // Go through each task.
+        uint32_t blockIdx = AscendC::GetBlockIdx();
+        // cce::printf("blockIdx:%d\n",blockIdx);
+        if (blockIdx < need_core) {
+            uint32_t row_work_ = (blockIdx == need_core - 1) ? n - (need_core - 1) * row_work : row_work;
+            uint64_t rowStart = blockIdx * row_work_;
+            cce::printf("row_work:%d\n",row_work);
+            blockRmsNormAndRopeConvergence(
+                row_work_, gamma3Gm, slotMappingGm, descale1Gm, rmsNumCol2, s2Gm, s3Gm, sin1Gm, 
+                s5Gm, cos1Gm, keycache1Gm, keycache2Gm, quantScale3Gm, rowStart
+            );
+        }
     }
 
   private:
@@ -153,24 +154,21 @@ CATLASS_GLOBAL void MlaPreprocessFp16(
     GM_ADDR tiling
 
 ) {
-    cce::printf("--------------------156---------------------------------------\n");
     AscendC::SetSyncBaseAddr(fftsAddr);
 
     using ArchTag = Arch::AtlasA2;
     using T = half;
-    cce::printf("--------------------160---------------------------------------\n");
+
     // GEMM Block模块，实现RmsNormQuant
     using BlockRmsNormAndRopeConvergence = Gemm::Block::RmsNormAndRopeConvergence<ArchTag, T, true, false, QuantMode::PER_TOKEN_SYMM_QUANT, CacheMode::CACHE_MODE_INT8_NZCACHE, false>;
-    cce::printf("--------------------163---------------------------------------\n");
+
     // Kernel level
     using MlaPreprocessKernel = MlaPreprocessKernel<BlockRmsNormAndRopeConvergence>;
-    cce::printf("--------------------166---------------------------------------\n");
     MlaPreprocessKernelParams params{gamma3, slotMapping, descale1, s2, s3, sin1, s5, cos1, keycache1, keycache2, quantScale3, tiling};
-    cce::printf("--------------------168---------------------------------------\n");
+
     // call kernel
     MlaPreprocessKernel mlaPreprocessKernel;
     mlaPreprocessKernel(params);
-    cce::printf("--------------------171---------------------------------------\n");
 }
 
 CATLASS_GLOBAL void MlaPreprocessBf16(
@@ -191,7 +189,7 @@ CATLASS_GLOBAL void MlaPreprocessBf16(
     AscendC::SetSyncBaseAddr(fftsAddr);
 
     using ArchTag = Arch::AtlasA2;
-    using T = bfloat16_t;
+    using T = half;
 
     // GEMM Block模块，实现RmsNormQuant
     using BlockRmsNormAndRopeConvergence = Gemm::Block::RmsNormAndRopeConvergence<ArchTag, T, true, false, QuantMode::PER_TOKEN_SYMM_QUANT, CacheMode::CACHE_MODE_INT8_NZCACHE, false>;

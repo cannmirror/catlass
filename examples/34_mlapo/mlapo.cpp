@@ -75,6 +75,7 @@ void Run(const Options &options)
     uint32_t aicoreNum = platform_ascendc::PlatformAscendCManager::GetInstance()->GetCoreNumAic();
 
     uint32_t rmsNumCol2 = options.rmsNumCol2;
+    uint32_t n = options.n;
 
     QuantMode quantMode = options.quantMode;
     string dataType = options.dataType;
@@ -87,19 +88,19 @@ void Run(const Options &options)
 
     // data size
     uint32_t sizeGamma3 = 512 * sizeof(half);
-    uint32_t sizeSlotMapping1 = 32 * sizeof(int32_t);
+    uint32_t sizeSlotMapping1 = n * sizeof(int32_t);
     uint32_t sizeDescale1 = 576 * sizeof(float);
-    uint32_t sizeS2 = 32 * 576 * sizeof(float);
+    uint32_t sizeS2 = n * 576 * sizeof(int32_t);
 
     // uint32_t sizeS3 = 2112 * sizeof(float);
-    uint32_t sizeS3 = 32 * 576 * sizeof(float);
+    uint32_t sizeS3 = n * 576 * sizeof(half);
 
-    uint32_t sizeSin1 = 32 * 64 * sizeof(half);
-    uint32_t sizeS5 = 32* 576 * sizeof(float);
-    uint32_t sizeCos1 = 32 * 64 * sizeof(half);
-    uint32_t sizeKeycache1 = 192 * 128 * 512 * sizeof(half);
-    uint32_t sizeKeycache2 = 192 * 128 * 64 * sizeof(float);
-    uint32_t sizeQuantScale3 = 1 * sizeof(float);
+    uint32_t sizeSin1 = n * 64 * sizeof(half);
+    uint32_t sizeS5 = n* 576 * sizeof(float);
+    uint32_t sizeCos1 = n * 64 * sizeof(half);
+    uint32_t sizeKeycache1 = 192 * 128 * 512 * sizeof(int8_t);
+    uint32_t sizeKeycache2 = 192 * 128 * 64 * sizeof(half);
+    uint32_t sizeQuantScale3 = 1 * sizeof(half);
     
 
     uint8_t *hostGamma3, *hostSlotMapping1, *hostDescale1, *hostS2, *hostS3, *hostSin1, *hostS5, *hostCos1, *hostQuantScale3, *hostTiling;
@@ -107,11 +108,11 @@ void Run(const Options &options)
         *deviceKeycache1, *deviceKeycache2, *deviceTiling;
 
     AllocMem(&hostGamma3, &deviceGamma3, sizeGamma3);
-    ReadFile(dataPath + "/gamma3.bin", hostGamma3, sizeGamma3);
+    ReadFile(dataPath + "/gamma3_pertensor.bin", hostGamma3, sizeGamma3);
     ACL_CHECK(aclrtMemcpy(deviceGamma3, sizeGamma3, hostGamma3, sizeGamma3, ACL_MEMCPY_HOST_TO_DEVICE));
 
     AllocMem(&hostSlotMapping1, &deviceSlotMapping1, sizeSlotMapping1);
-    ReadFile(dataPath + "/slotMapping.bin", hostSlotMapping1, sizeSlotMapping1);
+    ReadFile(dataPath + "/slotMapping_pertensor.bin", hostSlotMapping1, sizeSlotMapping1);
     ACL_CHECK(aclrtMemcpy(deviceSlotMapping1, sizeSlotMapping1, hostSlotMapping1, sizeSlotMapping1, ACL_MEMCPY_HOST_TO_DEVICE));
 
     AllocMem(&hostDescale1, &deviceDescale1, sizeDescale1);
@@ -122,12 +123,12 @@ void Run(const Options &options)
     ReadFile(dataPath + "/s2.bin", hostS2, sizeS2);
     ACL_CHECK(aclrtMemcpy(deviceS2, sizeS2, hostS2, sizeS2, ACL_MEMCPY_HOST_TO_DEVICE));
 
-    AllocMem(&hostS3, &deviceS3, sizeS3);//还没有golden
-    ReadFile(dataPath + "/s2.bin", hostS3, sizeS3);
+    AllocMem(&hostS3, &deviceS3, sizeS3);
+    ReadFile(dataPath + "/s3_pertensor.bin", hostS3, sizeS3);
     ACL_CHECK(aclrtMemcpy(deviceS3, sizeS3, hostS3, sizeS3, ACL_MEMCPY_HOST_TO_DEVICE));
 
     AllocMem(&hostSin1, &deviceSin1, sizeSin1);
-    ReadFile(dataPath + "/sin1.bin", hostSin1, sizeSin1);
+    ReadFile(dataPath + "/sin1_pertensor.bin", hostSin1, sizeSin1);
     ACL_CHECK(aclrtMemcpy(deviceSin1, sizeSin1, hostSin1, sizeSin1, ACL_MEMCPY_HOST_TO_DEVICE));
 
     AllocMem(&hostS5, &deviceS5, sizeS5);
@@ -135,17 +136,17 @@ void Run(const Options &options)
     ACL_CHECK(aclrtMemcpy(deviceS5, sizeS5, hostS5, sizeS5, ACL_MEMCPY_HOST_TO_DEVICE));
 
     AllocMem(&hostCos1, &deviceCos1, sizeCos1);
-    ReadFile(dataPath + "/cos1.bin", hostCos1, sizeCos1);
+    ReadFile(dataPath + "/cos1_pertensor.bin", hostCos1, sizeCos1);
     ACL_CHECK(aclrtMemcpy(deviceCos1, sizeCos1, hostCos1, sizeCos1, ACL_MEMCPY_HOST_TO_DEVICE));
 
     AllocMem(&hostQuantScale3, &deviceQuantScale3, sizeQuantScale3);
-    ReadFile(dataPath + "/quantScale3.bin", hostS5, sizeS5);
+    ReadFile(dataPath + "/quantScale3_pertensor.bin", hostQuantScale3, sizeQuantScale3);
     ACL_CHECK(aclrtMemcpy(deviceQuantScale3, sizeQuantScale3, hostQuantScale3, sizeQuantScale3, ACL_MEMCPY_HOST_TO_DEVICE));
 
     std::vector<int8_t> expectedKeycache1(sizeKeycache1);
-    ReadFile(dataPath + "/keycache1.bin", expectedKeycache1.data(), sizeKeycache1);
+    ReadFile(dataPath + "/keycache1_pertensor.bin", expectedKeycache1.data(), sizeKeycache1);
     std::vector<int8_t> expectedKeycache2(sizeKeycache2);
-    ReadFile(dataPath + "/keycache2.bin", expectedKeycache2.data(), sizeKeycache2);
+    ReadFile(dataPath + "/keycache2_pertensor.bin", expectedKeycache2.data(), sizeKeycache2);
 
     ACL_CHECK(aclrtMalloc((void **)&deviceKeycache1, sizeKeycache1, ACL_MEM_MALLOC_HUGE_FIRST));
     ACL_CHECK(aclrtMalloc((void **)&deviceKeycache2, sizeKeycache2, ACL_MEM_MALLOC_HUGE_FIRST));
@@ -156,6 +157,7 @@ void Run(const Options &options)
 
     MlaPreprocessTiling::MlaPreprocessInfo mpInfo;
     mpInfo.rmsNumCol2 = rmsNumCol2;
+    mpInfo.n = n;
     MlaPreprocessTilingData mpTilingData;
     MlaPreprocessTiling::GetMpTilingParam(mpInfo, mpTilingData);
     hostTiling = reinterpret_cast<uint8_t *>(&mpTilingData);
@@ -174,25 +176,25 @@ void Run(const Options &options)
     }
     ACL_CHECK(aclrtSynchronizeStream(stream));
 
-    // std::vector<int8_t> hostKeycache1(sizeKeycache1);
-    // ACL_CHECK(aclrtMemcpy(hostKeycache1.data(), sizeKeycache1, deviceKeycache1, sizeKeycache1, ACL_MEMCPY_DEVICE_TO_HOST));
-    // std::vector<int8_t> hostKeycache2(sizeKeycache2);
-    // ACL_CHECK(aclrtMemcpy(hostKeycache2.data(), sizeKeycache2, deviceKeycache2, sizeKeycache2, ACL_MEMCPY_DEVICE_TO_HOST));
+    std::vector<int8_t> hostKeycache1(sizeKeycache1);
+    ACL_CHECK(aclrtMemcpy(hostKeycache1.data(), sizeKeycache1, deviceKeycache1, sizeKeycache1, ACL_MEMCPY_DEVICE_TO_HOST));
+    std::vector<int8_t> hostKeycache2(sizeKeycache2);
+    ACL_CHECK(aclrtMemcpy(hostKeycache2.data(), sizeKeycache2, deviceKeycache2, sizeKeycache2, ACL_MEMCPY_DEVICE_TO_HOST));
 
-    // std::vector<uint64_t> keycache1ErrorIndices = golden::CompareData(hostKeycache1, expectedKeycache1, 192 * 128 * 512);
-    // std::vector<uint64_t> keycache2ErrorIndices = golden::CompareData(hostKeycache2, expectedKeycache2, 192 * 128 * 512);
+    std::vector<uint64_t> keycache1ErrorIndices = golden::CompareData(hostKeycache1, expectedKeycache1, 192 * 128 * 512);
+    std::vector<uint64_t> keycache2ErrorIndices = golden::CompareData(hostKeycache2, expectedKeycache2, 192 * 128 * 512);
 
-    // if (keycache1ErrorIndices.empty()) {
-    //     std::cout << "Compare out success." << std::endl;
-    // } else {
-    //     std::cerr << "Compare out failed. Error count: " << keycache1ErrorIndices.size() << std::endl;
-    // }
+    if (keycache1ErrorIndices.empty()) {
+        std::cout << "Compare out success." << std::endl;
+    } else {
+        std::cerr << "Compare out failed. Error count: " << keycache1ErrorIndices.size() << std::endl;
+    }
 
-    // if (keycache2ErrorIndices.empty()) {
-    //     std::cout << "Compare out success." << std::endl;
-    // } else {
-    //     std::cerr << "Compare out failed. Error count: " << keycache2ErrorIndices.size() << std::endl;
-    // }
+    if (keycache2ErrorIndices.empty()) {
+        std::cout << "Compare out success." << std::endl;
+    } else {
+        std::cerr << "Compare out failed. Error count: " << keycache2ErrorIndices.size() << std::endl;
+    }
 
     FreeMem(hostGamma3, deviceGamma3);
     FreeMem(hostSlotMapping1, deviceSlotMapping1);

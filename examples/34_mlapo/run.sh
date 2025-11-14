@@ -1,4 +1,4 @@
-n=32
+n=1 #32
 rmsNumCol2=2112
 
 
@@ -7,7 +7,7 @@ rmsNumCol2=2112
 quantMode=0
 
 dtype=float16  # float16/bfloat16
-device=0
+device=5
 
 function build() {
     rm -rf build
@@ -21,7 +21,7 @@ function build() {
 # }
 
 function run_kernel {
-    echo 'Case: n=' $n ' he=' $he
+    echo 'Case: n=' $n 
     cd ../../output/bin/
     ./34_mlapo $rmsNumCol2 $n $quantMode $dtype $device
     cd /home/chenyuning/1103catlass/catlass/examples/34_mlapo
