@@ -362,7 +362,7 @@ def register_gemm_quant_matmul_operation(manifest):
         tile_shape_constraint_for_preload_async, # 自定义减枝函数
         element_sizes=(1, 1, 4), # size of ElementA, ElementB, ElementAccumulator
         stages=(1, 2, 4, 2, 1), # Preload/L1/L0A/L0B/L0C stages
-        step=16,
+        step=32,
         tile_shape_range=TileShapeRange(
             l1_tile_m_range=(128, 256),
             l1_tile_n_range=(128, 512),
