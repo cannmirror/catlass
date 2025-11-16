@@ -566,14 +566,14 @@ struct DynamicSplitkGemmIdentityBlockSwizzle : public SplitkGemmIdentityBlockSwi
     uint32_t swizzleDirection{0};
 
     CATLASS_DEVICE
-    DynamicSplitkGemmIdentityBlockSwizzle(GemmCoord const &problemShape_, MatrixCoord const &tileMN_, 
+    DynamicSplitkGemmIdentityBlockSwizzle(GemmCoord const &problemShape_, GemmCoord const &tileMNK_, 
         uint32_t splitkFactor_, uint32_t swizzleOffset_, uint32_t swizzleDirection_) : 
         swizzleOffset(swizzleOffset_), swizzleDirection(swizzleDirection_), 
-        SplitkGemmIdentityBlockSwizzle<>(problemShape_, tileMN_, splitkFactor_) {}
+        SplitkGemmIdentityBlockSwizzle<>(problemShape_, tileMNK_, splitkFactor_) {}
 
     CATLASS_DEVICE
-    DynamicSplitkGemmIdentityBlockSwizzle(GemmCoord const &problemShape_, MatrixCoord const &tileMN_, 
-        uint32_t splitkFactor_) : SplitkGemmIdentityBlockSwizzle<>(problemShape_, tileMN_, splitkFactor_) {}
+    DynamicSplitkGemmIdentityBlockSwizzle(GemmCoord const &problemShape_, MatrixCoord const &tileMNK_, 
+        uint32_t splitkFactor_) : SplitkGemmIdentityBlockSwizzle<>(problemShape_, tileMNK_, splitkFactor_) {}
 
     CATLASS_DEVICE
     DynamicSplitkGemmIdentityBlockSwizzle() {}
