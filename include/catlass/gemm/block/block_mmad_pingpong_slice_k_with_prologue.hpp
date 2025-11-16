@@ -110,9 +110,11 @@ public:
     /// Construct
     CATLASS_DEVICE
     BlockMmad(Arch::Resource<ArchTag> &resource, Params const &params_ = {}, 
-        uint32_t l1BufAddrStart = 0) : params(params_), 
-        prologueA(resource, params_.prologueAParams), prologueB(resource, params_.prologueBParams)
+        uint32_t l1BufAddrStart = 0) : params(params_)
     {
+        // PREVIOUSLY:
+        // Initilize PrologueA & PrologueB instantly
+        // prologueA(resource, params_.prologueAParams), prologueB(resource, params_.prologueBParams)
         uint32_t l1AOffset = l1BufAddrStart;
         uint32_t l1BOffset = l1BufAddrStart + L1A_SIZE * STAGES;
         // Init set/wait flags
@@ -230,56 +232,7 @@ public:
             actualBlockShape, nextActualBlockShape, problemShape,
             isFirstBlock, hasNextBlock, bufferIndex
         );
-
-        // 原初始化算法：
-        // PrologueA prologueA(resource, 
-        //     PrologueAParams(params.scalar, params.zeroPoint));
     }
-
-    // template <class T = PrologueA, class U = PrologueB, bool CastC = true>
-    // CATLASS_DEVICE
-    // std::enable_if_t<!std::is_void_v<T> && std::is_void_v<U>, void> Prologue(
-    //     AscendC::GlobalTensor<typename T::ElementSrc> const &gmDstA, 
-    //     AscendC::GlobalTensor<typename T::ElementDst> const &gmSrcA, typename T::LayoutDst const &layoutSrcA,
-    //     AscendC::GlobalTensor<typename U::ElementSrc> const &gmDstC, 
-    //     AscendC::GlobalTensor<typename U::ElementDst> const &gmSrcC, typename U::LayoutSrc const &layoutSrcC,
-    //     GemmCoord const &blockCoord, GemmCoord const &nextBlockCoord, 
-    //     GemmCoord const &actualBlockShape, GemmCoord const &nextActualBlockShape,
-    //     GemmCoord const &problemShape,
-    //     bool isFirstBlock, bool hasNextBlock
-    // )
-    // {
-    //     PrologueImpl(
-    //         gmDstA, gmSrcA, layoutSrcA,
-    //         {}, {}, {},
-    //         gmDstC, gmSrcC, layoutSrcC,
-    //         actualBlockShape, nextActualBlockShape, problemShape,
-    //         isFirstBlock, hasNextBlock, CastC
-    //     );
-    // }
-
-    // template <class T = PrologueA, class U = PrologueB, bool CastC = true>
-    // CATLASS_DEVICE
-    // std::enable_if_t<std::is_void_v<T> && !std::is_void_v<U>, void> Prologue(
-    //     AscendC::GlobalTensor<typename U::ElementSrc> const &gmDstB, 
-    //     AscendC::GlobalTensor<typename U::ElementDst> const &gmSrcB, typename U::LayoutSrc const &layoutSrcB,
-    //     AscendC::GlobalTensor<typename U::ElementSrc> const &gmDstC, 
-    //     AscendC::GlobalTensor<typename U::ElementDst> const &gmSrcC, typename U::LayoutSrc const &layoutSrcC,
-    //     GemmCoord const &blockCoord, GemmCoord const &nextBlockCoord, 
-    //     GemmCoord const &actualBlockShape, GemmCoord const &nextActualBlockShape,
-    //     GemmCoord const &problemShape,
-    //     bool isFirstBlock, bool hasNextBlock
-    // )
-    // {
-    //     PrologueImpl(
-    //         {}, {}, {},
-    //         gmDstB, gmSrcB, layoutSrcB,
-    //         gmDstC, gmSrcC, layoutSrcC,
-    //         blockCoord, nextBlockCoord,
-    //         actualBlockShape, nextActualBlockShape, problemShape,
-    //         isFirstBlock, hasNextBlock, CastC
-    //     );
-    // }
 
 protected:
     CATLASS_DEVICE
@@ -358,6 +311,9 @@ protected:
         uint32_t mShape_ = actualBlockShape.m();
         uint32_t nShape_ = actualBlockShape.n();
 
+        // Begin resource
+        Arch::Resource<ArchTag> resource;
+
         // SPLIT-K MainLoop
         uint32_t kLoop = (problemShape.k() + params.splitkLength - 1) / params.splitkLength;
         // uint32_t kLoop = CeilDiv<params.splitkLength>(problemShape.k());
@@ -375,7 +331,9 @@ protected:
                 LayoutA layoutDstA(actualBlockShape.m(), kActualAligned_);
                 LayoutB layoutWB(kActual_, actualBlockShape.n(), srcBStride);
                 LayoutB layoutDstB(kActualAligned_, actualBlockShape.n());
-
+                
+                PrologueA prologueA(resource, params_.prologueAParams);
+                PrologueB prologueB(resource, params_.prologueBParams);
                 prologueA(
                     gmDstA[gmOffsetWA + crossCoreBufferIndexAIV * gmOffsetWADelta],
                     layoutDstA,
@@ -397,8 +355,8 @@ protected:
 
                 Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(flag1[crossCoreBufferIndexAIV]);
                 Catlass::Arch::CrossCoreWaitFlag(flag0[1 - crossCoreBufferIndexAIV]);         
-                gmOffsetA += layoutSrcA.GetOffset(MakeCoord(0U, kActual_));
-                gmOffsetB += layoutSrcB.GetOffset(MakeCoord(kActual_, 0U));
+                gmOffsetA += layoutSrcA.GetOffset(MakeCoord(0U, kActual));
+                gmOffsetB += layoutSrcB.GetOffset(MakeCoord(kActual, 0U));
                 // gmOffsetA += layoutSrcA.GetOffset(MakeCoord(0U, kActual));
                 // gmOffsetB += layoutSrcB.GetOffset(MakeCoord(kActual, 0U));
 
@@ -408,6 +366,8 @@ protected:
                 LayoutB layoutWB(kActual_, actualBlockShape.n(), srcBStride);
                 LayoutB layoutDstB(kActualAligned_, actualBlockShape.n());
 
+                PrologueA prologueA(resource, params_.prologueAParams);
+                PrologueB prologueB(resource, params_.prologueBParams);
                 prologueA(
                     gmDstA[gmOffsetWA + (1 - crossCoreBufferIndexAIV) * gmOffsetWADelta],
                     layoutDstA,
@@ -437,6 +397,8 @@ protected:
                 LayoutB layoutWB(kActual_, nextActualBlockShape.n(), srcBStride);
                 LayoutB layoutDstB(kActualAligned_, nextActualBlockShape.n());
 
+                PrologueA prologueA(resource, params_.prologueAParams);
+                PrologueB prologueB(resource, params_.prologueBParams);
                 prologueA(
                     gmDstA[gmOffsetWA + (1 - crossCoreBufferIndexAIV) * gmOffsetWADelta],
                     layoutDstA,
@@ -452,41 +414,6 @@ protected:
                     bufferIndex
                 );
             }
-            
-            // if (doPrologue) {
-            //     uint32_t kActualAligned_ = RoundUp<256>(kActual_);
-            //     if constexpr (HAS_PROLOGUE_A)  {
-            //         int64_t gmOffsetA_ = (hasNextBlock && ldk == kLoop - 1) ? gmOffsetNextA : gmOffsetA;
-            //         int64_t gmOffsetWA_ = (static_cast<bool>(crossCoreBufferIndexAIV) ^ 
-            //             (isFirstBlock && ldk == 0)) ? gmOffsetWA : gmOffsetWA + gmOffsetWADelta; 
-
-            //         LayoutA layoutWA(mShape_, kActual_, srcAStride);
-            //         LayoutA layoutDstA(mShape_, kActualAligned_);
-            //         prologueA(
-            //             gmDstA[gmOffsetWA_],
-            //             layoutDstA,
-            //             gmSrcA[gmOffsetA_],
-            //             layoutWA,
-            //             bufferIndex  // TODO: bufferIndex需要在本文件声明并使用
-            //         );
-            //     }
-
-            //     if constexpr (HAS_PROLOGUE_B) {
-            //         int64_t gmOffsetB_ = (hasNextBlock && ldk == kLoop - 1) ? gmOffsetNextB : gmOffsetB;
-            //         int64_t gmOffsetWB_ = (static_cast<bool>(crossCoreBufferIndexAIV) ^ 
-            //             (isFirstBlock && ldk == 0)) ? gmOffsetWB : gmOffsetWB + gmOffsetWBDelta; 
-                    
-            //         LayoutB layoutWB(kActual_, nShape_, srcBStride);
-            //         LayoutB layoutDstB(kActualAligned_, nShape_);
-            //         prologueB(
-            //             gmDstB[gmOffsetWB_],
-            //             layoutDstB,
-            //             gmSrcB[gmOffsetB_],
-            //             layoutWB,
-            //             bufferIndex
-            //         );
-            //     }
-            // }
            
             if (ldk == kLoop - 1) { // 尾部块
                 if (!hasNextBlock) {
@@ -498,7 +425,9 @@ protected:
                     actualBlockShape.m(), actualBlockShape.n(), params.nScalar * L1TileShape::N);
                 Catlass::layout::RowMajor layoutBlockDstC(
                     problemShape.m(), problemShape.n());
-                prologueB.EpCastFp32ToFp16(
+
+                PrologueC epCast;
+                epCast.EpCastFp32ToFp16(
                     gmDstC[gmOffsetC],
                     layoutBlockDstC,
                     gmSrcC[gmOffsetWC],
