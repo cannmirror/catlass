@@ -572,7 +572,7 @@ struct DynamicSplitkGemmIdentityBlockSwizzle : public SplitkGemmIdentityBlockSwi
         SplitkGemmIdentityBlockSwizzle<>(problemShape_, tileMNK_, splitkFactor_) {}
 
     CATLASS_DEVICE
-    DynamicSplitkGemmIdentityBlockSwizzle(GemmCoord const &problemShape_, MatrixCoord const &tileMNK_, 
+    DynamicSplitkGemmIdentityBlockSwizzle(GemmCoord const &problemShape_, GemmCoord const &tileMNK_, 
         uint32_t splitkFactor_) : SplitkGemmIdentityBlockSwizzle<>(problemShape_, tileMNK_, splitkFactor_) {}
 
     CATLASS_DEVICE
