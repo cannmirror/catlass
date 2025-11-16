@@ -8,7 +8,7 @@
 
 ## BasicMatmul体验
 
-以BasicMatmul为例，以下代码示例将展示如何基于Catlass算子模板库快速开发实现matmul，展示BasicMatmul的搭建，编译，运行过程，环境配置详情参考[环境准备](./quickstart.md#环境准备)。
+以BasicMatmul为例，以下代码示例将展示如何基于Catlass算子模板库快速开发实现matmul，展示BasicMatmul的搭建，编译，运行过程，环境配置详情参考[环境准备](./prerequisites.md)。
 
 ### 代码实现
 
