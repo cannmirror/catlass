@@ -56,7 +56,7 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
     * --------------------------------------------------------------------------------
     * | Offset | Size | Variable         | Type      | Description                   |
     * |--------|------|------------------|-----------|-------------------------------|
-    * | 0-7    | 8    | strideA          | uint64_t  | matrix B stride               |
+    * | 0-7    | 8    | strideA          | uint64_t  | matrix A stride               |
     * | 8-15   | 8    | strideB          | uint64_t  | matrix B stride               |
     * | 16-23  | 8    | strideC          | uint64_t  | matrix C stride               |
     * | 24-27  | 4    | m                | uint32_t  | matrix M dimension            |

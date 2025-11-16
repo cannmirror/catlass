@@ -796,7 +796,7 @@
                     uint32_t epiTokenNum = rowNumCurLoop - proTokenNum - integralHeadNum * tokenNumPerHeadThisSubBlock;
                     AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID2);
                     CopyMaskGmToUb(gMaskThisSubBlock, columnNum, columnNumRound, maskStride,
-                        qSBlockSize, proTokenIdx, proTokenNum, integralHeadNum, epiTokenNum);
+                        tokenNumPerHeadThisSubBlock, proTokenIdx, proTokenNum, integralHeadNum, epiTokenNum);
                     AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(EVENT_ID2);
                     Arch::CrossCoreWaitFlag(qkReady);
                 }
@@ -837,7 +837,7 @@
                     uint32_t epiTokenNum = rowNumCurLoop - proTokenNum - integralHeadNum * tokenNumPerHeadThisSubBlock;
                     AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID2);
                     CopyMaskGmToUb(gMaskThisSubBlock, columnNum, columnNumRound, maskStride,
-                        qSBlockSize, proTokenIdx, proTokenNum, integralHeadNum, epiTokenNum);
+                        tokenNumPerHeadThisSubBlock, proTokenIdx, proTokenNum, integralHeadNum, epiTokenNum);
                     AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(EVENT_ID2);
                 }
                 // online softmax vectorized compute

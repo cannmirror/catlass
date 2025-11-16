@@ -145,7 +145,7 @@ struct MmadAtlasA2Preload : public MmadAtlasA2 {
 
 ### Swizzle调整
 
-首先了解[swizzle含义](./swizzle_explanation.md)，后面以<a, b>代指`Gemm::Block::GemmIdentityBlockSwizzle<a, b>`。对于AB矩阵都为RowMajor场景，一般 m > n 时选择<3, 0>，m < n时选择<3, 1>。调整swizzle时优先测试<3, 0>和<3, 1>的表现，判断`SwizzleDirection`取0还是1，而后调整`SwizzleOffset`，在一些场景中可以更好地实现负载均衡。
+在CATLASS中，[Swizzle](./swizzle_explanation.md)描述了矩阵的读写顺序，以`<a, b>`代指`Gemm::Block::GemmIdentityBlockSwizzle<a, b>`。当A、B矩阵均为`RowMajor`排布时，当`m > n` 时通常选取为`<3, 0>`，`m < n`时为`<3, 1>`。通常地，`Swizzle`的调整次序是先确定`SwizzleDirection`（取`0`或`1`），随调整`SwizzleOffset`，在一些场景中可以更好地实现负载均衡。
 
 - 案例一
 

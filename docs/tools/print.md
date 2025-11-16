@@ -1,6 +1,6 @@
 # 在CATLASS样例工程进行设备侧打印
 
-提供设备侧打印函数`cce::printf`，用法与C标准库的printf一致。
+基于[CCE Intrinsic](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/83RC1/opdevg/cceintrinsicguide/cceprogram_0001.html)提供设备侧打印函数`cce::printf`进行调试，用法与C标准库的`printf`一致。
 
 - 支持`cube/vector/mix`算子
 - 支持格式化字符串
@@ -10,7 +10,7 @@
 
 ## 使用示例
 
-下面以对`09_splitk_matmul`为例，进行`设备侧打印`的使用说明。
+下面以对`09_splitk_matmul`为例，进行设备侧打印的使用说明。
 
 ### 插入打印代码
 

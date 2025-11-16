@@ -1,6 +1,6 @@
 # 在CATLASS样例工程进行性能调优
 
-CANN对算子开发的两个场景——单算子与整网开发，分别提供了对应的性能调优工具：**msProf**和**Profiling**。
+CANN对算子开发的两个场景——单算子与整网开发，分别提供了对应的性能调优工具：[**msProf**](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha003/devaids/optool/atlasopdev_16_0082.html)和[**Profiling**](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha003/devaids/Profiling/atlasprofiling_16_0010.html)。
 
 ## 性能调优工具简介
 
@@ -8,7 +8,7 @@ CANN对算子开发的两个场景——单算子与整网开发，分别提供�
 
 [msProf](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha003/devaids/optool/atlasopdev_16_0082.html)是单算子性能分析工具，对应的指令为`msprof op`或`msopprof`。
 
-msProf工具用于采集和分析运行在昇腾AI处理器上算子的关键性能指标，用户可根据输出的性能数据，快速定位算子的软、硬件性能瓶颈，提升算子性能的分析效率。
+[msProf](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha003/devaids/optool/atlasopdev_16_0082.html)工具用于采集和分析运行在昇腾AI处理器上算子的关键性能指标，用户可根据输出的性能数据，快速定位算子的软、硬件性能瓶颈，提升算子性能的分析效率。
 
 当前支持基于不同运行模式（上板或仿真）和不同文件形式（可执行文件或算子二进制`.o`文件）进行性能数据的采集和自动解析。
 
@@ -16,21 +16,21 @@ msProf工具用于采集和分析运行在昇腾AI处理器上算子的关键性
 
 [Profiling](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha003/devaids/Profiling/atlasprofiling_16_0010.html)是整网性能分析工具，对应的指令为`msprof`。
 
-Profiling工具提供了AI任务运行性能数据、昇腾AI处理器系统数据等性能数据的采集和解析能力。
+[Profiling](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha003/devaids/Profiling/atlasprofiling_16_0010.html)工具提供了AI任务运行性能数据、昇腾AI处理器系统数据等性能数据的采集和解析能力。
 
-其中，msprof采集通用命令是性能数据采集的基础，用于提供性能数据采集时的基本信息，包括参数说明、AI任务文件、数据存放路径、自定义环境变量等。
+其中，`msprof`采集通用命令是性能数据采集的基础，用于提供性能数据采集时的基本信息，包括参数说明、AI任务文件、数据存放路径、自定义环境变量等。
 
-## 用msProf进行单算子性能分析
+## 用`msProf`进行单算子性能分析
 
-下面以`00_basic_matmul`为例，进行`msProf`的使用说明。
+以`00_basic_matmul`为例，演示基于[msProf](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha003/devaids/optool/atlasopdev_16_0082.html)的性能分析过程。
 
 ### 上板性能采集
 
 通过上板性能采集，可以直接测定算子在NPU卡上的运行时间，可判断性能是否初步达到预期标准。
 
-#### msprof op使用示例
+#### `msprof op`使用示例
 
-1. 参考[快速上手](../../README.md#快速上手)，编译算子样例。
+1. 参考[快速上手](../quickstart.md)，编译算子样例。
 2. 使用`msprof op *可选参数* app [arguments]`格式调用msProf工具。
 
 ```bash
@@ -52,7 +52,7 @@ msprof op --application="./00_basic_matmul 256 512 1024 0"
 
 - ⚠ 注意事项
   - 工具默认会读取第一个算子的性能，使用example进行调测时可直接获取到结果；若接入其他工程，工程中可能存在其他算子（虽然只跑某一个算子的用例），所以性能分析时要通过--kernel-name指定算子名称的方式，否则读取不到结果。
-  - 可设置环境变量`ASCEND_RT_VISIBLE_DEVICES`指定上板调测的Device Id, 如：
+  - 可设置环境变量`ASCEND_RT_VISIBLE_DEVICES`指定上板调测的Device Id号
 
 ```bash
 # 指定当前进程仅可使用Device Id为0，1，2，3的Device
@@ -145,7 +145,7 @@ msprof op simulator ./00_basic_matmul 256 512 1024 0
 
 ###### 使用MindStudio Insight呈现
 
-获取仿真输出文件夹`simulator`下的`visualize_data.bin`。通过MindStudio Insight工具加载bin文件查看仿真流水图。
+获取仿真输出文件夹`simulator/`下的`visualize_data.bin`。通过MindStudio Insight工具加载bin文件查看仿真流水图。
 
 ![MindStudio Insight Timeline](https://www.hiascend.com/doc_center/source/zh/mindstudio/80RC1/GUI_baseddevelopmenttool/msascendinsightug/figure/zh-cn_image_0000002274910873.png)
 
@@ -159,13 +159,13 @@ msProf工具采集到的数据，可导入可视化工具[MindStudio Insight](ht
 
 ## 用Profiling进行整网性能分析
 
-虽然CATLASS只提供单算子的调用示例，但单算子调用示例也可使用Profiling工具进行性能分析。
+虽然CATLASS只提供单算子的调用示例，但单算子调用示例也可使用[Profiling](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha003/devaids/Profiling/atlasprofiling_16_0010.html)工具进行性能分析。
 
-下面以`00_basic_matmul`为例，进行`Profiling`的使用说明。
+下面以`00_basic_matmul`为例进行演示分析。
 
-### msprof使用示例
+### `msprof`使用示例
 
-1. 基于[快速上手](../README.md#快速上手)，打开工具的编译开关`--enable_profiling`， 使能`profiling api`编译算子样例。
+1. 基于[快速上手](../quickstart.md)，打开工具的编译开关`--enable_profiling`， 使能`profiling api`编译算子样例。
 
 ```bash
 bash scripts/build.sh --enable_profiling 00_basic_matmul
@@ -179,4 +179,4 @@ cd output/bin
 msprof ./00_basic_matmul 256 512 1024 0
 ```
 
-可参考[msprof性能数据文件参考](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha003/devaids/Profiling/atlasprofiling_16_0057.html)了解性能数据各文件的功能。
+可参考[msProf性能数据文件参考](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/82RC1alpha003/devaids/Profiling/atlasprofiling_16_0057.html)了解性能数据各文件的功能。

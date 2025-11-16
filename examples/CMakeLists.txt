@@ -113,6 +113,7 @@ foreach(EXAMPLE
     31_small_matmul
     32_w4a8_matmul
     33_basic_conv2d
+    34_single_core_splitk_matmul
     102_dynamic_optimized_matmul
 )
     add_subdirectory(${EXAMPLE})
