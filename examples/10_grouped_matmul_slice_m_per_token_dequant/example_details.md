@@ -112,7 +112,8 @@ AIV计算流程与AIC一致，在调用`blockMmad()`处改为调用`blockEpilogu
     - **startLoopIdx**：当前核的起始block序号（当前group内）
     - **loopIdx**：当前核需要处理的block序号（当前group内）
 - 示例：
-<img src="./images/Block_Partitioning_Scheme.png" width="100%">
+
+<img src="https://raw.gitcode.com/user-images/assets/7801479/6029234c-39e4-4853-99de-1d4263f4e91f/Block_Partitioning_Scheme.png 'Block_Partitioning_Scheme.png'" width="100%">
 
 ### Workspace方案
 
