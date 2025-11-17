@@ -152,7 +152,7 @@ public:
         Arch::FlagID flagId = 0;
         for (uint32_t stageId = 0; stageId < WORKSPACE_STAGES; ++stageId) {
             flagAicFinishStoreList[stageId] = Arch::CrossCoreFlag(flagId++);
-            flagAivFinishComputeList[stageId] = Arch::CrossCoreFlag(flagId++);\
+            flagAivFinishComputeList[stageId] = Arch::CrossCoreFlag(flagId++);
             aicWaitFuncList[stageId] = {this, stageId};
             aicSetFuncList[stageId] = {this, stageId};
         }
