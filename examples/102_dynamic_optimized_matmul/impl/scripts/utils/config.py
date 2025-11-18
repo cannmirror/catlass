@@ -30,7 +30,7 @@ class Config:
         "CommonMatmulKernel": 0,
         "SmallMatmulKernel": 1,
         "PaddingCommonMatmulKernel": 2,
-        "PaddingMultiCoreSplitkMatmulKernel": 2
+        "PaddingMultiCoreSplitkMatmulKernel": 3
     }
 
     DTYPE_MAP = {"half": 0, "float": 1}

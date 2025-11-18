@@ -120,7 +120,7 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
 
     constexpr uint32_t computeLength = 192 * 1024 / sizeof(float);
     using RecudeAdd = Catlass::Gemm::Kernel::SplitkReduceAdd<ArchTag, float, ElementC, 1, computeLength>;
-    using BlockScheduler = typename Catlass::Gemm::Block::SplitkGemmIdentityBlockSwizzle<>;
+    using BlockScheduler = typename Catlass::Gemm::Block::DynamicSplitkGemmIdentityBlockSwizzle;
     // kernel level
     using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingMultiCoreSplitkMatmul<
         PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RecudeAdd>;
@@ -136,7 +136,6 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
 void LaunchPaddingMultiCoreSplitkMatmulKernel(aclrtStream &stream, uint64_t fftsAddr, uint8_t *dA, uint8_t *dB, uint8_t *dC,
     uint8_t *dW, uint8_t *dTilingParams, TilingParams &tilingParams)
 {
-    using ArchTag = Catlass::Arch::AtlasA2;
     using PaddingBuilderA = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagA, ArchTag, ElementA, LayoutA>;
     using PaddingBuilderB = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagB, ArchTag, ElementB, LayoutB>;
     uint32_t m = tilingParams.m;
