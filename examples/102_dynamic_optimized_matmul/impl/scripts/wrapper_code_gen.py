@@ -16,6 +16,7 @@ from utils.config import Config
 from templates.common_matmul_template import CommonMatmulTemplate
 from templates.small_matmul_template import SmallMatmulTemplate
 from templates.padding_common_matmul_template import PaddingCommonMatmulTemplate
+from templates.padding_multi_core_splitk_matmul_template import PaddingMultiCoreSplitkMatmulTemplate
 from templates.launch_map_template import LaunchMapTemplate
 
 if __name__ == "__main__":
@@ -26,4 +27,5 @@ if __name__ == "__main__":
     CommonMatmulTemplate.gen_code("half", kernel_info)
     SmallMatmulTemplate.gen_code("half", kernel_info)
     PaddingCommonMatmulTemplate.gen_code("half", kernel_info)
+    PaddingMultiCoreSplitkMatmulTemplate.gen_code("half", kernel_info)
     LaunchMapTemplate.gen_code(kernel_info)
