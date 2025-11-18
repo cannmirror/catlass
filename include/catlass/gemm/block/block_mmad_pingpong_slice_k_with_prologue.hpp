@@ -332,8 +332,8 @@ protected:
                 LayoutB layoutWB(kActual_, actualBlockShape.n(), srcBStride);
                 LayoutB layoutDstB(kActualAligned_, actualBlockShape.n());
                 
-                PrologueA prologueA(resource, params_.prologueAParams);
-                PrologueB prologueB(resource, params_.prologueBParams);
+                PrologueA prologueA(resource, params.prologueAParams);
+                PrologueB prologueB(resource, params.prologueBParams);
                 prologueA(
                     gmDstA[gmOffsetWA + crossCoreBufferIndexAIV * gmOffsetWADelta],
                     layoutDstA,
@@ -366,8 +366,8 @@ protected:
                 LayoutB layoutWB(kActual_, actualBlockShape.n(), srcBStride);
                 LayoutB layoutDstB(kActualAligned_, actualBlockShape.n());
 
-                PrologueA prologueA(resource, params_.prologueAParams);
-                PrologueB prologueB(resource, params_.prologueBParams);
+                PrologueA prologueA(resource, params.prologueAParams);
+                PrologueB prologueB(resource, params.prologueBParams);
                 prologueA(
                     gmDstA[gmOffsetWA + (1 - crossCoreBufferIndexAIV) * gmOffsetWADelta],
                     layoutDstA,
@@ -397,8 +397,8 @@ protected:
                 LayoutB layoutWB(kActual_, nextActualBlockShape.n(), srcBStride);
                 LayoutB layoutDstB(kActualAligned_, nextActualBlockShape.n());
 
-                PrologueA prologueA(resource, params_.prologueAParams);
-                PrologueB prologueB(resource, params_.prologueBParams);
+                PrologueA prologueA(resource, params.prologueAParams);
+                PrologueB prologueB(resource, params.prologueBParams);
                 prologueA(
                     gmDstA[gmOffsetWA + (1 - crossCoreBufferIndexAIV) * gmOffsetWADelta],
                     layoutDstA,
