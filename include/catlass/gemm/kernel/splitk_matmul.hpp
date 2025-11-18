@@ -21,48 +21,23 @@
 
 namespace Catlass::Gemm::Kernel {
 
-template<
-    class ArchTag_,
-    class ElementAccumulator_,
-    class ElementOut_,
-    uint32_t COMPUTE_LENGTH
->
-struct ReduceAdd {
+template<class ArchTag_, class ElementAccumulator_, class ElementOut_, uint32_t STAGES, uint32_t COMPUTE_LENGTH>
+struct SplitkReduceAdd {
     using ArchTag = ArchTag_;
     using ElementAccumulator = ElementAccumulator_;
     using ElementOut = ElementOut_;
 
     CATLASS_DEVICE
-    ReduceAdd(Arch::Resource<ArchTag> &resource)
+    SplitkReduceAdd(Arch::Resource<ArchTag> &resource)
     {
+
         int64_t bufferOffset = 0;
-        for (uint32_t i = 0; i < BUFFER_NUM; i++) {
-            inputBuffer[i] = resource.ubBuf.template GetBufferByByte<ElementAccumulator>(bufferOffset);
-            bufferOffset += COMPUTE_LENGTH * sizeof(ElementAccumulator);
+        for (uint32_t i = 0; i < STAGES; i++) {
             accumulatorBuffer[i] = resource.ubBuf.template GetBufferByByte<ElementAccumulator>(bufferOffset);
-            bufferOffset += COMPUTE_LENGTH * sizeof(ElementAccumulator);
             outputBuffer[i] = resource.ubBuf.template GetBufferByByte<ElementOut>(bufferOffset);
-            bufferOffset += COMPUTE_LENGTH * sizeof(ElementOut);
+            bufferOffset += COMPUTE_LENGTH * sizeof(ElementAccumulator);
+            eventIds[i] = i;
         }
-    }
-
-    CATLASS_DEVICE
-    void Gm2Ub(AscendC::LocalTensor<ElementAccumulator> const &dst,
-        AscendC::GlobalTensor<ElementAccumulator> const &src,
-        uint32_t dataNum)
-    {
-        AscendC::DataCopyExtParams dataCopyParams(1, dataNum * sizeof(ElementAccumulator), 0, 0, 0);
-        AscendC::DataCopyPadExtParams<ElementAccumulator> padParams(false, 0, 0, 0);
-        AscendC::DataCopyPad(dst, src, dataCopyParams, padParams);
-    }
-
-    CATLASS_DEVICE
-    void Ub2Gm(AscendC::GlobalTensor<ElementOut> const &dst,
-        AscendC::LocalTensor<ElementOut> const &src,
-        uint32_t dataNum)
-    {
-        AscendC::DataCopyExtParams dataCopyParams(1, dataNum * sizeof(ElementOut), 0, 0, 0);
-        AscendC::DataCopyPad(dst, src, dataCopyParams);
     }
 
     CATLASS_DEVICE
@@ -71,53 +46,64 @@ struct ReduceAdd {
         AscendC::GlobalTensor<ElementAccumulator> const &src,
         uint64_t elementCount, uint32_t splitkFactor)
     {
-        // The vec mte processes 256 bytes of data at a time.
+        for (uint32_t i = 0; i < STAGES; ++i) {
+            AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[i]);
+        }
+
+        constexpr uint32_t ELE_NUM_ALIGN = BYTE_PER_BLK / sizeof(ElementOut);
         constexpr uint32_t ELE_PER_VECTOR_BLOCK = 256 / sizeof(ElementAccumulator);
         uint32_t aivNum = AscendC::GetBlockNum() * AscendC::GetSubBlockNum();
         uint32_t aivId = AscendC::GetBlockIdx();
+
         uint64_t taskPerAiv =
             (elementCount / aivNum + ELE_PER_VECTOR_BLOCK - 1) / ELE_PER_VECTOR_BLOCK * ELE_PER_VECTOR_BLOCK;
         if (taskPerAiv == 0) taskPerAiv = ELE_PER_VECTOR_BLOCK;
-        uint32_t tileLen;
-        if (taskPerAiv > COMPUTE_LENGTH) {
-            tileLen = COMPUTE_LENGTH;
-        } else {
-            tileLen = taskPerAiv;
+
+        uint32_t taskPerAivMax = COMPUTE_LENGTH / splitkFactor / ELE_PER_VECTOR_BLOCK * ELE_PER_VECTOR_BLOCK;
+
+        if (taskPerAiv > taskPerAivMax) {
+            taskPerAiv = taskPerAivMax;
         }
 
-        AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(inputEventIds[0]);
-        AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(inputEventIds[1]);
-        AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(outputEventIds[0]);
-        AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(outputEventIds[1]);
-        AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(accumulatorEventIds[0]);
-        AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(accumulatorEventIds[1]);
-
-        uint32_t loops = (elementCount + tileLen - 1) / tileLen;
+        uint32_t loops = (elementCount + taskPerAiv - 1) / taskPerAiv;
         for (uint32_t loopIdx = aivId; loopIdx < loops; loopIdx += aivNum) {
-            uint32_t actualTileLen = tileLen;
+            uint32_t actualTileLen = taskPerAiv;
             if (loopIdx == loops - 1) {
-                actualTileLen = elementCount - loopIdx * tileLen;
+                actualTileLen = elementCount - static_cast<uint64_t>(loopIdx) * taskPerAiv;
             }
 
-            AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(accumulatorEventIds[bufferIndex]);
-            Gm2Ub(accumulatorBuffer[bufferIndex], src[loopIdx * tileLen], actualTileLen);
-            AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(accumulatorEventIds[bufferIndex]);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(accumulatorEventIds[bufferIndex]);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[bufferIndex]);
+            uint64_t srcOffset = static_cast<uint64_t>(loopIdx) * taskPerAiv;
+            AscendC::DataCopyPadExtParams<ElementAccumulator> padParams(false, 0, 0, 0);
+            if (elementCount < 4294977295U / sizeof (ElementAccumulator)) {
+                AscendC::DataCopyExtParams dataCopyParams(
+                    splitkFactor,
+                    actualTileLen * sizeof(ElementAccumulator),
+                    (elementCount - actualTileLen) * sizeof(ElementAccumulator),
+                    (RoundUp(actualTileLen, ELE_NUM_ALIGN) - actualTileLen) * sizeof(ElementAccumulator) / BYTE_PER_BLK,
+                    0
+                );
+                AscendC::DataCopyPad(accumulatorBuffer[bufferIndex], src[srcOffset], dataCopyParams, padParams);
+            } else {
+                for (uint32_t i = 0; i < splitkFactor; ++i) {
+                    AscendC::DataCopyExtParams dataCopyParams(1, actualTileLen * sizeof(ElementAccumulator), 0, 0, 0);
+                    AscendC::DataCopyPad(
+                        accumulatorBuffer[bufferIndex][i * RoundUp(actualTileLen, ELE_NUM_ALIGN)], 
+                        src[srcOffset + i * elementCount], dataCopyParams, padParams);
+                }
+            }
 
+            AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventIds[bufferIndex]);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventIds[bufferIndex]);
+
+            uint64_t offset = 0;
             for (uint32_t sliceIdx = 1; sliceIdx < splitkFactor; ++sliceIdx) {
-                AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(inputEventIds[bufferIndex]);
-                Gm2Ub(inputBuffer[bufferIndex],
-                    src[sliceIdx * elementCount + loopIdx * tileLen], actualTileLen);
-                AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(inputEventIds[bufferIndex]);
-                AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(inputEventIds[bufferIndex]);
-
-                AscendC::Add(accumulatorBuffer[bufferIndex],
-                    accumulatorBuffer[bufferIndex], inputBuffer[bufferIndex], actualTileLen);
-                AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(inputEventIds[bufferIndex]);
+                offset = RoundUp(actualTileLen, ELE_NUM_ALIGN) * sliceIdx;
+                AscendC::Add(accumulatorBuffer[bufferIndex][0],
+                    accumulatorBuffer[bufferIndex][0], accumulatorBuffer[bufferIndex][offset], actualTileLen);
+                AscendC::PipeBarrier<PIPE_V>();
             }
-            AscendC::PipeBarrier<PIPE_V>();
 
-            AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(outputEventIds[bufferIndex]);
             if constexpr (!std::is_same_v<ElementAccumulator, ElementOut>) {
                 if constexpr (std::is_same_v<ElementOut, half>) {
                     AscendC::Cast(outputBuffer[bufferIndex],
@@ -126,38 +112,31 @@ struct ReduceAdd {
                     AscendC::Cast(outputBuffer[bufferIndex],
                         accumulatorBuffer[bufferIndex], AscendC::RoundMode::CAST_RINT, actualTileLen);
                 }
-            } else {
-                AscendC::DataCopy(outputBuffer[bufferIndex], accumulatorBuffer[bufferIndex], tileLen);
             }
-            AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(accumulatorEventIds[bufferIndex]);
 
-            AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(outputEventIds[bufferIndex]);
-            AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(outputEventIds[bufferIndex]);
-            Ub2Gm(dst[loopIdx * tileLen], outputBuffer[bufferIndex], actualTileLen);
-            AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(outputEventIds[bufferIndex]);
+            AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(eventIds[bufferIndex]);
+            AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(eventIds[bufferIndex]);
 
-            bufferIndex = (bufferIndex + 1) % BUFFER_NUM;
+            uint64_t dstOffset =  static_cast<uint64_t>(loopIdx) * taskPerAiv;
+            AscendC::DataCopyExtParams dataCopyParams(1, actualTileLen * sizeof(ElementOut), 0, 0, 0);
+            AscendC::DataCopyPad(dst[dstOffset], outputBuffer[bufferIndex], dataCopyParams);
+
+            AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[bufferIndex]);
+
+            bufferIndex = (bufferIndex + 1) % STAGES;
         }
 
-        AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(inputEventIds[0]);
-        AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(inputEventIds[1]);
-        AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(outputEventIds[0]);
-        AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(outputEventIds[1]);
-        AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(accumulatorEventIds[0]);
-        AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(accumulatorEventIds[1]);
+        for (uint32_t i = 0; i < STAGES; ++i) {
+            AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(eventIds[i]);
+        }            
     }
 
 private:
-    static const uint32_t BUFFER_NUM = 2;
-    AscendC::LocalTensor<ElementAccumulator> inputBuffer[BUFFER_NUM];
-    AscendC::LocalTensor<ElementAccumulator> accumulatorBuffer[BUFFER_NUM];
-    AscendC::LocalTensor<ElementOut> outputBuffer[BUFFER_NUM];
-    AscendC::TEventID inputEventIds[BUFFER_NUM] = {EVENT_ID0, EVENT_ID1};
-    AscendC::TEventID accumulatorEventIds[BUFFER_NUM] = {EVENT_ID2, EVENT_ID3};
-    AscendC::TEventID outputEventIds[BUFFER_NUM] = {EVENT_ID0, EVENT_ID1};
+    AscendC::LocalTensor<ElementAccumulator> accumulatorBuffer[STAGES];
+    AscendC::LocalTensor<ElementOut> outputBuffer[STAGES];
+    AscendC::TEventID eventIds[STAGES];
     uint32_t bufferIndex{ 0 };
-    static_assert(BUFFER_NUM * COMPUTE_LENGTH * sizeof(ElementAccumulator) * 2
-        +  BUFFER_NUM * COMPUTE_LENGTH * sizeof(ElementOut) <= ArchTag::UB_SIZE, "Excedding the UB space!");
+    static_assert(STAGES * COMPUTE_LENGTH * sizeof(ElementAccumulator) <= ArchTag::UB_SIZE, "Excedding the UB space!");
 };
 
 // Template for Matmul kernel. Compute C = A * B
