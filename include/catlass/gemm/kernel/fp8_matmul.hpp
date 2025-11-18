@@ -57,28 +57,7 @@ public:
     using MmadParams = typename BlockMmad_::Params;
     using BlockScheduler = BlockScheduler_;
 
-    // static const uint32_t COMPUTE_LENGTH_A = 16 * 1024 / sizeof(int8_t);
-    // using PrologueA = Block::DequantFP8toFP16<ArchTag, int8_t, LayoutA, COMPUTE_LENGTH_A>;
-    // static const uint32_t COMPUTE_LENGTH_B = 16 * 1024 / sizeof(int8_t);
-    // using PrologueB = Block::DequantFP8toFP16<ArchTag, int8_t, LayoutB, COMPUTE_LENGTH_B>;
-    
-    // ONLY FOR TEST
-    // 单独拦截 PrologueA / B
-    // 在Kernel级， 在ToUnderlyingArguments中形成Params
-    // using ElementPrologueA = int8_t;
-    // using LayoutPrologueA = layout::RowMajor;
-    // using ElementPrologueB = int8_t;
-    // using LayoutPrologueB = layout::RowMajor;
-    
-    // using PrologueSrcTypeA = typename Gemm::GemmType<ElementPrologueA, LayoutPrologueA>;
-    // using PrologueDstTypeA = typename Gemm::GemmType<ElementA, LayoutA>;
-    // using PrologueSrcTypeB = typename Gemm::GemmType<ElementPrologueB, LayoutPrologueB>;
-    // using PrologueDstTypeB = typename Gemm::GemmType<ElementB, LayoutB>; 
-
-    
-    // using PrologueAParams = typename Tile::PrologueTraits<PrologueA>::Params;
-    // using PrologueBParams = typename Tile::PrologueTraits<PrologueB>::Params;
-    // ONLY FOR TEST
+    // auto aicCoreNum = platform_ascendc::PlatformAscendCManager::GetInstance()->GetCoreNumAic();
 
     /// Parameters structure
     struct Params {
@@ -123,12 +102,10 @@ public:
 
     struct Arguments {
         GemmCoord problemShape;
+        uint32_t aicCoreNum;
         GM_ADDR ptrA;
         GM_ADDR ptrB;
         GM_ADDR ptrC;
-        GM_ADDR ptrWA;
-        GM_ADDR ptrWB;
-        GM_ADDR ptrWC;
         half scalar;
         half zeroPoint;
     };
@@ -140,7 +117,7 @@ public:
 
     static size_t GetWorkspaceSize(const Arguments &args)
     {
-        return 0;
+        return GetSizeWA(args.aicCoreNum) + GetSizeWB(args.aicCoreNum) + GetSizeWC(args.aicCoreNum);
     }
 
     static Params ToUnderlyingArguments(const Arguments &args, uint8_t *workspace)
@@ -148,6 +125,17 @@ public:
         LayoutA layoutA{args.problemShape.m(), args.problemShape.k()};
         LayoutB layoutB{args.problemShape.k(), args.problemShape.n()};
         LayoutC layoutC{args.problemShape.m(), args.problemShape.n()};
+
+        // Malloc memory @[npu device]
+        uint8_t *gmWA = nullptr;
+        uint8_t *gmWB = nullptr;
+        uint8_t *gmWC = nullptr;
+        gmWA = workspace;
+        workspace += GetSizeWA(args.aicCoreNum);
+        gmWB = workspace;
+        workspace += GetSizeWB(args.aicCoreNum);
+        gmWC = workspace;
+
         Params params{args.problemShape,
             args.ptrA,
             layoutA,
@@ -155,12 +143,11 @@ public:
             layoutB,
             args.ptrC,
             layoutC,
-            args.ptrWA,
-            args.ptrWB,
-            args.ptrWC,
+            gmWA,
+            gmWB,
+            gmWC,
             {{args.scalar, args.zeroPoint}, 
-            {args.scalar, args.zeroPoint}, 
-            mScalar, nScalar, splitkLength} };
+            {args.scalar, args.zeroPoint}, mScalar, nScalar, splitkLength} };
         return params;
     }
 
@@ -277,6 +264,25 @@ public:
 
             blockMmad(gmWA, gmWB, gmWC, actualBigBlockShape, params.problemShape);
         }
+    }
+
+protected:
+    static size_t GetSizeWA(const uint32_t aicCoreNum) 
+    {
+        size_t lenWA = static_cast<size_t>(splitkLength) * 128 * mScalar;
+        return aicCoreNum * lenWA * sizeof(ElementA) * 2; // 双缓冲
+    }
+
+    static size_t GetSizeWB(const uint32_t aicCoreNum) 
+    {
+        size_t lenWB = static_cast<size_t>(splitkLength) * 256 * nScalar;
+        return aicCoreNum * lenWB * sizeof(ElementB) * 2; // 双缓冲
+    }
+
+    static size_t GetSizeWC(const uint32_t aicCoreNum) 
+    {
+        size_t lenWC = static_cast<size_t>(128 * mScalar) * 256 * nScalar;
+        return aicCoreNum * lenWC * sizeof(ElementC);
     }
 
 protected:

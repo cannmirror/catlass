@@ -52,16 +52,16 @@ static void Run(const Options &options) {
     size_t lenA = static_cast<size_t>(m) * k;
     size_t lenB = static_cast<size_t>(k) * n;
     size_t lenC = static_cast<size_t>(m) * n;
-    size_t lenWA = static_cast<size_t>(splitkLength) * 128 * mScalar;
-    size_t lenWB = static_cast<size_t>(splitkLength) * 256 * nScalar;
-    size_t lenWC = static_cast<size_t>(128 * mScalar) * 256 * nScalar;
+    // size_t lenWA = static_cast<size_t>(splitkLength) * 128 * mScalar;
+    // size_t lenWB = static_cast<size_t>(splitkLength) * 256 * nScalar;
+    // size_t lenWC = static_cast<size_t>(128 * mScalar) * 256 * nScalar;
 
     size_t sizeA = lenA * sizeof(int8_t);
     size_t sizeB = lenB * sizeof(int8_t);
     size_t sizeC = lenC * sizeof(half);
-    size_t sizeWA = aicCoreNum * lenWA * sizeof(half) * 2; // 双缓冲
-    size_t sizeWB = aicCoreNum * lenWB * sizeof(half) * 2; // 双缓冲
-    size_t sizeWC = aicCoreNum * lenWC * sizeof(float);
+    // size_t sizeWA = aicCoreNum * lenWA * sizeof(half) * 2; // 双缓冲
+    // size_t sizeWB = aicCoreNum * lenWB * sizeof(half) * 2; // 双缓冲
+    // size_t sizeWC = aicCoreNum * lenWC * sizeof(float);
 
     size_t sizeWorkspace;
 
@@ -105,17 +105,17 @@ static void Run(const Options &options) {
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceB), sizeB, ACL_MEM_MALLOC_HUGE_FIRST));
     ACL_CHECK(aclrtMemcpy(deviceB, sizeB, hostB.data(), sizeB, ACL_MEMCPY_HOST_TO_DEVICE));
 
-    uint8_t *deviceWA{nullptr};
-    ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWA), sizeWA, ACL_MEM_MALLOC_HUGE_FIRST));
+    // uint8_t *deviceWA{nullptr};
+    // ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWA), sizeWA, ACL_MEM_MALLOC_HUGE_FIRST));
 
-    uint8_t *deviceWB{nullptr};
-    ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWB), sizeWB, ACL_MEM_MALLOC_HUGE_FIRST));
+    // uint8_t *deviceWB{nullptr};
+    // ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWB), sizeWB, ACL_MEM_MALLOC_HUGE_FIRST));
 
     uint8_t *deviceC{nullptr};
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceC), sizeC, ACL_MEM_MALLOC_HUGE_FIRST));
 
-    uint8_t *deviceWC{nullptr};
-    ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWC), sizeWC, ACL_MEM_MALLOC_HUGE_FIRST));
+    // uint8_t *deviceWC{nullptr};
+    // ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWC), sizeWC, ACL_MEM_MALLOC_HUGE_FIRST));
 
     uint8_t *deviceWorkspace{nullptr};
     // Prepare FFTS address
@@ -157,13 +157,12 @@ static void Run(const Options &options) {
 
     using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
     MatmulKernel::Arguments arguments{
-        options.problemShape, deviceA, deviceB, deviceC, deviceWA, deviceWB, deviceWC, scalar, zeroPoint};
+        options.problemShape, aicCoreNum, deviceA, deviceB, deviceC, scalar, zeroPoint};
     MatmulAdapter matmulOp;
     matmulOp.CanImplement(arguments);
     sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
     if (sizeWorkspace > 0) {
-        ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST)
-        );
+        ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST));
     }
     matmulOp.Initialize(arguments, deviceWorkspace);
     matmulOp(stream, aicCoreNum, fftsAddr);
@@ -171,13 +170,13 @@ static void Run(const Options &options) {
     ACL_CHECK(aclrtSynchronizeStream(stream));
 
     std::vector<half> hostC(lenC);
-    std::vector<float> hostWC(aicCoreNum * lenWC);
-    std::vector<half> hostWA(aicCoreNum * lenWA * 2);
-    std::vector<half> hostWB(aicCoreNum * lenWB * 2);
+    // std::vector<float> hostWC(aicCoreNum * lenWC);
+    // std::vector<half> hostWA(aicCoreNum * lenWA * 2);
+    // std::vector<half> hostWB(aicCoreNum * lenWB * 2);
     ACL_CHECK(aclrtMemcpy(hostC.data(), sizeC, deviceC, sizeC, ACL_MEMCPY_DEVICE_TO_HOST));
-    ACL_CHECK(aclrtMemcpy(hostWC.data(), sizeWC, deviceWC, sizeWC, ACL_MEMCPY_DEVICE_TO_HOST));
-    ACL_CHECK(aclrtMemcpy(hostWA.data(), sizeWA, deviceWA, sizeWA, ACL_MEMCPY_DEVICE_TO_HOST));
-    ACL_CHECK(aclrtMemcpy(hostWB.data(), sizeWB, deviceWB, sizeWB, ACL_MEMCPY_DEVICE_TO_HOST));
+    // ACL_CHECK(aclrtMemcpy(hostWC.data(), sizeWC, deviceWC, sizeWC, ACL_MEMCPY_DEVICE_TO_HOST));
+    // ACL_CHECK(aclrtMemcpy(hostWA.data(), sizeWA, deviceWA, sizeWA, ACL_MEMCPY_DEVICE_TO_HOST));
+    // ACL_CHECK(aclrtMemcpy(hostWB.data(), sizeWB, deviceWB, sizeWB, ACL_MEMCPY_DEVICE_TO_HOST));
 
     std::vector<float> hostGolden(m * n);
     std::string outputFileName = "./examples/29_a2_fp8_e4m3_matmul/output/expected_data.bin";
@@ -193,8 +192,8 @@ static void Run(const Options &options) {
     ACL_CHECK(aclrtFree(deviceA));
     ACL_CHECK(aclrtFree(deviceB));
     ACL_CHECK(aclrtFree(deviceC));
-    ACL_CHECK(aclrtFree(deviceWA));
-    ACL_CHECK(aclrtFree(deviceWB));
+    // ACL_CHECK(aclrtFree(deviceWA));
+    // ACL_CHECK(aclrtFree(deviceWB));
     if (sizeWorkspace > 0) {
         ACL_CHECK(aclrtFree(deviceWorkspace));
     }
