@@ -118,8 +118,8 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
     using BlockMmad = Catlass::Gemm::Block::BlockMmad<DispatchPolicy, void, void, AType, BType, CType, void, TileCopy>;
     using BlockEpilogue = void;
 
-    constexpr uint32_t computeLength = 32 * 1024 / sizeof(float);
-    using RecudeAdd = Catlass::Gemm::Kernel::ReduceAdd<ArchTag, float, ElementC, computeLength>;
+    constexpr uint32_t computeLength = 192 * 1024 / sizeof(float);
+    using RecudeAdd = Catlass::Gemm::Kernel::SplitkReduceAdd<ArchTag, float, ElementC, 1, computeLength>;
     using BlockScheduler = typename Catlass::Gemm::Block::SplitkGemmIdentityBlockSwizzle<>;
     // kernel level
     using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingMultiCoreSplitkMatmul<
