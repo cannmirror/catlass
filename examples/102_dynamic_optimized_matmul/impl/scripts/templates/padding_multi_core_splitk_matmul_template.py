@@ -50,7 +50,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
     KERNEL_NAME = "PaddingMultiCoreSplitkMatmulKernel"
 
     @staticmethod
-    def gen_code(kernel_name, base_file_name, kernel_serial, dtype, kernel_info):
+    def gen_code(dtype, kernel_info):
 
         kernel_serial = Config.KERNEL_SERIAL_MAP[PaddingMultiCoreSplitkMatmulTemplate.KERNEL_NAME]
 
