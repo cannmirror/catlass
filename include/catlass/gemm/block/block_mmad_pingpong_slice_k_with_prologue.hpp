@@ -243,12 +243,6 @@ protected:
         AscendC::GlobalTensor<typename PrologueB::ElementDst> const & gmDstB,
         AscendC::GlobalTensor<typename PrologueB::ElementSrc> const & gmSrcB,
         typename PrologueB::LayoutSrc const & layoutSrcB,
-        // typename Tile::PrologueTraits<PrologueA>::TensorSrc const &gmDstA,
-        // typename Tile::PrologueTraits<PrologueA>::TensorDst const &gmSrcA,
-        // typename Tile::PrologueTraits<PrologueA>::LayoutDst const &layoutSrcA,
-        // typename Tile::PrologueTraits<PrologueB>::TensorDst const &gmDstB,
-        // typename Tile::PrologueTraits<PrologueB>::TensorSrc const &gmSrcB,
-        // typename Tile::PrologueTraits<PrologueB>::LayoutSrc const &layoutSrcB,
         AscendC::GlobalTensor<half> const &gmDstC,
         AscendC::GlobalTensor<ElementC> const &gmSrcC,
         LayoutC const &layoutSrcC,
@@ -280,24 +274,6 @@ protected:
                     (params.nScalar * L1TileShape::N) * params.splitkLength * STAGES;
         gmOffsetWBDelta = params.splitkLength * (params.nScalar * L1TileShape::N);
 
-        // if constexpr (HAS_PROLOGUE_A) {
-        //     // MatrixCoord offsetA{blockCoord.m() * (L1TileShape::M * params.mScalar), 0};
-        //     gmOffsetA = layoutSrcA.GetOffset(MakeCoord(blockCoord.m() * (L1TileShape::M * params.mScalar), 0U));
-        //     gmOffsetNextA = layoutSrcA.GetOffset(MakeCoord(nextBlockCoord.m() * (L1TileShape::M * params.mScalar), 0U));
-        //     gmOffsetWA = (AscendC::GetBlockIdx() / AIVPERCORE) * 
-        //                 (params.mScalar * L1TileShape::M) * params.splitkLength * STAGES;
-        //     gmOffsetWADelta = (params.mScalar * L1TileShape::M) * params.splitkLength;
-        // }
-
-        // if constexpr (HAS_PROLOGUE_B) {
-        //     // MatrixCoord offsetB{0, blockCoord.n() * (L1TileShape::N * params.nScalar)};
-        //     gmOffsetB = layoutSrcB.GetOffset(MakeCoord(0U, blockCoord.n() * (L1TileShape::N * params.nScalar)));
-        //     gmOffsetNextB = layoutSrcB.GetOffset(MakeCoord(0U, nextBlockCoord.n() * (L1TileShape::N * params.nScalar)));
-        //     gmOffsetWB = (AscendC::GetBlockIdx() / AIVPERCORE) * 
-        //                 (params.nScalar * L1TileShape::N) * params.splitkLength * STAGES;
-        //     gmOffsetWBDelta = params.splitkLength * (params.nScalar * L1TileShape::N);
-        // }
-
         MatrixCoord offsetC{blockCoord.m() * (L1TileShape::M * params.mScalar), 
                         blockCoord.n() * (L1TileShape::N * params.nScalar)};        
         gmOffsetC = layoutSrcC.GetOffset(offsetC);
@@ -316,7 +292,6 @@ protected:
 
         // SPLIT-K MainLoop
         uint32_t kLoop = (problemShape.k() + params.splitkLength - 1) / params.splitkLength;
-        // uint32_t kLoop = CeilDiv<params.splitkLength>(problemShape.k());
         uint32_t kResidueLenght = problemShape.k() % params.splitkLength;
         for (uint32_t ldk = 0; ldk < kLoop; ldk++) {
             uint32_t kActual = (problemShape.k() < (ldk + 1) * params.splitkLength)
@@ -357,8 +332,6 @@ protected:
                 Catlass::Arch::CrossCoreWaitFlag(flag0[1 - crossCoreBufferIndexAIV]);         
                 gmOffsetA += layoutSrcA.GetOffset(MakeCoord(0U, kActual));
                 gmOffsetB += layoutSrcB.GetOffset(MakeCoord(kActual, 0U));
-                // gmOffsetA += layoutSrcA.GetOffset(MakeCoord(0U, kActual));
-                // gmOffsetB += layoutSrcB.GetOffset(MakeCoord(kActual, 0U));
 
                 uint32_t kActualAligned_ = RoundUp<256, uint32_t>(kActual_);
                 LayoutA layoutWA(actualBlockShape.m(), kActual_, srcAStride);
@@ -385,8 +358,6 @@ protected:
             }
             if ((ldk == kLoop - 1) && hasNextBlock) { // SliceK尾部块
                 kActual_ = (problemShape.k() < params.splitkLength) ? kResidueLenght : params.splitkLength;
-                // mShape_ = nextActualBlockShape.m();
-                // nShape_ = nextActualBlockShape.n();
                 
                 Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(flag1[crossCoreBufferIndexAIV]);
                 Catlass::Arch::CrossCoreWaitFlag(flag0[1 - crossCoreBufferIndexAIV]);
@@ -476,11 +447,6 @@ protected:
                 for (uint32_t nIdx = 0; nIdx < nLoop; nIdx++) { // N-loop
                     bool isFirstBlock = (mIdx == 0 && nIdx == 0);
                     bool hasNextBlock = !(mIdx == mLoop-1 && nIdx == nLoop-1);
-
-                    // MatrixCoord offsetBlockC{
-                    //     blockCoord.m() * (L1TileShape::M * params.mScalar) + L1TileShape::M * mIdx,
-                    //     blockCoord.n() * (L1TileShape::N * params.nScalar) + L1TileShape::N * nIdx
-                    // };
 
                     // 当前偏移及实际尺寸计算(No padding)
                     int64_t gmOffsetWA_ = AscendC::GetBlockIdx() * (L1TileShape::M * params.mScalar) * 
@@ -826,8 +792,7 @@ protected:
 
     // Buffer index (for prologue)
     uint32_t bufferIndex{0};
-    // uint32_t bufferIndexForCast{0};
-
+    
     Tile::PrologueTraits<PrologueA> prologueA;
     Tile::PrologueTraits<PrologueB> prologueB;
 };

@@ -17,9 +17,7 @@
 #include "catlass/layout/layout.hpp"
 #include "catlass/gemm_coord.hpp"
 #include "catlass/matrix_coord.hpp"
-// #include "catlass/gemm/block/block_dequant.hpp"
 #include "catlass/arch/cross_core_sync.hpp"
-// #include "catlass/gemm/kernel/padding_matmul.hpp"
 
 namespace Catlass::Gemm::Kernel {
 
@@ -56,8 +54,6 @@ public:
 
     using MmadParams = typename BlockMmad_::Params;
     using BlockScheduler = BlockScheduler_;
-
-    // auto aicCoreNum = platform_ascendc::PlatformAscendCManager::GetInstance()->GetCoreNumAic();
 
     /// Parameters structure
     struct Params {
@@ -157,8 +153,6 @@ public:
     {
         flag0[0].id = flagID0;
         flag0[1].id = flagID1;
-    //     flag1[0].id = flagID2;
-    //     flag1[1].id = flagID3;
     }
 
     /// Executes one GEMM
@@ -189,8 +183,6 @@ public:
         AscendC::GlobalTensor<float> gmWC;
         gmWC.SetGlobalBuffer((__gm__ float *)params.ptrWC);
 
-        
-
         uint32_t coreLoops = blockScheduler.GetCoreLoops();
         for (uint32_t loopIdx = AscendC::GetBlockIdx() / AIVPERCORE; loopIdx < coreLoops;
              loopIdx += AscendC::GetBlockNum()) {  // 一次for循环完成两个行块或者两个列块的反量化
@@ -220,19 +212,6 @@ public:
             );
             
         }
-        // AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID0);
-        // AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID1);
-        // AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID2);
-        // AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID3);
-        // AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID0);
-        // AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID1);
-        // AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID2);
-        // AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID3);
-
-        // Catlass::Arch::CrossCoreWaitFlag(flag0[0]);
-        // Catlass::Arch::CrossCoreWaitFlag(flag0[1]);
-        // Catlass::Arch::CrossCoreWaitFlag(flagID0);
-        // Catlass::Arch::CrossCoreWaitFlag(flagID1);
     }
 
     template <>
@@ -249,10 +228,6 @@ public:
         gmWB.SetGlobalBuffer((__gm__ half *)params.ptrWB);
         AscendC::GlobalTensor<float> gmWC;
         gmWC.SetGlobalBuffer((__gm__ float *)params.ptrWC);
-
-        
-        // Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_FIX>(flagID0);
-        // Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_FIX>(flagID1);
 
         uint32_t coreLoops = blockScheduler.GetCoreLoops();
         for (uint32_t loopIdx = AscendC::GetBlockIdx(); loopIdx < coreLoops;
@@ -290,23 +265,11 @@ protected:
 
     static constexpr uint32_t STAGES = 2;
     static constexpr uint32_t AIVPERCORE = 2;
-    // int32_t l1AEventList[STAGES];
-    // int32_t l1BEventList[STAGES];
-    // int32_t l0AEventList[STAGES];
-    // int32_t l0BEventList[STAGES];
 
     static constexpr Arch::FlagID flagID0 = 0;
     static constexpr Arch::FlagID flagID1 = 1;
-    // static constexpr Arch::FlagID flagID2 = 2;
-    // static constexpr Arch::FlagID flagID3 = 3;
-    // static constexpr Arch::FlagID flagID4 = 4;
 
     Arch::CrossCoreFlag flag0[STAGES];
-    // Arch::CrossCoreFlag flag1[STAGES];
-    // Arch::CrossCoreFlag flag4{flagID4};
-
-    // uint32_t crossCoreBufferIndexAIC{0};
-    // uint32_t crossCoreBufferIndexAIV{0};
     uint32_t bufferIndex{0};
     
 };
