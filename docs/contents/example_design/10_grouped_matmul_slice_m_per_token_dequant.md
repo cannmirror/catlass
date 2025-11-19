@@ -113,7 +113,7 @@ AIV计算流程与AIC一致，在调用`blockMmad()`处改为调用`blockEpilogu
     - **loopIdx**：当前核需要处理的block序号（当前group内）
 - 示例：
 
-<img src="https://raw.gitcode.com/user-images/assets/7801479/6029234c-39e4-4853-99de-1d4263f4e91f/Block_Partitioning_Scheme.png 'Block_Partitioning_Scheme.png'" width="100%">
+<img src="https://raw.gitcode.com/user-images/assets/7801479/6029234c-39e4-4853-99de-1d4263f4e91f/Block_Partitioning_Scheme.png" width="100%">
 
 ### Workspace方案
 
@@ -130,14 +130,14 @@ static size_t GetWorkspaceSize(const Arguments &args)
 
 （库上还有一种方案为申请完整的 promblemShape.m * promblemShape.n 的Workspace，在小shape场景可以节约Workspace，[参考](../../../include/catlass/gemm/kernel/grouped_matmul_slice_m_per_token_dequant.hpp)）
 
-<img src="https://raw.gitcode.com/user-images/assets/7801479/8b950918-80c1-4e8d-a0de-63a6a4b6cf56/workspace.png 'workspace.png'" width="100%">
+<img src="https://raw.gitcode.com/user-images/assets/7801479/8b950918-80c1-4e8d-a0de-63a6a4b6cf56/workspace.png" width="100%">
 
 ### AIC/AIV核间同步方案
 AIC上对于单个block的Mmad可以拆分为L1Tile搬入、L1Tile计算、L0C搬出三个动作，由于blockMmad有preload预载和async异步的特性，`operator()<AscendC::AIC>`内调用`blockMmad()`时，仅完成当前block的L1Tile搬入和大部分L1Tile计算，而剩余的L1Tile计算和L0C搬出会在下次调用`blockMmad()`时执行。所以需要将AIC/AIV核间同步相关的callBack入参传入`blockMmad()`，由`blockMmad()`内决定调用时机。
 
 单个AIC和分配的两个AIV在处理GM上的一个个block的流程图如下：
 
-<img src="https://raw.gitcode.com/user-images/assets/7801479/79aadfa0-3568-4cbc-908f-a90ec7b1cfa3/AIV_AIC同步.png 'AIV_AIC同步.png'" width="100%">
+<img src="https://raw.gitcode.com/user-images/assets/7801479/79aadfa0-3568-4cbc-908f-a90ec7b1cfa3/AIV_AIC同步.png" width="100%">
 
 ## BlockMmad实现
 待完善
