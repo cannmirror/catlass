@@ -24,22 +24,22 @@
   </tr></thead>
 <tbody>
   <tr>
-    <td class="tg-0pky">m</td>
+    <td class="tg-0pky"><code>m</code></td>
     <td class="tg-0pky">矩阵乘中左矩阵A的行</td>
     <td class="tg-0pky">0~<code>256k</code></td>
   </tr>
   <tr>
-    <td class="tg-0pky">n</td>
+    <td class="tg-0pky"><code>n</code></td>
     <td class="tg-0pky">矩阵乘中右矩阵B的列</td>
     <td class="tg-0pky">0~<code>256k</code></td>
   </tr>
   <tr>
-    <td class="tg-0pky">k</td>
+    <td class="tg-0pky"><code>k</code></td>
     <td class="tg-0pky">矩阵乘中左矩阵A的列（也即右矩阵的行数）</td>
     <td class="tg-0pky">0~<code>256k</code></td>
   </tr>
   <tr>
-    <td class="tg-0pky">deviceId</td>
+    <td class="tg-0pky"><code>deviceId</code></td>
     <td class="tg-0pky">使用的NPU卡ID（默认0）</td>
     <td class="tg-0pky">在设备的NPU有效范围内</td>
   </tr>  
@@ -58,18 +58,28 @@
 │   ├── README.md
 │   └── basic_matmul.cpp # 主文件
 ```
+
 ## 使用示例
-- 获取代码之后编译相应的算子可执行文件，可参考[quickstart](../../docs/quickstart.md#算子编译)
-- 执行算子
+1. 获取样例代码，并编译生成相应的算子可执行文件。详细步骤请参考[quickstart](../../docs/quickstart.md#算子编译)。
 ```
-# 编译指定用例
 bash scripts/build.sh 00_basic_matmul
+```
+
+2. 切换到可执行文件的编译目录`output/bin`下，执行算子样例程序。测试样例数据随机生成，尺寸从命令行输入。
+```
 cd output/bin
-# 可执行文件名 |矩阵m轴|n轴|k轴|Device ID
-# Device ID可选，默认为0
 ./00_basic_matmul 256 512 1024 0
 ```
-执行结果如下，说明精度比对成功。
+• 256：矩阵m轴
+
+• 512：n轴
+
+• 1024：k轴
+
+• 0：Device ID，可选，默认为0
+
+
+执行结果如下，说明样例执行成功。
 ```
 Compare success.
 ```
