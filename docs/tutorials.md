@@ -283,7 +283,6 @@ using L0TileShape = GemmShape<128, 256, 64>;
 
 ### 原理说明
 
-<!-- ![](./images/split_k_matmul.png) -->
 <div style="display: flex; justify-content: center;">
     <img src="./images/split_k_matmul.png" width="42%" height="auto">
 </div>
