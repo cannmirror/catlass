@@ -53,7 +53,6 @@ void Run(Options const &options)
     uint32_t m = options.problemShape.m();
     uint32_t n = options.problemShape.n();
     uint32_t k = options.problemShape.k();
-    uint32_t loopTimes = 1;
 
     float scalar = 1.5;
 

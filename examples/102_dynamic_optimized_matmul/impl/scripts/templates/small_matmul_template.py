@@ -22,25 +22,27 @@ class SmallMatmulTemplate:
 void {launch_kernel_func_name}(aclrtStream& stream, uint64_t fftsAddr,
     uint8_t* dA, uint8_t* dB, uint8_t* dC, uint8_t* dW, uint8_t* dTilingParams, TilingParams& tilingParams)
 {{
+    using ArchTag = Catlass::Arch::AtlasA2;
     using ElementA = {element_a};
     using ElementB = {element_b};
     using ElementC = {element_c};
     using LayoutA = {layout_a};
     using LayoutB = {layout_b};
     using LayoutC = {layout_c};
-    LaunchSmallMatmulKernel<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC>(
+    LaunchSmallMatmulKernel<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC>(
         stream, fftsAddr, dA, dB, dC, dTilingParams, tilingParams);
 }}
 
 size_t {get_workspace_func_name}(TilingParams& tilingParams)
 {{
+    using ArchTag = Catlass::Arch::AtlasA2;
     using ElementA = {element_a};
     using ElementB = {element_b};
     using ElementC = {element_c};
     using LayoutA = {layout_a};
     using LayoutB = {layout_b};
     using LayoutC = {layout_c};
-    return SmallMatmulKernelGetWorkspaceSize<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC>(tilingParams);
+    return SmallMatmulKernelGetWorkspaceSize<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC>(tilingParams);
 }}
 """
 

@@ -23,6 +23,7 @@ CATLASS算子模板库采用分层抽象的设计理念，通过分析硬件架�
 您可以参考下述文档逐步开启CATLASS开发之旅：
  - [快速上手](./quickstart.md)：介绍模板库提供的算子样例的编译执行。
  - [基础实践](./dev_guide.md)：以基础Matmul算子为例，介绍基于模板库的开发过程。
+ - [样例设计](./example_design_collections.md)：汇总当前一些样例的设计思路并做代码拆解。
  - [调优实践](./tutorials.md)：介绍几类常见的调优实现，提供从新手到进阶的实践示例。
  - [性能调测](./evaluation_collections.md)：总结工程开发中所常用的性能调测办法。
  - [进阶实践](./advanced_collections.md)：介绍模板库的进阶知识，助力实现更高性能。

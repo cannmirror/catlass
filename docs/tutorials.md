@@ -659,6 +659,9 @@ struct Options {
         } catch (const std::invalid_argument& e) {
             std::cerr << "invalid argument: " << e.what() << std::endl;
             return FAILED;
+        } catch (const std::out_of_range& e) {
+            std::cerr << "argument out of range: " << e.what() << std::endl;
+            return FAILED;
         }
     }
 
@@ -685,7 +688,11 @@ struct Options {
             } catch (const std::invalid_argument& e) {
                 std::cerr << "invalid argument: " << e.what() << std::endl;
                 return FAILED;
+            } catch (const std::out_of_range& e) {
+                std::cerr << "argument out of range: " << e.what() << std::endl;
+                return FAILED;
             }
+        }
         }
         return SUCCESS;
     }

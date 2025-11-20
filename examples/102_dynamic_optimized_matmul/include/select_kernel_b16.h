@@ -295,6 +295,17 @@ bool PaddingCommonMatmulB16Handler(TilingParams &params, PlatformInfo& platformI
     return false;
 }
 
+void SetSwizzleParams(TilingParams &tilingParams)
+{
+    if (tilingParams.m > tilingParams.n) {
+        tilingParams.swizzleOffset = 3;
+        tilingParams.swizzleDirection = 0;
+    } else {
+        tilingParams.swizzleOffset = 3;
+        tilingParams.swizzleDirection = 1;
+    }
+}
+
 void SelectKernelB16(TilingParams &tilingParams, PlatformInfo& platformInfo)
 {
     // Temporarily store the original layoutTagA and layoutTagB
@@ -325,6 +336,8 @@ void SelectKernelB16(TilingParams &tilingParams, PlatformInfo& platformInfo)
     // Restore to the original layout
     tilingParams.layoutTagA = layoutTagATmp;
     tilingParams.layoutTagB = layoutTagBTmp;
+
+    SetSwizzleParams(tilingParams);
 }
 
 #endif  // SELECT_KERNEL_HALF_H
