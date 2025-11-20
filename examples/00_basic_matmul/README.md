@@ -26,17 +26,17 @@
   <tr>
     <td class="tg-0pky"><code>m</code></td>
     <td class="tg-0pky">矩阵乘中左矩阵A的行</td>
-    <td class="tg-0pky">0~<code>256k</code></td>
+    <td class="tg-0pky">-</td>
   </tr>
   <tr>
     <td class="tg-0pky"><code>n</code></td>
     <td class="tg-0pky">矩阵乘中右矩阵B的列</td>
-    <td class="tg-0pky">0~<code>256k</code></td>
+    <td class="tg-0pky">-</td>
   </tr>
   <tr>
     <td class="tg-0pky"><code>k</code></td>
     <td class="tg-0pky">矩阵乘中左矩阵A的列（也即右矩阵的行数）</td>
-    <td class="tg-0pky">0~<code>256k</code></td>
+    <td class="tg-0pky">-</td>
   </tr>
   <tr>
     <td class="tg-0pky"><code>deviceId</code></td>
@@ -46,6 +46,14 @@
 
 </tbody>
 </table>
+
+相应地，原型计算有如下限制：
+
+|名称/Name|类型/Class|数据类型/Dtype|维度/Dims|格式/Format|描述/Description|
+|---|---|---|---|---|---|
+|matA|inTensor|int8\|fp16\|bf16\|fp32|[m, k]|ND\|NZ|左矩阵，支持转置|
+|matB|inTensor|int8\|fp16\|bf16\|fp32|[n, k]|ND\|NZ|右矩阵，支持转置|
+|matC|outTensor|fp16\|bf16|[m, n]|ND|输出矩阵，非转置|
 
 ## 约束说明
 
