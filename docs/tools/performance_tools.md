@@ -163,9 +163,9 @@ msProf工具采集到的数据，可导入可视化工具[MindStudio Insight](ht
 
 下面以`00_basic_matmul`为例进行演示分析。
 
-### `msprof`使用示例
+### `msProf`使用示例
 
-1. 基于[快速上手](../quickstart.md)，打开工具的编译开关`--enable_profiling`， 使能`profiling api`编译算子样例。
+1. 基于[快速上手](../quickstart.md)，打开工具的编译开关`--enable_profiling`， 使能`Profiling API`编译算子样例。
 
 ```bash
 bash scripts/build.sh --enable_profiling 00_basic_matmul

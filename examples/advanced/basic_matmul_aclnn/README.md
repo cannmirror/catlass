@@ -1,4 +1,4 @@
-# basic_mamtul_aclnn example
+# basic_matmul_aclnn example
 
 aclnn接口是CANN软件栈一直沿用的接口，msOpGen工具是CANN提供可以生成该接口工程框架的工具，便于用户编写一个具有aclnn接口的算子，并使能CANN软件栈上的各种功能。该样例提供CATLASS算子模板接入msOpGen工程的示例代码与注意事项，并提供CATLASS example风格的调用示例。
 

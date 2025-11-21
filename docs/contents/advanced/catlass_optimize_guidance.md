@@ -2,7 +2,7 @@
 
 ## CATLASS样例定位
 
-CATLASS算子模板库的定位，是针对Gemm类算子提供的模板样例库，与通常的算子库有所区别。 在通常的算子库中，会针对一类问题的不同的输入样例做泛化性的优化考虑，以提供在大多数场景下较优的开箱性能。 模板库当前主要的目标，是针对不同输入提供模板样例，示例在不同输入下快速自定义开发出高性能算子，理论上并不提供相较于算子库最优的泛化性能。 例如，对于matmul场景，CANN中的matmul算子或调用接口着重通过直接调用提供泛化场景性能；而在模板库中，通过提供basic-matmul, optimized-matmul, splitk-matmul, padding-splitk-matmul等等多种matmul以示例在不同输入场景下如何自定义定制开发以获取最优性能。 仓上的多个matmul样例针对不同输入case有不同的适用范围以及调优手段，可按需定制以获取最优性能。
+CATLASS算子模板库的定位，是针对GEMM类算子提供的模板样例库，与通常的算子库有所区别。 在通常的算子库中，会针对一类问题的不同的输入样例做泛化性的优化考虑，以提供在大多数场景下较优的开箱性能。 模板库当前主要的目标，是针对不同输入提供模板样例，示例在不同输入下快速自定义开发出高性能算子，理论上并不提供相较于算子库最优的泛化性能。 例如，对于matmul场景，CANN中的matmul算子或调用接口着重通过直接调用提供泛化场景性能；而在模板库中，通过提供basic-matmul, optimized-matmul, splitk-matmul, padding-splitk-matmul等等多种matmul以示例在不同输入场景下如何自定义定制开发以获取最优性能。 仓上的多个matmul样例针对不同输入case有不同的适用范围以及调优手段，可按需定制以获取最优性能。
 
 对于调优方法来说，总体分为**基础调优**和**进阶定制**两大类，本篇文章重点介绍第一类基础调优的方式，通过tiling调参及kernel组合的方式快速获得性能提升。
 
@@ -145,7 +145,7 @@ struct MmadAtlasA2Preload : public MmadAtlasA2 {
 
 ### Swizzle调整
 
-在CATLASS中，[Swizzle](./swizzle_explanation.md)描述了矩阵的读写顺序，以`<a, b>`代指`Gemm::Block::GemmIdentityBlockSwizzle<a, b>`。当A、B矩阵均为`RowMajor`排布时，当`m > n` 时通常选取为`<3, 0>`，`m < n`时为`<3, 1>`。通常地，`Swizzle`的调整次序是先确定`SwizzleDirection`（取`0`或`1`），随调整`SwizzleOffset`，在一些场景中可以更好地实现负载均衡。
+在CATLASS中，[Swizzle](./swizzle_explanation.md)描述了矩阵的读写顺序，以`<a, b>`代指`Gemm::Block::GemmIdentityBlockSwizzle<a, b>`。当A、B矩阵均为`RowMajor`排布时，当`m > n` 时通常选取为`<3, 0>`，`m < n`时为`<3, 1>`。通常地，`Swizzle`的调整次序是先确定`SwizzleDirection`（取`0`或`1`），随后调整`SwizzleOffset`，在一些场景中可以更好地实现负载均衡。
 
 - 案例一
 
@@ -154,7 +154,7 @@ struct MmadAtlasA2Preload : public MmadAtlasA2 {
 使用21_basic_matmul_preload_zN，按照默认的L1TileShape<128,256,256>、L0TileShape<128,256,64>，swizzle设置为<3, 1>，耗时为**40.6us**。swizzle设置为<4, 1>，耗时为**35.3us**。
 
 分析C矩阵切基本块情况，M方向切（128 + 32）两块，N方向切24个长256的块，共48个基本块。swizzle<3, 1>和swizzle<4, 1>的基本块分配AIC情况如下图。swizzle<3, 1>时，1、2、5、6号核在M方向有最大任务量为（128 + 128 + 32）；swizzle<4, 1>时，12、13、14、15号核在M方向有最大任务量为（128 + 128），负载更加均衡。
-<img src="images/catlass_optimize_guidance/swizzle_case.png" width="100%">
+<img src="../../images/catlass_optimize_guidance/swizzle_case.png" width="100%">
 
 ### 浅述定制调优
 

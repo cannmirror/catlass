@@ -68,7 +68,7 @@ void custom_matmul(
 
 ```cpp
 // ...
-void CustomMatmul(uint32_t blockNum, aclrtStream stream, ernelInfo kernelInfo) {
+void CustomMatmul(uint32_t blockNum, aclrtStream stream, kernelInfo kernelInfo) {
     Catlass::GemmCoord problemShape{kernelInfo.m, kernelInfo.n, kernelInfo.k};
     using LayoutA = layout::RowMajor;
     using LayoutB = layout::RowMajor;
@@ -98,7 +98,7 @@ void CustomMatmul(uint32_t blockNum, aclrtStream stream, ernelInfo kernelInfo) {
 
 ```cpp
 // ...
-void CustomMatmul(uint32_t blockNum, aclrtStream stream, ernelInfo kernelInfo);
+void CustomMatmul(uint32_t blockNum, aclrtStream stream, kernelInfo kernelInfo);
 // ...
 ```
 

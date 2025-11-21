@@ -25,7 +25,7 @@
     W_o=[(W_i + 2 * padding[2] - dilation[2] * (K_w - 1) - 1 ) / stride[2]] + 1
   $$
 
-- 当前实现相较于cann仅支持w轴全载的基础conv3d功能，不涉及weight bypass、L1开doublebuffer、pointwise以及w轴切分等优化手段和分支，输入input、weight和bias在L1上的搬运量不能超过硬件限制，即需要满足以下条件：
+- 当前实现相较于cann仅支持w轴全载的基础Conv3D功能，不涉及weight bypass、L1开doublebuffer、pointwise以及w轴切分等优化手段和分支，输入input、weight和bias在L1上的搬运量不能超过硬件限制，即需要满足以下条件：
   $$
     weightL1Size = K_h * K_w * 512 \\
     hoInL1Max = 16 / W_o + 2 \\
