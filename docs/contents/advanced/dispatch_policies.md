@@ -7,7 +7,7 @@ DispatchPolicy是BlockMmad的一个重要模板参数，各个DispatchPolicy定�
 - MmadAtlasA2PreloadAsync
 - MmadAtlasA2PreloadAsyncWithCallBack
 
-## MmadAtlasA2PingPong
+## MmadAtlasA2Pingpong
 
 功能：在A2架构上采用L1和L0A/B Buffer上pingpong Buffer。
 
@@ -19,7 +19,7 @@ DispatchPolicy是BlockMmad的一个重要模板参数，各个DispatchPolicy定�
 示例代码：
 
 ```c++
-struct MmadAtlasA2PingPong {
+struct MmadAtlasA2Pingpong {
     static constexpr uint32_t STAGES = 2;
     static constexpr bool ENABLE_UINT_FLAG = true;
 }
@@ -29,7 +29,7 @@ struct MmadAtlasA2PingPong {
 
 ## MmadAtlasA2Preload
 
-功能：在A2架构上采用L1和L0A/B Buffer上pingpong Buffer，同时支持shufflek策略与block间的预加载。
+功能：在A2架构上采用L1和L0A/B Buffer的pingpong机制，同时支持shufflek策略与block间的预加载。
 
 参数说明：
 

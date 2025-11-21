@@ -118,7 +118,7 @@ template <
     class PrologueB_,
     class BiasType = void
 >
-struct TileCopyWithProligue {
+struct TileCopyWithPrologue {
     using ElementA = typename AType::Element;
     using ElementB = typename BType::Element;
 

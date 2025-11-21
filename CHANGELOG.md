@@ -26,7 +26,7 @@
         + 调整工程组织结构
         + 支持转置情形
     - 新增[`msTuner_CATLASS`](https://gitcode.com/cann/catlass/tree/v1.2.0/tools/tuner/README.md)工具，用于Tiling自动寻优，在搜索空间内全量运行并获取性能数据
-    - 支持使能[`msSanitizer`](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/83RC1alpha003/devaids/optool/atlasopdev_16_0039.html)地址消毒工具(编译选项加入`--enable_mssanitizer`)
+    - 支持使能[`msSanitizer`](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/83RC1alpha003/devaids/optool/atlasopdev_16_0039.html)地址消毒工具（编译选项加入`--enable_mssanitizer`）
   
  - 文档资料
    - 新增[`catlass_optimize_guidance.md`](https://gitcode.com/cann/catlass/tree/v1.2.0/docs/contents/advanced/catlass_optimize_guidance.md)文档，介绍CATLASS赋能下`Gemm`类算子常用的调优方式
@@ -34,7 +34,7 @@
  - Bugfix&优化
    - 优化[`OptimizedMatmul`](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/06_optimized_matmul/README.md)算子实现，支持任意Padding方式组合
    - 修复`ASCEND_RT_VISIBLE_DEVICES`环境变量使能下，`msTuner_CATLASS`工具无法取得实际运行`DeviceId`的问题
-   - 修复[PFA算子样例](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/19_mla/README.md在单行数据场景下`Set/Wait`错配的异常情形
+   - 修复[PFA算子样例](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/19_mla/README.md)在单行数据场景下`Set/Wait`错配的异常情形
    - 修复[`OptimizedMatmul`](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/06_optimized_matmul/README.md)算子样例计算`Workspace`大小出错
    - 隔离使能`AscendC::Dump`及`AscendC::print`功能的代码段
    - 修复[`GroupedMatmulSliceK`](https://gitcode.com/cann/catlass/tree/v1.2.0/examples/05_grouped_matmul_slice_k/README.md)算子在Ki=0特例时的输出清零行为，并将真值比较逻辑调整为全尺寸(M,N,K)比较
@@ -43,9 +43,9 @@
 ### CATLASS 1.1.0
 
  - 关键特性
-   - 提供python调用CATLASS算子的工程组件
-     - 可编译[pybind](https://github.com/pybind/pybind11)扩展及[pytorch](https://pytorch.org/)扩展件
-   - 支持算子仿真运行(编译选项启用`--simulator`)
+   - 提供Python调用CATLASS算子的工程组件
+     - 可编译[pybind](https://github.com/pybind/pybind11)扩展及[PyTorch](https://pytorch.org/)扩展件
+   - 支持算子仿真运行（编译选项启用`--simulator`）
    - 编译过程适配毕昇编译器（[bisheng](https://www.hiascend.com/cann/bisheng)）
 
  - 更多样例
@@ -60,7 +60,7 @@
   
  - 文档资料
    - 新增[tutorials快速上手示例](https://gitee.com/ascend/catlass/tree/v1.1.0/docs/tutorials.md)
-   - 新增利用[msProf工具](https://www.hiascend.com/document/detail/zh/mindstudio/82RC1/ODtools/Operatordevelopmenttools/atlasopdev_16_0082.html)进行算子性能调测的文档：[msprof](https://gitee.com/ascend/catlass/tree/v1.1.0/docs/tools/performance_tools.md)性能调测
+   - 新增利用[msProf工具](https://www.hiascend.com/document/detail/zh/mindstudio/82RC1/ODtools/Operatordevelopmenttools/atlasopdev_16_0082.html)进行算子性能调测的文档：[msProf](https://gitee.com/ascend/catlass/tree/v1.1.0/docs/tools/performance_tools.md)性能调测
 
  - Bugfix&优化
    - 优化`Kernel`层AIC程序，添加`PIPE_ALL`避免整网影响

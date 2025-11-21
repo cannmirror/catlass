@@ -115,7 +115,7 @@ static void Run(const Options &options) {
     constexpr uint32_t computeLen = 32 * 1024;
     using PrologueB = Gemm::Tile::TileCastInt8ToFp16Dequant<ArchTag, PrologueSrcType, PrologueDstType, computeLen>;
 
-    using TileCopy = Gemm::Tile::TileCopyWithProligue<ArchTag, AType, BType, CType, PrologueA, PrologueB>;
+    using TileCopy = Gemm::Tile::TileCopyWithPrologue<ArchTag, AType, BType, CType, PrologueA, PrologueB>;
     using BlockMmadOpt =
         Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType, void, TileCopy>;
     using BlockEpilogue = void;

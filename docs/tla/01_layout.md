@@ -90,7 +90,7 @@ w32xh48   :  ((16,2),(16,3)):((16,256),(1,512))
 
 ### Matrix examples
 
-可以定义一个matrix的 `Layout` 如下几种：
+可以定义一个matrix的 `layout` 如下几种：
 
 2x3 `行优先` layout
 
