@@ -33,43 +33,6 @@ class OpParam:
         self.transA = False
         self.transB = False
 
-def quick_sort(arr, left, right):
-    """快速排序的非递归实现"""
-    stack = []
-    stack.append((left, right))
-    while stack:
-        l, r = stack.pop()
-        if l >= r:
-            continue
-        # 选择中间元素作为基准值
-        pivot = arr[(l + r) // 2]
-        i = l
-        j = r
-        while i <= j:
-            while arr[i] < pivot:
-                i += 1
-            while arr[j] > pivot:
-                j -= 1
-            if i <= j:
-                arr[i], arr[j] = arr[j], arr[i]
-                i += 1
-                j -= 1
-        # 将子数组压入栈中
-        if l < j:
-            stack.append((l, j))
-        if i < r:
-            stack.append((i, r))
-
-def generate_group_list(m, problem_count):
-    """生成一个升序的随机序列作为分组列表"""
-    group_list = [0] * problem_count
-    random.seed(int(time.time()))
-    for i in range(problem_count):
-        group_list[i] = random.randint(0, m)
-    quick_sort(group_list, 0, len(group_list) - 1)
-    group_list[problem_count - 1] = m # group将m分完
-    return np.array(group_list, dtype=np.int32)
-
 def pack_4bit_to_bytes(data):
     data = data.astype(np.int8)
     data[data < 0] += 16
