@@ -37,7 +37,6 @@ public:
     using BlockMmad = BlockMmad_;
     using ArchTag = typename BlockMmad::ArchTag;
     using L1TileShape = typename BlockMmad::L1TileShape;
-    using ElementGroupList = ElementGroupList_;
     using ElementScale = ElementScale_;
     using LayoutScale = LayoutScale_;
     using ElementA = typename BlockMmad::ElementA;
@@ -66,7 +65,6 @@ public:
         GemmCoord problemShape;
         uint32_t kGroupSize;
         uint32_t quantGroupNum;
-        __gm__ ElementGroupList_ *ptrGroupList;
         __gm__ ElementA *ptrA;
         LayoutA layoutA;
         __gm__ ElementB *ptrB;

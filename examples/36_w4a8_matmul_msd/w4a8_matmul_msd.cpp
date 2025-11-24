@@ -48,7 +48,7 @@
 
 using namespace Catlass;
 
-using Options = GemmWithPerGroupOptions;;
+using Options = GemmWithPerGroupOptions;
 
 void Run(Options const &options)
 {
@@ -103,31 +103,31 @@ void Run(Options const &options)
 
     void *hostA = nullptr;
     ACL_CHECK(aclrtMallocHost(&hostA, sizeA));
-    std::string inputA_path = "../../examples/36_w4a8_matmul_msd.cpp/data/inputA.dat";
+    std::string inputA_path = "../../examples/36_w4a8_matmul_msd/data/inputA.dat";
     ReadFile(inputA_path, hostA, sizeA);
 
     void *hostB = nullptr;
     ACL_CHECK(aclrtMallocHost(&hostB, sizeB));
-    std::string inputB_path = "../../examples/36_w4a8_matmul_msd.cpp/data/inputB.dat";
+    std::string inputB_path = "../../examples/36_w4a8_matmul_msd/data/inputB.dat";
     ReadFile(inputB_path, hostB, sizeB);
 
     void *hostScale = nullptr;
     ACL_CHECK(aclrtMallocHost(&hostScale, sizeScale));
-    std::string inputScale_path = "../../examples/36_w4a8_matmul_msd.cpp/data/inputScale.dat";
+    std::string inputScale_path = "../../examples/36_w4a8_matmul_msd/data/inputScale.dat";
     ReadFile(inputScale_path, hostScale, sizeScale);
 
     void *hostBias = nullptr;
     ACL_CHECK(aclrtMallocHost(&hostBias, sizeBias));
-    std::string inputBias_path = "../../examples/36_w4a8_matmul_msd.cpp/data/inputBias.dat";
+    std::string inputBias_path = "../../examples/36_w4a8_matmul_msd/data/inputBias.dat";
     ReadFile(inputBias_path, hostBias, sizeBias);
 
     void *hostPerTokenScale = nullptr;
     ACL_CHECK(aclrtMallocHost(&hostPerTokenScale, sizePerTokenScale));
-    std::string inputPerTokenScale_path = "../../examples/36_w4a8_matmul_msd.cpp/data/inputPerTokenScale.dat";
+    std::string inputPerTokenScale_path = "../../examples/36_w4a8_matmul_msd/data/inputPerTokenScale.dat";
     ReadFile(inputPerTokenScale_path, hostPerTokenScale, sizePerTokenScale);
 
     std::vector<float> hExpected(goldenSize);
-    std::string expected_path = "../../examples/36_w4a8_matmul_msd.cpp/data/expected.dat";
+    std::string expected_path = "../../examples/36_w4a8_matmul_msd/data/expected.dat";
     ReadFile(expected_path, hExpected.data(), goldenSize);
 
     uint64_t fftsAddr{0};
