@@ -138,4 +138,44 @@ struct GroupedGemmOptions {
     }
 };
 
+/**
+ * @struct GemmWithPerGroupOptions
+ * @brief Options structuture for quant gemm with per group dequant examples.
+ * @brief Arguments: `example_name k_group_size m n k [device_id]`
+ */
+struct GemmWithPerGroupOptions {
+    const std::string HELPER = "k_group_size m n k [device_id]";
+
+    Catlass::GemmCoord problemShape{128, 128, 128};
+    uint32_t kGroupSize{512};
+    int32_t deviceId{0};
+
+    GemmWithPerGroupOptions() = default;
+
+    int Parse(int argc, const char **argv) {
+        enum class ArgsIndex {
+            K_GROUP_SIZE,
+            M_INDEX,
+            N_INDEX,
+            K_INDEX,
+            DEVICE_ID_INDEX,
+            ARGS_MAX
+        };
+
+        if (argc > static_cast<uint32_t>(ArgsIndex::ARGS_MAX)
+            || argc < static_cast<uint32_t>(ArgsIndex::DEVICE_ID_INDEX)) {
+            std::cerr << TOSTRING(CATLASS_EXAMPLE_NAME) << " " << HELPER << std::endl;
+            return -1;
+        }
+        kGroupSize = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::K_GROUP_SIZE)]);
+        problemShape.m() = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::M_INDEX)]);
+        problemShape.n() = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::N_INDEX)]);
+        problemShape.k() = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::K_INDEX)]);
+        if (argc == static_cast<uint32_t>(ArgsIndex::ARGS_MAX)) {
+            deviceId = std::atoi(argv[static_cast<uint32_t>(ArgsIndex::DEVICE_ID_INDEX)]);
+        }
+        return 0;
+    }
+};
+
 #endif
