@@ -337,6 +337,39 @@ bool PaddingMultiCoreSplitkMatmulB16Handler(TilingParams& params, PlatformInfo& 
     return false;
 }
 
+bool PaddingStreamkMatmulB16Handler(TilingParams& params, PlatformInfo& platformInfo)
+{
+    uint32_t m = params.m;
+    uint32_t n = params.n;
+    uint32_t k = params.k;
+    // Streamk ensures workload balancing by partitioning k, the L1 tile block can use the size with the best bandwidth.
+    // The size setting of l1 tile does not need to consider workload balancing.
+    uint32_t m1t = 128, n1t = 256, k1t = 256;
+    LayoutTag layoutTagA = static_cast<LayoutTag>(params.layoutTagA);
+    LayoutTag layoutTagB = static_cast<LayoutTag>(params.layoutTagB);
+    bool cond1 = (layoutTagA == LayoutTag::TagColumnMajor && layoutTagB == LayoutTag::TagColumnMajor);
+    bool cond2 = (layoutTagA == LayoutTag::TagColumnMajor && layoutTagB == LayoutTag::TagRowMajor) && (m > n); 
+    if (cond1 || cond2) {
+        m1t = 256;
+        n1t = 128;
+    }
+    uint32_t blocks = CeilDiv(m, m1t) * CeilDiv(n, n1t);
+    uint32_t skBlocks = blocks % platformInfo.coreNum;
+    if (blocks > platformInfo.coreNum && blocks < 8 * platformInfo.coreNum && skBlocks > 0 
+        && skBlocks < 0.8 * platformInfo.coreNum && params.k > 3072) {
+            params.m1 = m1t;
+            params.n1 = n1t;
+            params.k1 = k1t;
+            GetPaddingTag(params, platformInfo);
+            params.blockDim = platformInfo.coreNum;
+            uint32_t kernelSerial = 4;
+            params.tilingKey.SetTilingKey(kernelSerial, 
+                params.layoutTagA, params.layoutTagB, 0, params.paddingTagA, params.paddingTagB, 0); 
+        return true;
+    }
+    return false;
+}
+
 void SetSwizzleParams(TilingParams &tilingParams)
 {
     if (tilingParams.m > tilingParams.n) {
@@ -366,6 +399,7 @@ void SelectKernelB16(TilingParams &tilingParams, PlatformInfo& platformInfo)
     HandlerPtr handlers[] = {
         SmallMatmulB16Handler,
         PaddingMultiCoreSplitkMatmulB16Handler,
+        PaddingStreamkMatmulB16Handler,
         PaddingCommonMatmulB16Handler,
         CommonMatmulB16Handler
     };

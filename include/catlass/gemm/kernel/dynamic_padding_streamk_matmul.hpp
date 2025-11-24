@@ -27,6 +27,7 @@ struct StreamkReduceAdd {
     using BlockScheduler = BlockScheduler_;
     using ElementAccumulator = ElementAccumulator_;
     using ElementOut = ElementOut_;
+    using LocalLayout = layout::RowMajor;
 
     constexpr static uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 / sizeof(ElementOut);
 
@@ -41,21 +42,23 @@ struct StreamkReduceAdd {
     void operator()(
         AscendC::GlobalTensor<ElementOut> const &dst,
         AscendC::GlobalTensor<ElementAccumulator> const &src,
-        Params const &params
+        int64_t dstStride,
+        GemmCoord const &problemShape,
+        GemmCoord const &l1TileShape
     )
     {
-        constexpr uint32_t ELE_NUM_ALIGN = BYTE_PER_BLK / sizeof(ElementC);
+        constexpr uint32_t ELE_NUM_ALIGN = BYTE_PER_BLK / sizeof(ElementOut);
 
         uint32_t blockDim = AscendC::GetBlockNum();
         uint32_t aivNum = blockDim * AscendC::GetSubBlockNum();
         uint32_t aivId = AscendC::GetBlockIdx();
         uint32_t aicId = aivId / AscendC::GetSubBlockNum();
 
-        uint32_t l1TileM = params.l1TileShape.m();
-        uint32_t l1TileN = params.l1TileShape.n();
-        uint32_t l1TileK = params.l1TileShape.k();
+        uint32_t l1TileM = l1TileShape.m();
+        uint32_t l1TileN = l1TileShape.n();
+        uint32_t l1TileK = l1TileShape.k();
 
-        BlockScheduler matmulBlockScheduler(params.problemShape, GemmCoord(l1TileM, l1TileN, l1TileK), blockDim);
+        BlockScheduler matmulBlockScheduler(problemShape, GemmCoord(l1TileM, l1TileN, l1TileK), blockDim);
         // The number of tail block using the streamk algorithm
         uint32_t streamkBlockNum = matmulBlockScheduler.GetStreamkBlockNum();
         // The number of normal blocks
@@ -134,8 +137,8 @@ struct StreamkReduceAdd {
                     AscendC::PipeBarrier<PIPE_V>();
                 }
 
-                if constexpr (!std::is_same_v<ElementAccumulator, ElementC>) {
-                    if constexpr (std::is_same_v<ElementC, half>) {
+                if constexpr (!std::is_same_v<ElementAccumulator, ElementOut>) {
+                    if constexpr (std::is_same_v<ElementOut, half>) {
                         AscendC::Cast(outputBuffer, accumulatorBuffer, AscendC::RoundMode::CAST_NONE, computeNum);
                     } else {
                         AscendC::Cast(outputBuffer, accumulatorBuffer, AscendC::RoundMode::CAST_RINT, computeNum);
@@ -146,14 +149,13 @@ struct StreamkReduceAdd {
                 AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID0);
 
                 // layoutC can only be RowMajor
-                uint64_t dstStride = tla::get<0>(params.layoutC.stride());
                 uint64_t dstOffset = (static_cast<uint64_t>(blockCoord.m()) * l1TileM + loopIdx * tilePerCore)
                                          * dstStride
                                      + static_cast<uint64_t>(blockCoord.n()) * l1TileN;
                 AscendC::DataCopyExtParams dataCopyParamsOut(
-                    tilesActual, tileLen * sizeof(ElementC),
+                    tilesActual, tileLen * sizeof(ElementOut),
                     (RoundUp(tileLen, ELE_NUM_ALIGN) - tileLen) / ELE_NUM_ALIGN,
-                    (dstStride - tileLen) * sizeof(ElementC), 0
+                    (dstStride - tileLen) * sizeof(ElementOut), 0
                 );
                 AscendC::DataCopyPad(dst[dstOffset], outputBuffer, dataCopyParamsOut);
 
@@ -169,11 +171,10 @@ private:
     static const uint32_t BUFFER_NUM = 2;
     AscendC::LocalTensor<ElementAccumulator> accumulatorBuffer;
     AscendC::LocalTensor<ElementOut> outputBuffer;
-    static_assert(COMPUTE_LENGTH * sizeof(ElementAccumulator) * 2 <= ArchTag::UB_SIZE, "Excedding the UB space!");
+    static_assert(COMPUTE_LENGTH * sizeof(ElementAccumulator) <= ArchTag::UB_SIZE, "Excedding the UB space!");
 };
 
-template <class PrologueA_, class PrologueB_, class BlockMmad_, 
-    class BlockEpilogue_, class BlockScheduler_, class ReduceAdd_>
+template <class PrologueA_, class PrologueB_, class BlockMmad_, class BlockEpilogue_, class BlockScheduler_, class ReduceAdd_>
 class DynamicPaddingStreamkMatmul {
 public:
     using PrologueA = PrologueA_;
@@ -219,6 +220,8 @@ public:
         GM_ADDR ptrWA;
         GM_ADDR ptrWB;
         GM_ADDR ptrReduceW;
+        uint32_t swizzleOffset;
+        uint32_t swizzleDirection;
 
         // Methods
         CATLASS_HOST_DEVICE
@@ -238,7 +241,8 @@ public:
             LayoutC &layoutC_,
             GM_ADDR ptrWA_,
             GM_ADDR ptrWB_,
-            GM_ADDR ptrReduceW_
+            GM_ADDR ptrReduceW_,
+            uint32_t swizzleOffset_, uint32_t swizzleDirection_
         )
             : problemShape(problemShape_)
             , l1TileShape(l1TileShape_)
@@ -251,6 +255,7 @@ public:
             , ptrWA(ptrWA_)
             , ptrWB(ptrWB_)
             , ptrReduceW(ptrReduceW_)
+            , swizzleOffset(swizzleOffset_), swizzleDirection(swizzleDirection_)
         {
         }
     };
@@ -317,7 +322,7 @@ public:
         gmC.SetGlobalBuffer(reinterpret_cast<__gm__ ElementOut *>(params.ptrC));
         gmReduceW.SetGlobalBuffer(reinterpret_cast<__gm__ ElementAccumulator *>(params.ptrReduceW));
         ReduceAdd reduceAdd(resource);
-        reduceAdd(gmC, gmReduceW, params);
+        reduceAdd(gmC, gmReduceW, params.layoutC.stride(0), params.problemShape, params.l1TileShape);
 
         AscendC::PipeBarrier<PIPE_ALL>();
     }

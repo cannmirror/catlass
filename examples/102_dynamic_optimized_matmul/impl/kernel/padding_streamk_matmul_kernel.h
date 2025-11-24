@@ -16,7 +16,7 @@
 #include "catlass/gemm/block/block_mmad.hpp"
 #include "catlass/gemm/block/block_swizzle.hpp"
 #include "catlass/gemm/gemm_type.hpp"
-#include "catlass/gemm/kernel/dynamic_padding_multi_core_splitk_matmul.hpp"
+#include "catlass/gemm/kernel/dynamic_padding_streamk_matmul.hpp"
 #include "catlass/layout/layout.hpp"
 
 #include "acl/acl.h"
@@ -108,7 +108,6 @@ template <
 
     uint32_t swizzleOffset = static_cast<uint32_t>(tiling->swizzleOffset);
     uint32_t swizzleDirection = static_cast<uint32_t>(tiling->swizzleDirection);
-    uint32_t splitkFactor = static_cast<uint32_t>(tiling->splitkFactor);
 
     Catlass::GemmCoord problemShape(m, n, k);
     Catlass::GemmCoord l1TileShape(m1, n1, k1);
@@ -123,28 +122,30 @@ template <
 
     constexpr bool enableUnitFlag = true;
     constexpr bool enableShuffleK = true;
-    using DispatchPolicy = Catlass::Gemm::MmadAtlasA2DynamicCommon<enableShuffleK, enableShuffleK>;
+    using DispatchPolicy = Catlass::Gemm::MmadAtlasA2DynamicStreamk<enableShuffleK, enableShuffleK>;
 
     using AType = Catlass::Gemm::GemmType<ElementA, typename PaddingBuilderA::LayoutAfterPadding>;
     using BType = Catlass::Gemm::GemmType<ElementB, typename PaddingBuilderB::LayoutAfterPadding>;
 
-    using ElementAccumulator = typename Gemm::helper::ElementAccumulatorSelector<ElementA, ElementB>::ElementAccumulator;
+    using ElementAccumulator =
+        typename Catlass::Gemm::helper::ElementAccumulatorSelector<ElementA, ElementB>::ElementAccumulator;
     using CType = Catlass::Gemm::GemmType<ElementAccumulator, LayoutC>;
 
     using TileCopy = TileCopyDynamicOptimized<ArchTag, AType, BType, CType>;
     using BlockMmad = Catlass::Gemm::Block::BlockMmad<DispatchPolicy, void, void, AType, BType, CType, void, TileCopy>;
     using BlockEpilogue = void;
 
+    using BlockScheduler = typename Catlass::Gemm::Block::DynamicStreamkGemmIdentityBlockSwizzle;
     constexpr uint32_t computeLength = 192 * 1024 / sizeof(ElementAccumulator);
     using RecudeAdd =
-        Catlass::Gemm::Kernel::StreamkReduceAdd<ArchTag, BlockScheduler ElementAccumulator, ElementC, computeLength>;
-    using BlockScheduler = typename Catlass::Gemm::Block::DynamicStreamkGemmIdentityBlockSwizzle;
+        Catlass::Gemm::Kernel::StreamkReduceAdd<ArchTag, BlockScheduler, ElementAccumulator, ElementC, computeLength>;
     // kernel level
     using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingStreamkMatmul<
         PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RecudeAdd>;
-    typename MatmulKernel::Params params{problemShape,  l1TileShape,     gmA,  layoutA, gmB,       layoutB,
-                                         gmC,           layoutC,         gmWA, gmWB,    gmReduceW, splitkFactor,
-                                         swizzleOffset, swizzleDirection};
+    typename MatmulKernel::Params params{
+        problemShape, l1TileShape, gmA,  layoutA,   gmB,           layoutB,         gmC,
+        layoutC,      gmWA,        gmWB, gmReduceW, swizzleOffset, swizzleDirection
+    };
     // call a kernel
     MatmulKernel matmul;
     matmul(params, resource);
@@ -224,7 +225,8 @@ size_t PaddingStreamkMatmulKernelGetWorkspaceSize(TilingParams &tilingParams)
 {
     using PaddingBuilderA = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagA, ArchTag, ElementA, LayoutA>;
     using PaddingBuilderB = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagB, ArchTag, ElementB, LayoutB>;
-    using ElementAccumulator = typename Gemm::helper::ElementAccumulatorSelector<ElementA, ElementB>::ElementAccumulator;
+    using ElementAccumulator =
+        typename Catlass::Gemm::helper::ElementAccumulatorSelector<ElementA, ElementB>::ElementAccumulator;
     uint32_t m = tilingParams.m;
     uint32_t n = tilingParams.n;
     uint32_t k = tilingParams.k;

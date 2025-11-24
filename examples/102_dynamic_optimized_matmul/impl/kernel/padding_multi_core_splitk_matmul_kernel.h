@@ -114,7 +114,7 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
     using BType = Catlass::Gemm::GemmType<ElementB, typename PaddingBuilderB::LayoutAfterPadding>;
 
     using ElementAccumulator =
-        typename Gemm::helper::ElementAccumulatorSelector<ElementA, ElementB>::ElementAccumulator;
+        typename Catlass::Gemm::helper::ElementAccumulatorSelector<ElementA, ElementB>::ElementAccumulator;
     using CType = Catlass::Gemm::GemmType<ElementAccumulator, LayoutC>;
 
     using TileCopy = TileCopyDynamicOptimized<ArchTag, AType, BType, CType>;
@@ -185,7 +185,7 @@ size_t PaddingMultiCoreSplitkMatmulKernelGetWorkspaceSize(TilingParams &tilingPa
     using PaddingBuilderA = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagA, ArchTag, ElementA, LayoutA>;
     using PaddingBuilderB = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagB, ArchTag, ElementB, LayoutB>;
     using ElementAccumulator =
-        typename Gemm::helper::ElementAccumulatorSelector<ElementA, ElementB>::ElementAccumulator;
+        typename Catlass::Gemm::helper::ElementAccumulatorSelector<ElementA, ElementB>::ElementAccumulator;
     uint32_t m = tilingParams.m;
     uint32_t n = tilingParams.n;
     uint32_t k = tilingParams.k;
