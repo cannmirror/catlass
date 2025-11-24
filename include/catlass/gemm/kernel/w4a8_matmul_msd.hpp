@@ -197,13 +197,13 @@ public:
         uint32_t startCoreIdx = 0;
 
         uint32_t currentM = params.problemShape.m();
-        GemmCoord inGroupProblemShape{currentM * 2, params.problemShape.n(), params.problemShape.k()};
+        GemmCoord inProblemShape{currentM * 2, params.problemShape.n(), params.problemShape.k()};
 
         LayoutScale layoutScale = params.layoutScale;
-        LayoutA layoutA = params.layoutA.GetTileLayout(inGroupProblemShape.GetCoordMK());
+        LayoutA layoutA = params.layoutA.GetTileLayout(inProblemShape.GetCoordMK());
         LayoutB layoutB = params.layoutB;
 
-        blockScheduler.Update(inGroupProblemShape, MakeCoord(L1TileShape::M, L1TileShape::N));
+        blockScheduler.Update(inProblemShape, MakeCoord(L1TileShape::M, L1TileShape::N));
         uint32_t coreLoops = blockScheduler.GetCoreLoops();
 
         if (CeilDiv(currentM * 2, L1TileShape::M) == 1) {
@@ -291,13 +291,13 @@ public:
         uint32_t startCoreIdx = 0;
 
         uint32_t currentM = params.problemShape.m();
-        GemmCoord inGroupProblemShape{currentM * 2, params.problemShape.n(), params.problemShape.k()};
-        GemmCoord oriInGroupProblemShape{currentM, params.problemShape.n(), params.problemShape.k()};
+        GemmCoord inProblemShape{currentM * 2, params.problemShape.n(), params.problemShape.k()};
+        GemmCoord oriInProblemShape{currentM, params.problemShape.n(), params.problemShape.k()};
 
         LayoutBias layoutBias = params.layoutBias;
         LayoutPerTokenScale layoutPerTokenScale =
-            params.layoutPerTokenScale.GetTileLayout(oriInGroupProblemShape.template GetCoordByAxis<0>());
-        LayoutD layoutD = params.layoutD.GetTileLayout(oriInGroupProblemShape.GetCoordMN());
+            params.layoutPerTokenScale.GetTileLayout(oriInProblemShape.template GetCoordByAxis<0>());
+        LayoutD layoutD = params.layoutD.GetTileLayout(oriInProblemShape.GetCoordMN());
 
         EpilogueParams epilogueParams{
             params.ptrBias, layoutBias,
@@ -305,7 +305,7 @@ public:
             params.ptrD, layoutD
         };
 
-        blockScheduler.Update(inGroupProblemShape, L1TileShape::ToCoordMN());
+        blockScheduler.Update(inProblemShape, L1TileShape::ToCoordMN());
         blockEpilogue.UpdateParams(epilogueParams);
         uint32_t coreLoops = blockScheduler.GetCoreLoops();
 
