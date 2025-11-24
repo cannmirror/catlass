@@ -102,12 +102,6 @@ public:
         this->description_.gemmKind = GemmKind::BasicMatmul;
     }
 
-    virtual Status Run(aclrtStream stream, uint32_t blockDim, uint64_t fftsAddr) override
-    {
-        (void)fftsAddr;
-        return this->op_.Run(stream, blockDim, 0);
-    }
-
 private:
     virtual void BuildArgs(void *argsPtr, void *configPtr) override
     {
@@ -144,16 +138,6 @@ private:
         this->args_.ptrLayoutB = arguments->layoutBList;
         this->args_.ptrC = arguments->C;
         this->args_.ptrLayoutC = arguments->layoutCList;
-    }
-
-    virtual Status Run(
-        aclrtStream stream,
-        uint32_t blockDim,
-        uint64_t fftsAddr
-    ) override
-    {
-        (void)fftsAddr;
-        return this->op_.Run(stream, blockDim, 0);
     }
 };
 /********************* grouped matmul end *********************/
