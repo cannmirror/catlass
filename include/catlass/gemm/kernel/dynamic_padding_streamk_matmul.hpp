@@ -407,7 +407,7 @@ public:
                 actualNextLoopIdx = normalBlockNum - blockDim + blockIdx;
             }
 
-            bool isFirstBlock = (actualLoopIdx == blockIdx);
+            bool isFirstBlock = (loopIdx == blockIdx);
             if (isFirstBlock) {
                 matmulBlockScheduler.GetStreamkBlockDec(actualLoopIdx, streamkBlockDec);
             } else {
@@ -415,7 +415,7 @@ public:
             }
 
             bool hasNextBlock = false;
-            if (actualNextLoopIdx < coreLoops) {
+            if (loopIdx + blockDim < coreLoops) {
                 hasNextBlock = true;
                 matmulBlockScheduler.GetStreamkBlockDec(actualNextLoopIdx, nextStreamkBlockDec);
             }
@@ -491,7 +491,6 @@ public:
                 Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_FIX>(flagAicFinish);
             }
         }
-        Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_FIX>(flagAicFinish);
         AscendC::PipeBarrier<PIPE_ALL>();
     }
 
