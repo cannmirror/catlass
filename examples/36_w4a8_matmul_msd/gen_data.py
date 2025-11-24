@@ -63,7 +63,6 @@ def gen_testcase(path: str, param: OpParam) -> None:
         mmi = mmi * perTokenScale
         mmOut.append(mmi)
 
-
     kGroupSize, m, k, n = param.kGroupSize, param.m, param.k, param.n
     transA, transB = param.transA, param.transB
     quantGroupNum = k // kGroupSize
