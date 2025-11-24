@@ -154,7 +154,7 @@ struct GemmWithPerGroupOptions {
 
     int Parse(int argc, const char **argv) {
         enum class ArgsIndex {
-            K_GROUP_SIZE,
+            K_GROUP_SIZE = 1,
             M_INDEX,
             N_INDEX,
             K_INDEX,
