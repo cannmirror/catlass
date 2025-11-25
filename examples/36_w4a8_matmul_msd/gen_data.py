@@ -49,19 +49,22 @@ def gen_testcase(path: str, param: OpParam) -> None:
         weightGroup = weight.reshape(quantGroupNum, kGroupSize, n).astype(np.int32)
         xGroup = x.reshape(-1, quantGroupNum, kGroupSize).astype(np.int32)
         weightGroup = weight.reshape(quantGroupNum, kGroupSize, n).astype(np.int32)
-        mmi = np.zeros([xGroup.shape[0], n], dtype=atomic)
+
         mmOut = []
         atomic = np.float16
-
-        for i in range(quantGroupNum):
+        mmi = np.zeros([xGroup.shape[0], n], dtype=atomic)
+        for j in range(quantGroupNum):
             # numpy int32矩阵乘法非常慢，此处用float32的矩阵乘法代替
-            mm = np.matmul(xGroup[:, i, :].astype(np.float32), weightGroup[i, j, ...].astype(np.float32))
+            mm = np.matmul(xGroup[:, i, :].astype(np.float32), weightGroup[j, ...].astype(np.float32))
             mm = mm.astype(np.float32) * scale[i, :]
             mmi = (mmi.astype(atomic) + mm.astype(atomic)).astype(atomic)
         mmi = mmi.reshape(-1, 2, n).astype(np.float32)
         mmi = mmi[:, 0, :] * 16 + mmi[:, 1, :] + bias.reshape(1, n)
         mmi = mmi * perTokenScale
         mmOut.append(mmi)
+
+        golden = np.concatenate(mmOut, axis=0)
+        return golden.astype(np.float32)
 
     kGroupSize, m, k, n = param.kGroupSize, param.m, param.k, param.n
     transA, transB = param.transA, param.transB
