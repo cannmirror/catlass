@@ -691,18 +691,12 @@ public:
             }
         }
         // matrix C
-        AscendC::GlobalTensor<ElementAccumulator> gmC;
-        if constexpr (std::is_void_v<RemovePaddingNDAndCastC>) {
-            layoutC = params.layoutC;
-            gmC.SetGlobalBuffer(reinterpret_cast<__gm__ ElementAccumulator *>(params.ptrC));
-        } else {
-            gmC.SetGlobalBuffer(reinterpret_cast<__gm__ ElementAccumulator *>(params.ptrWC));
-            if constexpr (RemovePaddingNDAndCastC::paddingTag == Catlass::Gemm::Kernel::PaddingTag::NO_PADDING) {
-                layoutC = params.layoutC;
-            } else if constexpr (RemovePaddingNDAndCastC::paddingTag == Catlass::Gemm::Kernel::PaddingTag::PADDING_ND) {
-                layoutC = RemovePaddingNDAndCastC::GetWorkspaceLayout(params.layoutC, 512 / sizeof(ElementAccumulator));
-            }
-        }
+        AscendC::GlobalTensor<ElementAccumulator> gmWC;
+        AscendC::GlobalTensor<ElementC> gmC;
+        gmWC.SetGlobalBuffer(reinterpret_cast<__gm__ ElementAccumulator *>(params.ptrWC));
+        gmC.SetGlobalBuffer(reinterpret_cast<__gm__ ElementC *>(params.ptrC));
+        layoutC = params.layoutC;
+        RemovePaddingNDAndCastC removePaddingNDAndCastC(resource);
 
         // wait padding A/B finished
         if constexpr (!std::is_void_v<PrologueA> || !std::is_void_v<PrologueB>) {
@@ -714,6 +708,10 @@ public:
             }
         }
 
+        if ASCEND_IS_AIV {
+            Catlass::Arch::CrossCoreSetFlag<0x02, PIPE_MTE3>(flagAivFinishMoveGmcIds[0]);
+            Catlass::Arch::CrossCoreSetFlag<0x02, PIPE_MTE3>(flagAivFinishMoveGmcIds[1]);
+        }
         BlockMmad blockMmad(params.l1TileShape, params.l0TileShape, resource);
 
         BlockScheduler matmulBlockScheduler(params.problemShape, params.l1TileShape);
@@ -723,8 +721,13 @@ public:
         GemmCoord baseBlockShape, nextBaseBlockShape;
         GemmCoord baseOffsetCoord, nextBaseOffsetCoord;
 
+        // LayoutWC RowMajor
+        GemmCoord baseTile = matmulBlockScheduler.GetBaseTile();
+        LayoutC layoutWC{baseTile.m(), baseTile.n(), baseTile.n()};
+        uint64_t gmWcSliceSize = layoutWC.Capacity();
 
-
+        // both AIC and AIV has this variable, and should update it separately
+        uint32_t flagAivFinishMoveGmcBufId = 0;
         for (uint32_t loopIdx = aiCoreIdx; loopIdx < coreLoops; loopIdx += AscendC::GetBlockNum()) {
             bool isFirstBaseBlock = (loopIdx == aiCoreIdx);
             if (isFirstBaseBlock) {
@@ -747,7 +750,14 @@ public:
             GemmCoord innerLoopsMNK = CeilDiv(baseBlockShape, params.l1TileShape);
             uint32_t innerLoops = innerLoopsMNK.m() * innerLoopsMNK.n() * innerLoopsMNK.k();
 
+            MatrixCoord coordBaseBlock{baseOffsetCoord.m() * params.l1TileShape.m(), baseOffsetCoord.n() * params.l1TileShape.n()};
+            uint64_t gmOffsetBaseBlock = layoutC.GetOffset(coordBaseBlock);
+            LayoutC layoutInWC{baseBlockShape.m(), baseBlockShape.n(), baseTile.n()};
+            int64_t gmOffsetWcSlice = (aiCoreIdx * GMWC_BUFFER_NUM + flagAivFinishMoveGmcBufId) * gmWcSliceSize;
+
             if ASCEND_IS_AIC {
+                Catlass::Arch::CrossCoreWaitFlag(flagAivFinishMoveGmcIds[flagAivFinishMoveGmcBufId]);
+
                 GemmCoord innerCoord;
                 GemmCoord blockCoord, nextBlockCoord; // actual BlockCoord
                 GemmCoord actualBlockShape, nextActualBlockShape;
@@ -772,10 +782,12 @@ public:
                     // Compute initial location in logical coordinates
                     MatrixCoord coordA{blockCoord.m() * params.l1TileShape.m(), blockCoord.k() * params.l1TileShape.k()};
                     MatrixCoord coordB{blockCoord.k() * params.l1TileShape.k(), blockCoord.n() * params.l1TileShape.n()};
-                    MatrixCoord coordC{blockCoord.m() * params.l1TileShape.m(), blockCoord.n() * params.l1TileShape.n()};
                     int64_t gmOffsetA = layoutA.GetOffset(coordA);
                     int64_t gmOffsetB = layoutB.GetOffset(coordB);
-                    int64_t gmOffsetC = layoutC.GetOffset(coordC);
+
+                    // coordC is based on innerCoord, and gmOffsetC is in gmWC slice
+                    MatrixCoord coordC{innerCoord.m() * params.l1TileShape.m(), innerCoord.n() * params.l1TileShape.n()};
+                    int64_t gmOffsetC = layoutWC.GetOffset(coordC) + gmOffsetWcSlice;
 
                     MatrixCoord coordNextA{
                         nextBlockCoord.m() * params.l1TileShape.m(), nextBlockCoord.k() * params.l1TileShape.k()};
@@ -791,8 +803,8 @@ public:
                         layoutA,
                         gmB[gmOffsetB],
                         layoutB,
-                        gmC[gmOffsetC],
-                        layoutC,
+                        gmWC[gmOffsetC],
+                        layoutWC,
                         gmA[gmOffsetNextA],
                         gmB[gmOffsetNextB],
                         actualBlockShape,
@@ -801,32 +813,23 @@ public:
                         needLoadNextB,
                         isAtomicAdd);
                 } // end inner loop
-            } else if ASCEND_IS_AIV {
-                // move baseBlock C from gmWC to gmC
-            }
-        }
 
-        AscendC::SetAtomicNone();
-        if constexpr (!std::is_void_v<RemovePaddingNDAndCastC>) {
-            if ASCEND_IS_AIC {
-                Catlass::Arch::CrossCoreSetFlag<0x2, PIPE_FIX>(flagAicFinish);
+                Catlass::Arch::CrossCoreSetFlag<0x02, PIPE_FIX>(flagAicFinish);
+                flagAivFinishMoveGmcBufId = (flagAivFinishMoveGmcBufId + 1) % GMWC_BUFFER_NUM; // update in AIC
             } else if ASCEND_IS_AIV {
                 Catlass::Arch::CrossCoreWaitFlag(flagAicFinish);
-                Catlass::Arch::CrossCoreBarrier<0x0, PIPE_MTE3>();
 
-                AscendC::GlobalTensor<ElementC> gmC;
-                AscendC::GlobalTensor<ElementAccumulator> gmWC;
-                gmC.SetGlobalBuffer(reinterpret_cast<__gm__ ElementC *>(params.ptrC));
-                gmWC.SetGlobalBuffer(reinterpret_cast<__gm__ ElementAccumulator *>(params.ptrWC));
-                if constexpr (RemovePaddingNDAndCastC::paddingTag == PaddingTag::NO_PADDING) {
-                    RemovePaddingNDAndCastC removePaddingNDAndCastC(resource);
-                    removePaddingNDAndCastC(gmC, gmWC, params.layoutC, params.layoutC);
-                } else {
-                    LayoutC layoutWC = RemovePaddingNDAndCastC::GetWorkspaceLayout(params.layoutC, 512 / sizeof(ElementAccumulator));
-                    RemovePaddingNDAndCastC removePaddingNDAndCastC(resource);
-                    removePaddingNDAndCastC(gmC, gmWC, params.layoutC, layoutWC);
-                }
+                constexpr bool useSingleCore = true; // only use 2 vector of current aicore
+                removePaddingNDAndCastC(gmC[gmOffsetBaseBlock], gmWC[gmOffsetWcSlice], params.layoutC, layoutInWC, useSingleCore);
+
+                Catlass::Arch::CrossCoreSetFlag<0x02, PIPE_MTE3>(flagAivFinishMoveGmcIds[flagAivFinishMoveGmcBufId]);
+                flagAivFinishMoveGmcBufId = (flagAivFinishMoveGmcBufId + 1) % GMWC_BUFFER_NUM; // update in AIV
             }
+        }
+        if ASCEND_IS_AIC {
+            Catlass::Arch::CrossCoreWaitFlag(flagAivFinishMoveGmcIds[0]);
+            Catlass::Arch::CrossCoreWaitFlag(flagAivFinishMoveGmcIds[1]);
+            AscendC::SetAtomicNone();
         }
 
         AscendC::PipeBarrier<PIPE_ALL>();
@@ -837,6 +840,8 @@ private:
     Arch::CrossCoreFlag flagAivFinishPadding{FLAG_AIV_FINISH_STORE};
     static constexpr Arch::FlagID FLAG_AIC_FINISH = 1;
     Arch::CrossCoreFlag flagAicFinish{FLAG_AIC_FINISH};
+    static constexpr uint32_t GMWC_BUFFER_NUM = 2;
+    Arch::CrossCoreFlag flagAivFinishMoveGmcIds[GMWC_BUFFER_NUM] = {Arch::FlagID{2}, Arch::FlagID{3}};
 };
 
 }  // namespace Catlass::Gemm::Kernel

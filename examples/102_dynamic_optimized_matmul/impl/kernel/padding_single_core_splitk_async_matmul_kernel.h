@@ -242,11 +242,9 @@ size_t PaddingSingleCoreSplitkAsyncMatmulKernelGetWorkspaceSize(TilingParams &ti
         sizeWB = PaddingBuilderB::Padding::GetWorkspaceSize(k, n);
     }
 
-    if constexpr (paddingTagC == PaddingTag::NO_PADDING && !std::is_same_v<ElementAccumulator, ElementC>) {
-        sizeWC = RemovePaddingNDAndCastC::GetWorkspaceSize(m, n);
-    } else if constexpr (paddingTagC == PaddingTag::PADDING_ND) {
-        sizeWC = RemovePaddingNDAndCastC::GetWorkspaceSize(m, n, 512 / sizeof(ElementAccumulator));
-    }
+    // sizeWC is a bit bigger than actually use
+    sizeWC = m1 * RoundUp(n1, 512 / sizeof(ElementAccumulator)) * MAX_SWIZZLE_OFFSET * 2 * tilingParams.blockDim
+             * sizeof(ElementAccumulator);
 
     return sizeWA + sizeWB + sizeWC;
 }
