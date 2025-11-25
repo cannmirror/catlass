@@ -118,9 +118,7 @@ class TestFlashAttentionInfer():
             dm = gm - hm
         gm = hm
         sim_sub = sim - hm
-        sim_sub = np.exp(sim_sub.astype(np.float32))
-        # sim_sub = sim_sub.astype(np.float16)
-
+        sim_sub = np.exp(sim_sub.astype(np.float32)) # as type sim_sub.astype(np.float16)
         row_sum = np.sum(sim_sub, axis=-1, keepdims=True)
         return sim_sub, row_sum, dm, gm
 
