@@ -25,6 +25,7 @@ os.environ["ASCEND_SLOG_PRINT_TO_STDOUT"] = "0"
 
 class OpParam:
     def __init__(self) -> None:
+        self.g = 0
         self.kGroupSize = 0 
         self.m = 0
         self.k = 0
@@ -52,9 +53,9 @@ def gen_testcase(path: str, param: OpParam) -> None:
         mmOut = []
         atomic = np.float16
         mmi = np.zeros([xGroup.shape[0], n], dtype=atomic)
-        for j in range(quantGroupNum):
+        for i in range(quantGroupNum):
             # numpy int32矩阵乘法非常慢，此处用float32的矩阵乘法代替
-            mm = np.matmul(xGroup[:, i, :].astype(np.float32), weightGroup[j, ...].astype(np.float32))
+            mm = np.matmul(xGroup[:, i, :].astype(np.float32), weightGroup[i, ...].astype(np.float32))
             mm = mm.astype(np.float32) * scale[i, :]
             mmi = (mmi.astype(atomic) + mm.astype(atomic)).astype(atomic)
         mmi = mmi.reshape(-1, 2, n).astype(np.float32)
