@@ -28,6 +28,10 @@ isVariedLen=0
 maskType=1
 dtype="bf16"
 cacheMode=1
+layout_dtype=0
+num_blocks=2048
+inner_prec=0
+lse_flag=0
 device=0
 
 function build() {
@@ -37,7 +41,7 @@ function build() {
 }
 
 function gen_data() {
-    python3 examples/23_flash_attention_infer/gen_data.py $batch $qSeqlen $kvSeqlen $numHeads $kvHeads $headSize $isVariedLen $maskType "$dtype" $cacheMode
+    python3 examples/23_flash_attention_infer/gen_data.py $batch $qSeqlen $kvSeqlen $numHeads $kvHeads $headSize $isVariedLen $maskType "$dtype" $cacheMode $layout_dtype $num_blocks $inner_prec $lse_flag
     echo "Data gen finished"
 }
 
