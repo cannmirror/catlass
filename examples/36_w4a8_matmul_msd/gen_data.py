@@ -25,7 +25,6 @@ os.environ["ASCEND_SLOG_PRINT_TO_STDOUT"] = "0"
 
 class OpParam:
     def __init__(self) -> None:
-        self.g = 0
         self.kGroupSize = 0 
         self.m = 0
         self.k = 0
