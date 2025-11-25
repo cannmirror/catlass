@@ -243,7 +243,7 @@ void Run(Options const &options)
     ACL_CHECK(aclrtFree(deviceBias));
     ACL_CHECK(aclrtFree(devicePerTokenScale));
 
-    std::vector<bfloat16> hostD(sizeD);
+    std::vector<bfloat16> hostD(lenD);
     ACL_CHECK(aclrtMemcpy(hostD.data(), sizeD, deviceD, sizeD, ACL_MEMCPY_DEVICE_TO_HOST));
     ACL_CHECK(aclrtFree(deviceD));
 
