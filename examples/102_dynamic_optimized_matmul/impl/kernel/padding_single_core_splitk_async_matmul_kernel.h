@@ -23,6 +23,8 @@
 
 using PaddingTag = Catlass::Gemm::Kernel::PaddingTag;
 
+#define MAX_SWIZZLE_OFFSET 16
+
 template <
     /// Tag indicating architecture
     class ArchTag,
@@ -172,7 +174,7 @@ template <class ElementA, class LayoutA, class ElementB, class LayoutB, class El
         using BlockMmad = Catlass::Gemm::Block::BlockMmad<
             DispatchPolicy, void, void, AType, BType, CType, void, TileCopy>;
 
-        using BlockScheduler = typename Catlass::Gemm::Block::SingleCoreSplitkAsyncGemmIdentityBlockSwizzle<4, 0>;
+        using BlockScheduler = typename Catlass::Gemm::Block::SingleCoreSplitkAsyncGemmIdentityBlockSwizzle<MAX_SWIZZLE_OFFSET, 0>;
         // kernel level
         using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingSingleCoreSplitkAsyncMatmul<
             PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingNDAndCastC>;
@@ -189,7 +191,7 @@ template <class ElementA, class LayoutA, class ElementB, class LayoutB, class El
         using BlockMmad = Catlass::Gemm::Block::BlockMmad<
             DispatchPolicy, void, void, AType, BType, CType, void, TileCopy>;
 
-        using BlockScheduler = typename Catlass::Gemm::Block::SingleCoreSplitkAsyncGemmIdentityBlockSwizzle<4, 1>;
+        using BlockScheduler = typename Catlass::Gemm::Block::SingleCoreSplitkAsyncGemmIdentityBlockSwizzle<MAX_SWIZZLE_OFFSET, 1>;
         // kernel level
         using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingSingleCoreSplitkAsyncMatmul<
             PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingNDAndCastC>;
@@ -282,14 +284,17 @@ size_t PaddingSingleCoreSplitkAsyncMatmulKernelGetWorkspaceSize(TilingParams &ti
         sizeWB = PaddingBuilderB::Padding::GetWorkspaceSize(k, n);
     }
 
+#ifdef ENABLE_GLOBAL_FIXPIPE
     if constexpr (paddingTagC == PaddingTag::NO_PADDING && !std::is_same_v<ElementAccumulator, ElementC>) {
         sizeWC = RemovePaddingNDAndCastC::GetWorkspaceSize(m, n);
     } else if constexpr (paddingTagC == PaddingTag::PADDING_ND) {
         sizeWC = RemovePaddingNDAndCastC::GetWorkspaceSize(m, n, 512 / sizeof(ElementAccumulator));
     }
-
-    // uint32_t swizzleOffset = 4;
-    // sizeWC = m1 * n1 * swizzleOffset * 2;
+#else
+    // sizeWC is a bit bigger than actually use
+    sizeWC = m1 * RoundUp(n1, 512 / sizeof(ElementAccumulator)) * MAX_SWIZZLE_OFFSET * 2 * tilingParams.blockDim
+             * sizeof(ElementAccumulator);
+#endif
 
     return sizeWA + sizeWB + sizeWC;
 }
