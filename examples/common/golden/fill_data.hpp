@@ -83,7 +83,7 @@ template <typename T = int32_t>
 std::vector<T> GenerateGroupList(uint32_t m, uint32_t problemCount)
 {
     std::vector<T> groupList(problemCount);
-    std::srand(std::time(nullptr));
+    std::srand(0);
     for (int i = 0; i < problemCount; ++i) {
         groupList[i] = rand() % (m + 1);
     }
