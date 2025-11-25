@@ -124,7 +124,7 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
 
     using TileCopy = TileCopyDynamicOptimized<ArchTag, AType, BType, CType>;
     using BlockEpilogue = void;
-    if (problemShape.m() > problemShape.n()) {
+    if (swizzleDirection == 0) {
         constexpr uint32_t l1AStages = 2;
         constexpr uint32_t l1BStages = 1;
         using DispatchPolicy = Catlass::Gemm::MmadAtlasA2DynamicSingleCoreSplitk<
@@ -132,12 +132,12 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
         using BlockMmad = Catlass::Gemm::Block::BlockMmad<
             DispatchPolicy, void, void, AType, BType, CType, void, TileCopy>;
 
-        using BlockScheduler = typename Catlass::Gemm::Block::SingleCoreSplitkGemmIdentityBlockSwizzle<20, 0>;
+        using BlockScheduler = typename Catlass::Gemm::Block::DynamicSingleCoreSplitkGemmIdentityBlockSwizzle;
         // kernel level
         using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingSingleCoreSplitkMatmul<
             PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingNDAndCastC>;
-        typename MatmulKernel::Params params{
-            problemShape, l1TileShape, l0TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC, gmWA, gmWB, gmWC};
+        typename MatmulKernel::Params params{problemShape, l1TileShape, l0TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC,
+            gmWA, gmWB, gmWC, swizzleOffset, swizzleDirection};
         // call a kernel
         MatmulKernel matmul;
         matmul(params, resource);
@@ -149,12 +149,12 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
         using BlockMmad = Catlass::Gemm::Block::BlockMmad<
             DispatchPolicy, void, void, AType, BType, CType, void, TileCopy>;
 
-        using BlockScheduler = typename Catlass::Gemm::Block::SingleCoreSplitkGemmIdentityBlockSwizzle<20, 1>;
+        using BlockScheduler = typename Catlass::Gemm::Block::DynamicSingleCoreSplitkGemmIdentityBlockSwizzle;
         // kernel level
         using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingSingleCoreSplitkMatmul<
             PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingNDAndCastC>;
-        typename MatmulKernel::Params params{
-            problemShape, l1TileShape, l0TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC, gmWA, gmWB, gmWC};
+        typename MatmulKernel::Params params{problemShape, l1TileShape, l0TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC,
+            gmWA, gmWB, gmWC, swizzleOffset, swizzleDirection};
         // call a kernel
         MatmulKernel matmul;
         matmul(params, resource);
