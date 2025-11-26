@@ -1034,6 +1034,17 @@ struct SingleCoreSplitkAsyncGemmIdentityBlockSwizzle {
     }
 
     CATLASS_DEVICE
+    GemmCoord GetBaseBlockCoord(uint32_t baseLoopIdx_)
+    {
+        uint32_t baseLoopIdx = baseLoopIdx_ % GetCoreLoops();
+        if constexpr (SwizzleDirection == 0) {
+            return GemmCoord{baseLoopIdx / baseLoopsMNK.n(), baseLoopIdx % baseLoopsMNK.n(), 0};
+        } else if constexpr (SwizzleDirection == 1) {
+            return GemmCoord{baseLoopIdx % baseLoopsMNK.m(), baseLoopIdx / baseLoopsMNK.m(), 0};
+        }
+    }
+
+    CATLASS_DEVICE
     GemmCoord GetBaseBlockShape(const GemmCoord &baseblockCoord)
     {
         uint32_t mActual = (baseblockCoord.m() == baseLoopsMNK.m() - 1)
@@ -1046,11 +1057,6 @@ struct SingleCoreSplitkAsyncGemmIdentityBlockSwizzle {
         return GemmCoord{mActual, nActual, kActual};
     }
 
-    CATLASS_DEVICE
-    uint32_t GetBaseBlockLoops() const
-    {
-        return baseLoopsMNK.m() * baseLoopsMNK.n();
-    }
 
     CATLASS_DEVICE
     uint32_t GetInnerLoops(const GemmCoord &baseBlockShape)
@@ -1066,32 +1072,6 @@ struct SingleCoreSplitkAsyncGemmIdentityBlockSwizzle {
             return GemmCoord{baseblockCoord.m() * SwizzleOffset, baseblockCoord.n(), 0};
         } else if constexpr (SwizzleDirection == 1) {
             return GemmCoord{baseblockCoord.m(), baseblockCoord.n() * SwizzleOffset, 0};
-        }
-    }
-
-    CATLASS_DEVICE
-    GemmCoord GetBaseBlockOffsetCoord(uint32_t loopIdx)
-    {
-        loopIdx = loopIdx % GetBaseBlockLoops();
-        if constexpr (SwizzleDirection == 0) {
-            uint32_t mIdx = loopIdx / baseLoopsMNK.n();
-            uint32_t nIdx = loopIdx % baseLoopsMNK.n();
-            return {mIdx * SwizzleOffset, nIdx, 0};
-        } else if constexpr (SwizzleDirection == 1) {
-            uint32_t mIdx = loopIdx % baseLoopsMNK.m();
-            uint32_t nIdx = loopIdx / baseLoopsMNK.m();
-            return {mIdx, nIdx * SwizzleOffset, 0};
-        }
-    }
-
-    CATLASS_DEVICE
-    GemmCoord GetBaseBlockCoord(uint32_t baseLoopIdx_)
-    {
-        uint32_t baseLoopIdx = baseLoopIdx_ % GetBaseBlockLoops();
-        if constexpr (SwizzleDirection == 0) {
-            return GemmCoord{baseLoopIdx / baseLoopsMNK.n(), baseLoopIdx % baseLoopsMNK.n(), 0};
-        } else if constexpr (SwizzleDirection == 1) {
-            return GemmCoord{baseLoopIdx % baseLoopsMNK.m(), baseLoopIdx / baseLoopsMNK.m(), 0};
         }
     }
 
