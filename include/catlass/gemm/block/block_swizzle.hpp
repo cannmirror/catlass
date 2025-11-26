@@ -998,10 +998,10 @@ struct SingleCoreSplitkAsyncGemmIdentityBlockSwizzle {
     static_assert(SwizzleOffset > 1, "SwizzleOffset should >1");
 
     GemmCoord problemShape;
-    GemmCoord baseTileMNK;
-    GemmCoord baseLoopsMNK;
     GemmCoord tileMNK;
     GemmCoord loopsMNK;
+    GemmCoord baseTileMN;
+    GemmCoord baseLoopsMN;
 
     /// Methods
     CATLASS_DEVICE
@@ -1014,45 +1014,45 @@ struct SingleCoreSplitkAsyncGemmIdentityBlockSwizzle {
     {
         loopsMNK = CeilDiv(problemShape, tileMNK);
         if constexpr (SwizzleDirection == 0) {
-            baseTileMNK = GemmCoord{l1TileShape.m() * SwizzleOffset, l1TileShape.n(), l1TileShape.k()};
+            baseTileMN = GemmCoord{l1TileShape.m() * SwizzleOffset, l1TileShape.n(), l1TileShape.k()};
         } else if constexpr (SwizzleDirection == 1) {
-            baseTileMNK = GemmCoord{l1TileShape.m(), l1TileShape.n() * SwizzleOffset, l1TileShape.k()};
+            baseTileMN = GemmCoord{l1TileShape.m(), l1TileShape.n() * SwizzleOffset, l1TileShape.k()};
         }
-        baseLoopsMNK = CeilDiv(problemShape, baseTileMNK);
+        baseLoopsMN = CeilDiv(problemShape, baseTileMN);
     }
 
     CATLASS_DEVICE
     GemmCoord GetBaseTile() const
     {
-        return baseTileMNK;
+        return baseTileMN;
     }
 
     CATLASS_DEVICE
     uint32_t GetCoreLoops() const
     {
-        return baseLoopsMNK.m() * baseLoopsMNK.n();
+        return baseLoopsMN.m() * baseLoopsMN.n();
     }
 
     CATLASS_DEVICE
-    GemmCoord GetBaseBlockCoord(uint32_t baseLoopIdx_)
+    GemmCoord GetBaseBlockCoord(uint32_t loopIdx)
     {
-        uint32_t baseLoopIdx = baseLoopIdx_ % GetCoreLoops();
+        uint32_t mnLoopIdx = loopIdx % GetCoreLoops();
         if constexpr (SwizzleDirection == 0) {
-            return GemmCoord{baseLoopIdx / baseLoopsMNK.n(), baseLoopIdx % baseLoopsMNK.n(), 0};
+            return GemmCoord{mnLoopIdx / baseLoopsMN.n(), mnLoopIdx % baseLoopsMN.n(), 0};
         } else if constexpr (SwizzleDirection == 1) {
-            return GemmCoord{baseLoopIdx % baseLoopsMNK.m(), baseLoopIdx / baseLoopsMNK.m(), 0};
+            return GemmCoord{mnLoopIdx % baseLoopsMN.m(), mnLoopIdx / baseLoopsMN.m(), 0};
         }
     }
 
     CATLASS_DEVICE
     GemmCoord GetBaseBlockShape(const GemmCoord &baseblockCoord)
     {
-        uint32_t mActual = (baseblockCoord.m() == baseLoopsMNK.m() - 1)
-                               ? (problemShape.m() - baseblockCoord.m() * baseTileMNK.m())
-                               : baseTileMNK.m();
-        uint32_t nActual = (baseblockCoord.n() == baseLoopsMNK.n() - 1)
-                               ? (problemShape.n() - baseblockCoord.n() * baseTileMNK.n())
-                               : baseTileMNK.n();
+        uint32_t mActual = (baseblockCoord.m() == baseLoopsMN.m() - 1)
+                               ? (problemShape.m() - baseblockCoord.m() * baseTileMN.m())
+                               : baseTileMN.m();
+        uint32_t nActual = (baseblockCoord.n() == baseLoopsMN.n() - 1)
+                               ? (problemShape.n() - baseblockCoord.n() * baseTileMN.n())
+                               : baseTileMN.n();
         uint32_t kActual = problemShape.k();
         return GemmCoord{mActual, nActual, kActual};
     }
@@ -1121,21 +1121,21 @@ struct DynamicSingleCoreSplitkAsyncGemmIdentityBlockSwizzle : public SingleCoreS
     {
         loopsMNK = CeilDiv(problemShape, tileMNK);
         if (swizzleDirection == 0) {
-            baseTileMNK = GemmCoord{l1TileShape.m() * swizzleOffset, l1TileShape.n(), l1TileShape.k()};
+            baseTileMN = GemmCoord{l1TileShape.m() * swizzleOffset, l1TileShape.n(), l1TileShape.k()};
         } else {
-            baseTileMNK = GemmCoord{l1TileShape.m(), l1TileShape.n() * swizzleOffset, l1TileShape.k()};
+            baseTileMN = GemmCoord{l1TileShape.m(), l1TileShape.n() * swizzleOffset, l1TileShape.k()};
         }
-        baseLoopsMNK = CeilDiv(problemShape, baseTileMNK);
+        baseLoopsMN = CeilDiv(problemShape, baseTileMN);
     }
 
     CATLASS_DEVICE
-    GemmCoord GetBaseBlockCoord(uint32_t baseLoopIdx_)
+    GemmCoord GetBaseBlockCoord(uint32_t loopIdx)
     {
-        uint32_t baseLoopIdx = baseLoopIdx_ % GetCoreLoops();
+        uint32_t mnLoopIdx = loopIdx % GetCoreLoops();
         if (swizzleDirection == 0) {
-            return GemmCoord{baseLoopIdx / baseLoopsMNK.n(), baseLoopIdx % baseLoopsMNK.n(), 0};
+            return GemmCoord{mnLoopIdx / baseLoopsMN.n(), mnLoopIdx % baseLoopsMN.n(), 0};
         } else {
-            return GemmCoord{baseLoopIdx % baseLoopsMNK.m(), baseLoopIdx / baseLoopsMNK.m(), 0};
+            return GemmCoord{mnLoopIdx % baseLoopsMN.m(), mnLoopIdx / baseLoopsMN.m(), 0};
         }
     }
 
