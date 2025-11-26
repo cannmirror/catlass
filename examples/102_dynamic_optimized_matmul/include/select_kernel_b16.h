@@ -225,6 +225,14 @@ void GetPaddingTag(TilingParams& tilingParams, PlatformInfo& platformInfo) {
         paddingTagB = PaddingTag::PADDING_NZ;
     }
 
+    // When the inner axis dimension is multiple of 8192, meta conflicts occur, requiring padding to improve bandwidth.
+    if (outterAxisA >= 2048 && innerAxisA > 8192 && innerAxisA % 8192 == 0) {
+        paddingTagA = PaddingTag::PADDING_NZ;
+    }
+    if (outterAxisB >= 2048 && innerAxisB > 8192 && innerAxisB % 8192 == 0) {
+        paddingTagB = PaddingTag::PADDING_NZ;
+    }
+
     PaddingTag paddingTagC = PaddingTag::PADDING_NONE;
     if (static_cast<size_t>(m) * n > 2048 * 2048 && n > 256 && (n % 128 != 0)) {
         size_t totalDataSize = static_cast<size_t>(m) * k * CeilDiv(n, n1) * 2
