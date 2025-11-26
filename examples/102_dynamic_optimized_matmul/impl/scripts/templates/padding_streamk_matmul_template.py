@@ -15,10 +15,10 @@ import itertools
 
 from utils.config import Config
 
-class PaddingCommonMatmulTemplate:
+class PaddingStreamkMatmulTemplate:
 
     TEMPLATE = """
-#include "kernel/padding_common_matmul_kernel.h"
+#include "kernel/padding_streamk_matmul_kernel.h"
 void {launch_kernel_func_name}(aclrtStream& stream, uint64_t fftsAddr,
     uint8_t* dA, uint8_t* dB, uint8_t* dC, uint8_t* dW, uint8_t* dTilingParams, TilingParams& tilingParams)
 {{
@@ -31,9 +31,8 @@ void {launch_kernel_func_name}(aclrtStream& stream, uint64_t fftsAddr,
     using LayoutC = {layout_c};
     constexpr PaddingTag paddingTagA = {padding_tag_a};
     constexpr PaddingTag paddingTagB = {padding_tag_b};
-    constexpr PaddingTag paddingTagC = {padding_tag_c};
-    LaunchPaddingCommonMatmulKernel<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
-        paddingTagA, paddingTagB, paddingTagC>(
+    LaunchPaddingStreamkMatmulKernel<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
+        paddingTagA, paddingTagB>(
         stream, fftsAddr, dA, dB, dC, dW, dTilingParams, tilingParams);
 }}
 
@@ -48,31 +47,29 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
     using LayoutC = {layout_c};
     constexpr PaddingTag paddingTagA = {padding_tag_a};
     constexpr PaddingTag paddingTagB = {padding_tag_b};
-    constexpr PaddingTag paddingTagC = {padding_tag_c};
-    return PaddingCommonMatmulKernelGetWorkspaceSize<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
-        paddingTagA, paddingTagB, paddingTagC>(tilingParams);
+    return PaddingStreamkMatmulKernelGetWorkspaceSize<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, 
+        LayoutC, paddingTagA, paddingTagB>(tilingParams);
 }}
 """
-    KERNEL_NAME = "PaddingCommonMatmulKernel"
+    KERNEL_NAME = "PaddingStreamkMatmulKernel"
 
     @staticmethod
     def gen_code(dtype, kernel_info):
 
-        kernel_serial = Config.KERNEL_SERIAL_MAP[PaddingCommonMatmulTemplate.KERNEL_NAME]
+        kernel_serial = Config.KERNEL_SERIAL_MAP[PaddingStreamkMatmulTemplate.KERNEL_NAME]
 
         PADDING_TAG_SET_A = [0, 3]
         PADDING_TAG_SET_B = [0, 3]
-        PADDING_TAG_SET_C = [0, 1]
         combinations = list(
             itertools.product(
                 Config.LAYOUT_TAG_SET, Config.LAYOUT_TAG_SET,
-                PADDING_TAG_SET_A, PADDING_TAG_SET_B, PADDING_TAG_SET_C
+                PADDING_TAG_SET_A, PADDING_TAG_SET_B
             )
         )
-        for l_tag_a, l_tag_b, p_tag_a, p_tag_b, p_tag_c in combinations:
-            # kernel_fun_name can be PaddingCommonMatmulHalfLayout00
+        for l_tag_a, l_tag_b, p_tag_a, p_tag_b in combinations:
+            # kernel_fun_name can be PaddingStreamkMatmulKernelHalfLayout00
             kernel_func_name = (
-                PaddingCommonMatmulTemplate.KERNEL_NAME
+                PaddingStreamkMatmulTemplate.KERNEL_NAME
                 + dtype.capitalize()
                 + "Layout"
                 + str(l_tag_a)
@@ -80,17 +77,15 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
                 + "Padding"
                 + str(p_tag_a)
                 + str(p_tag_b)
-                + str(p_tag_c)
             )
             # store tilingKey and kernel name
             kernel_info[
-                Config.get_tiling_key(kernel_serial, dtype, l_tag_a, l_tag_b, 0, p_tag_a, p_tag_b, p_tag_c)
+                Config.get_tiling_key(kernel_serial, dtype, l_tag_a, l_tag_b, 0, p_tag_a, p_tag_b, 0)
             ] = kernel_func_name
-            # launch_kernel_fun_name can be LaunchPaddingCommonMatmulHalfLayout00
+            # launch_kernel_fun_name can be LaunchPaddingStreamkMatmulKernelHalfLayout00
             launch_kernel_func_name = "Launch" + kernel_func_name
-            # get_workspace_fun_name can be PaddingCommonMatmulHalfLayout00GetWorkspaceSize
+            # get_workspace_fun_name can be PaddingStreamkMatmulKernelHalfLayout00GetWorkspaceSize
             get_workspace_func_name = kernel_func_name + "GetWorkspaceSize"
-            # file name can be padding_common_matmul_kernel_half_layout_00.cpp
             file_name = Config.camel_to_snake(kernel_func_name) + ".cpp"
 
             element_a = dtype
@@ -101,9 +96,8 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
             layout_c = "Catlass::layout::RowMajor"
             padding_tag_a = Config.PADDING_TAG_MAP[p_tag_a]
             padding_tag_b = Config.PADDING_TAG_MAP[p_tag_b]
-            padding_tag_c = Config.PADDING_TAG_MAP[p_tag_c]
 
-            content = PaddingCommonMatmulTemplate.TEMPLATE.format(
+            content = PaddingStreamkMatmulTemplate.TEMPLATE.format(
                 launch_kernel_func_name=launch_kernel_func_name,
                 get_workspace_func_name=get_workspace_func_name,
                 element_a=element_a,
@@ -114,7 +108,6 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
                 layout_c=layout_c,
                 padding_tag_a=padding_tag_a,
                 padding_tag_b=padding_tag_b,
-                padding_tag_c=padding_tag_c
             )
 
             with open(os.path.join(Config.WRAPPER_CODE_PATH, file_name), "w") as f:
