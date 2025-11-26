@@ -813,6 +813,68 @@ struct SingleCoreSplitkAsyncGemmIdentityBlockSwizzle {
     }
 };
 
+struct DynamicSingleCoreSplitkAsyncGemmIdentityBlockSwizzle : public SingleCoreSplitkAsyncGemmIdentityBlockSwizzle<> {
+    /// Data members
+    uint32_t swizzleOffset{2}; // swizzleOffset should > 1
+    uint32_t swizzleDirection{0};
+
+    /// Methods
+    CATLASS_DEVICE
+    DynamicSingleCoreSplitkAsyncGemmIdentityBlockSwizzle() {}
+
+    /// Methods
+    CATLASS_DEVICE
+    DynamicSingleCoreSplitkAsyncGemmIdentityBlockSwizzle(GemmCoord const &problemShape_, GemmCoord const &l1TileShape,
+        uint32_t swizzleOffset_, uint32_t swizzleDirection_)
+        : swizzleOffset(swizzleOffset_), swizzleDirection(swizzleDirection_),
+            SingleCoreSplitkAsyncGemmIdentityBlockSwizzle<>(problemShape_, l1TileShape)
+    {
+        loopsMNK = CeilDiv(problemShape, tileMNK);
+        if (swizzleDirection == 0) {
+            baseTileMNK = GemmCoord{l1TileShape.m() * swizzleOffset, l1TileShape.n(), l1TileShape.k()};
+        } else {
+            baseTileMNK = GemmCoord{l1TileShape.m(), l1TileShape.n() * swizzleOffset, l1TileShape.k()};
+        }
+        baseLoopsMNK = CeilDiv(problemShape, baseTileMNK);
+    }
+
+    CATLASS_DEVICE
+    GemmCoord GetBaseBlockCoord(uint32_t baseLoopIdx_)
+    {
+        uint32_t baseLoopIdx = baseLoopIdx_ % GetCoreLoops();
+        if (swizzleDirection == 0) {
+            return GemmCoord{baseLoopIdx / baseLoopsMNK.n(), baseLoopIdx % baseLoopsMNK.n(), 0};
+        } else {
+            return GemmCoord{baseLoopIdx % baseLoopsMNK.m(), baseLoopIdx / baseLoopsMNK.m(), 0};
+        }
+    }
+
+    CATLASS_DEVICE
+    GemmCoord GetBaseOffsetCoord(const GemmCoord &baseblockCoord)
+    {
+        if (swizzleDirection == 0) {
+            return GemmCoord{baseblockCoord.m() * swizzleOffset, baseblockCoord.n(), 0};
+        } else {
+            return GemmCoord{baseblockCoord.m(), baseblockCoord.n() * swizzleOffset, 0};
+        }
+    }
+
+    CATLASS_DEVICE
+    GemmCoord GetInnerCoord(const GemmCoord &innerLoopsMNK, uint32_t innerLoopIdx)
+    {
+        uint32_t mIdx, nIdx, kIdx;
+        if (swizzleDirection == 0) {
+            kIdx = innerLoopIdx / innerLoopsMNK.m();
+            mIdx = innerLoopIdx % innerLoopsMNK.m();
+            return GemmCoord{mIdx, 0, kIdx};
+        } else {
+            nIdx = innerLoopIdx % innerLoopsMNK.n();
+            kIdx = innerLoopIdx / innerLoopsMNK.n();
+            return GemmCoord{0, nIdx, kIdx};
+        }
+    }
+};
+
 }  // namespace Catlass::Gemm::Block
 
 #endif  // CATLASS_GEMM_BLOCK_BLOCK_SWIZZLE_HPP

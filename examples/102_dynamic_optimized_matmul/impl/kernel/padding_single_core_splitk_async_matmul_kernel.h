@@ -24,8 +24,6 @@
 
 using PaddingTag = Catlass::Gemm::Kernel::PaddingTag;
 
-#define MAX_SWIZZLE_OFFSET 12
-
 template <
     /// Tag indicating architecture
     class ArchTag,
@@ -126,7 +124,7 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
 
     using TileCopy = TileCopyDynamicOptimized<ArchTag, AType, BType, CType>;
     using BlockEpilogue = void;
-    if (problemShape.m() > problemShape.n()) {
+    if (swizzleDirection == 0) {
         constexpr uint32_t l1AStages = 2;
         constexpr uint32_t l1BStages = 1;
         using DispatchPolicy = Catlass::Gemm::MmadAtlasA2DynamicSingleCoreSplitk<
@@ -134,12 +132,12 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
         using BlockMmad = Catlass::Gemm::Block::BlockMmad<
             DispatchPolicy, void, void, AType, BType, CType, void, TileCopy>;
 
-        using BlockScheduler = typename Catlass::Gemm::Block::SingleCoreSplitkAsyncGemmIdentityBlockSwizzle<MAX_SWIZZLE_OFFSET, 0>;
+        using BlockScheduler = typename Catlass::Gemm::Block::DynamicSingleCoreSplitkAsyncGemmIdentityBlockSwizzle;
         // kernel level
         using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingSingleCoreSplitkAsyncMatmul<
             PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingNDAndCastC>;
-        typename MatmulKernel::Params params{
-            problemShape, l1TileShape, l0TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC, gmWA, gmWB, gmWC};
+        typename MatmulKernel::Params params{problemShape, l1TileShape, l0TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC,
+            gmWA, gmWB, gmWC, swizzleOffset, swizzleDirection};
         // call a kernel
         MatmulKernel matmul;
         matmul(params, resource);
@@ -151,12 +149,12 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
         using BlockMmad = Catlass::Gemm::Block::BlockMmad<
             DispatchPolicy, void, void, AType, BType, CType, void, TileCopy>;
 
-        using BlockScheduler = typename Catlass::Gemm::Block::SingleCoreSplitkAsyncGemmIdentityBlockSwizzle<MAX_SWIZZLE_OFFSET, 1>;
+        using BlockScheduler = typename Catlass::Gemm::Block::DynamicSingleCoreSplitkAsyncGemmIdentityBlockSwizzle;
         // kernel level
         using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingSingleCoreSplitkAsyncMatmul<
             PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingNDAndCastC>;
-        typename MatmulKernel::Params params{
-            problemShape, l1TileShape, l0TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC, gmWA, gmWB, gmWC};
+        typename MatmulKernel::Params params{problemShape, l1TileShape, l0TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC,
+            gmWA, gmWB, gmWC, swizzleOffset, swizzleDirection};
         // call a kernel
         MatmulKernel matmul;
         matmul(params, resource);
@@ -242,9 +240,13 @@ size_t PaddingSingleCoreSplitkAsyncMatmulKernelGetWorkspaceSize(TilingParams &ti
         sizeWB = PaddingBuilderB::Padding::GetWorkspaceSize(k, n);
     }
 
-    // sizeWC is a bit bigger than actually use
-    sizeWC = m1 * RoundUp(n1, 512 / sizeof(ElementAccumulator)) * MAX_SWIZZLE_OFFSET * 2 * tilingParams.blockDim
-             * sizeof(ElementAccumulator);
+    if (tilingParams.swizzleDirection == 0) {
+        sizeWC = m1 * tilingParams.swizzleOffset * RoundUp(n1, 512 / sizeof(ElementAccumulator)) * 2 * tilingParams.blockDim
+                * sizeof(ElementAccumulator);
+    } else {
+        sizeWC = m1 * RoundUp(n1 * tilingParams.swizzleOffset, 512 / sizeof(ElementAccumulator)) * 2 * tilingParams.blockDim
+            * sizeof(ElementAccumulator);
+    }
 
     return sizeWA + sizeWB + sizeWC;
 }
