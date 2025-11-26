@@ -67,10 +67,11 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
     * | 40-41  | 2    | k1               | uint16_t  | l1 kTile(16-bit to save space)|
     * | 42-42  | 1    | swizzleOffset    | uint8_t   | swizzle offset                |
     * | 43-43  | 1    | swizzleDirection | uint8_t   | swizzle direction             |
-    * | 44-45  | 2    | m0               | uint16_t  | l0 mTile(16-bit to save space)|
-    * | 46-47  | 2    | n0               | uint16_t  | l0 nTile(16-bit to save space)|
-    * | 48-49  | 2    | k0               | uint16_t  | l0 kTile(16-bit to save space)|
-    * | 50-55  | 6    | (reserved)       | -         | unused                        |
+    * | 44-45  | 2    | splitkFactor     | uint16_t  | splitk factor                 |
+    * | 46-47  | 2    | m0               | uint16_t  | l0 mTile(16-bit to save space)|
+    * | 48-49  | 2    | n0               | uint16_t  | l0 nTile(16-bit to save space)|
+    * | 50-51  | 2    | k0               | uint16_t  | l0 kTile(16-bit to save space)|
+    * | 52-55  | 6    | (reserved)       | -         | unused                        |
     * --------------------------------------------------------------------------------
     */
 
