@@ -221,6 +221,11 @@ for (uint32_t loopIdx = 0; loopIdx < coreLoops; ++loopIdx) {
 
 在矩阵C上的swizzle策略采用S型特征，相较于Z型的swizzle排布，在换行处可节约一次搬运。如上图所示，按S型Swizzle策略加载，前一组需要加载到L1A, L1B上的分形矩阵为`<A01, <B10, B11>>`，后一次需要加载的是`<A11, <B10, B11>>`。“换行”过程下，可以固定L1B上的数据，仅从GM上重读入A11 到L1A上，以减轻载入负担。
 
+<div style="display: flex; justify-content: center;">
+    <img src="https://raw.gitcode.com/user-images/assets/7831925/82464c03-ecfc-4a3f-afbb-82740c77103f/tmp4.png" width="55%" height="auto">
+</div>
+
+
 > 说明：该Swizzle策略在大尺寸下有效，排布策略会优先将任务分配至不同的AI Core上。
 
 ### 性能收益
