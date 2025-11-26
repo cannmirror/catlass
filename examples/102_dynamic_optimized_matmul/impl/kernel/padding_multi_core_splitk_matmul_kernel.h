@@ -67,8 +67,8 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
     * | 40-41  | 2    | k1               | uint16_t  | l1 kTile(16-bit to save space)|
     * | 42-42  | 1    | swizzleOffset    | uint8_t   | swizzle offset                |
     * | 43-43  | 1    | swizzleDirection | uint8_t   | swizzle direction             |
-    * | 44-44  | 1    | splitkFactor     | uint8_t   | splitk factor                 |
-    * | 45-47  | 4    | (reserved)       | -         | unused                        |
+    * | 44-45  | 1    | splitkFactor     | uint16_t  | splitk factor                 |
+    * | 46-47  | 4    | (reserved)       | -         | unused                        |
     * --------------------------------------------------------------------------------
     */
 
