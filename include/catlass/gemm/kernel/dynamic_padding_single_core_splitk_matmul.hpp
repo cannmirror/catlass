@@ -640,7 +640,7 @@ public:
         if ASCEND_IS_AIC {
             aiCoreIdx = AscendC::GetBlockIdx(); // cube:0-23
         } else if ASCEND_IS_AIV {
-            aiCoreIdx = AscendC::GetBlockIdx() / 2; // vec:0-47 -> 0-23
+            aiCoreIdx = AscendC::GetBlockIdx() / AscendC::GetSubBlockNum(); // vec:0-47 -> 0-23
         }
 
         typename BlockMmad::LayoutA layoutA;
