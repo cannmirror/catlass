@@ -1068,11 +1068,8 @@ struct SingleCoreSplitkAsyncGemmIdentityBlockSwizzle {
     CATLASS_DEVICE
     GemmCoord GetBaseOffsetCoord(const GemmCoord &baseblockCoord)
     {
-        if constexpr (SwizzleDirection == 0) {
-            return GemmCoord{baseblockCoord.m() * SwizzleOffset, baseblockCoord.n(), 0};
-        } else if constexpr (SwizzleDirection == 1) {
-            return GemmCoord{baseblockCoord.m(), baseblockCoord.n() * SwizzleOffset, 0};
-        }
+        GemmCoord baseTileInnerLoops = CeilDiv(baseTileMN, tileMNK);
+        return GemmCoord(baseblockCoord.m() * baseTileInnerLoops.m(), baseblockCoord.n() * baseTileInnerLoops.n(), 0);
     }
 
     CATLASS_DEVICE
@@ -1136,16 +1133,6 @@ struct DynamicSingleCoreSplitkAsyncGemmIdentityBlockSwizzle : public SingleCoreS
             return GemmCoord{mnLoopIdx / baseLoopsMN.n(), mnLoopIdx % baseLoopsMN.n(), 0};
         } else {
             return GemmCoord{mnLoopIdx % baseLoopsMN.m(), mnLoopIdx / baseLoopsMN.m(), 0};
-        }
-    }
-
-    CATLASS_DEVICE
-    GemmCoord GetBaseOffsetCoord(const GemmCoord &baseblockCoord)
-    {
-        if (swizzleDirection == 0) {
-            return GemmCoord{baseblockCoord.m() * swizzleOffset, baseblockCoord.n(), 0};
-        } else {
-            return GemmCoord{baseblockCoord.m(), baseblockCoord.n() * swizzleOffset, 0};
         }
     }
 
