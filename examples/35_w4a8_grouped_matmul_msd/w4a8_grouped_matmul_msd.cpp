@@ -170,12 +170,12 @@ void Run(Options const &options)
     constexpr uint32_t l0CStages = 1;
     constexpr uint32_t workspaceStages = 4;
     constexpr bool enableUnitFlag = false;
-    constexpr bool enableShuffleK = true;
+    constexpr bool enableShuffleK = false;
     using DispatchPolicy = Gemm::MmadAtlasA2W4A8GroupedMatmulMSD<
         preloadStages, l1Stages, l0AStages, l0BStages, l0CStages, enableUnitFlag, enableShuffleK>;
 
-    using L1TileShape = GemmShape<128, 256, 320>;  // L1TileShape::K和kGroupSize相等
-    using L0TileShape = GemmShape<128, 256, 128>;
+    using L1TileShape = GemmShape<128, 256, 256>;  // L1TileShape::K和kGroupSize相等
+    using L0TileShape = GemmShape<128, 256, 256>;
 
     using AType = Gemm::GemmType<ElementA, LayoutA>;
     using BType = Gemm::GemmType<ElementB, LayoutB>;

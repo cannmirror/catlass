@@ -18,11 +18,11 @@
 
 以下是一个完整的shell脚本示例
 ```
-g=30
-kGroupSize=320
-m=77
-k=1280
-n=4536
+g=4
+kGroupSize=256
+m=512
+k=1024
+n=4096
 device=0
 
 function build() {
