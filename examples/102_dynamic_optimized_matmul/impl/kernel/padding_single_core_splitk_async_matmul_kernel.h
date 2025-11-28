@@ -111,8 +111,7 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
     using PaddingBuilderA = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagA, ArchTag, ElementA, LayoutA>;
     using PaddingBuilderB = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagB, ArchTag, ElementB, LayoutB>;
     using ElementAccumulator = typename Catlass::Gemm::helper::ElementAccumulatorSelector<ElementA, ElementB>::ElementAccumulator;
-    using RemovePaddingNDAndCastC = std::conditional_t<paddingTagC == PaddingTag::PADDING_ND || !std::is_same_v<ElementAccumulator, ElementC>,
-        Catlass::Gemm::Kernel::RemovePaddingNDAndCast<paddingTagC, ArchTag, ElementAccumulator, ElementC, LayoutC>, void>;
+    using RemovePaddingNDAndCastC = Catlass::Gemm::Kernel::RemovePaddingNDAndCast<paddingTagC, ArchTag, ElementAccumulator, ElementC, LayoutC>;
     using PaddingA = typename PaddingBuilderA::Padding;
     using PaddingB = typename PaddingBuilderB::Padding;
 
@@ -214,8 +213,6 @@ size_t PaddingSingleCoreSplitkAsyncMatmulKernelGetWorkspaceSize(TilingParams &ti
     using PaddingBuilderA = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagA, ArchTag, ElementA, LayoutA>;
     using PaddingBuilderB = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagB, ArchTag, ElementB, LayoutB>;
     using ElementAccumulator = typename Catlass::Gemm::helper::ElementAccumulatorSelector<ElementA, ElementB>::ElementAccumulator;
-    using RemovePaddingNDAndCastC = std::conditional_t<paddingTagC == PaddingTag::PADDING_ND || !std::is_same_v<ElementAccumulator, ElementC>,
-        Catlass::Gemm::Kernel::RemovePaddingNDAndCast<paddingTagC, ArchTag, ElementAccumulator, ElementC, LayoutC>, void>;
     uint32_t m = tilingParams.m;
     uint32_t n = tilingParams.n;
     uint32_t k = tilingParams.k;
