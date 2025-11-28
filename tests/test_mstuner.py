@@ -92,6 +92,10 @@ class MsTunerCatlassTest(unittest.TestCase):
     mstuner_cases = [
         ['00_basic_matmul', '--m=256', '--n=512', '--k=1024'],
         ['02_grouped_matmul_slice_m', '--m=512', '--n=1024', '--k=2048', '--group_count=128'],
+        ['06_optimized_matmul_padding_ab', '--m=555', '--n=322', '--k=1111'],
+        ['06_optimized_matmul_padding_a_only', '--m=655', '--n=256', '--k=1111'],
+        ['06_optimized_matmul_padding_b_only', '--m=555', '--n=322', '--k=1024'],
+        ['06_optimized_matmul_without_padding', '--m=512', '--n=256', '--k=1024'],
         ['08_grouped_matmul', '--m=512', '--n=1024', '--k=2048', '--group_count=128'],
     ]
 

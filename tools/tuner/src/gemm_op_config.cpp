@@ -293,4 +293,51 @@ void GroupedSliceMGemmOpConfig::SaveMetric(Metric &metric)
     GemmOpConfig::SaveMetric(metric);
     metric.SetField("group_count", std::to_string(config_.groupCount));
 }
+
+bool OptimizedGemmOpConfig::InitConfig(CommandLineParser &parser)
+{
+    bool res = GemmOpConfig::InitConfig(parser);
+    if (!res) {
+        return false;
+    }
+    config_.m = m_;
+    config_.n = n_;
+    config_.k = k_;
+    return true;
+}
+
+bool OptimizedGemmOpConfig::InitArgument(Library::Operation *op)
+{
+    auto &mdesp = static_cast<const Library::GemmOperationDescription &>(op->GetDescription());
+    size_t lenA;
+    size_t lenB;
+    size_t lenC;
+    constexpr std::string_view log = "Arguments size overflows, please check command line input"
+                                     " --m --n --k";
+    if (!SafeMul<uint32_t>({config_.m, config_.k}, lenA) ||
+        !SafeMul<uint32_t>({config_.k, config_.n}, lenB) ||
+        !SafeMul<uint32_t>({config_.m, config_.n}, lenC)) {
+        LOGE("%s", log.data());
+        return false;
+    }
+
+    size_t sizeA;
+    size_t sizeB;
+    size_t sizeC;
+    if (!SafeMul<size_t>({lenA, LibraryHelper::GetDataTypeSize(mdesp.A.element)}, sizeA) ||
+        !SafeMul<size_t>({lenB, LibraryHelper::GetDataTypeSize(mdesp.B.element)}, sizeB) ||
+        !SafeMul<size_t>({lenC, LibraryHelper::GetDataTypeSize(mdesp.C.element)}, sizeC)) {
+        LOGE("%s", log.data());
+        return false;
+    }
+    std::vector<DeviceMemoryParam> params{
+        {reinterpret_cast<void**>(&arg_.A), sizeA},
+        {reinterpret_cast<void**>(&arg_.B), sizeB},
+        {reinterpret_cast<void**>(&arg_.C), sizeC},
+    };
+    if (!MallocDeviceMemory(params)) {
+        return false;
+    }
+    return true;
+}
 } // namespace Catlass
