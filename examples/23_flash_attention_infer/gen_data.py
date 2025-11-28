@@ -15,6 +15,7 @@ import sys
 import logging
 import numpy as np
 import random
+import ml_dtypes
 from ml_dtypes import bfloat16
 from dataclasses import dataclass
 np.random.seed(1)
@@ -230,17 +231,19 @@ class TestFlashAttentionInfer():
         sim_high = self.group_matmul(query.shape[0], key.shape[0], query, key)  # (head_num, q_seqlen, k_seqlen)
         sim_low_prec = sim_high.astype(np.float16) * np.float16(scale)
         sim_high = sim_high * scale
+        pre_mask_factor = -10000
+        if gen_data_params.dtype is ml_dtypes.bfloat16:
+            pre_mask_factor = -3e38
         if mask is not None:
             sim_high = sim_high + (
                 mask[:sim_high.shape[-2], :sim_high.shape[-1]]
-                ).astype(np.float32)
+                ).astype(np.float32) * pre_mask_factor
             sim_low_prec = sim_low_prec + (
                 mask[:sim_high.shape[-2], :sim_high.shape[-1]]
-                ).astype(np.float16)
+                ).astype(np.float16) * -10000
         p_high, lse_high, gm = self.softmax_numpy(sim_high)
         p_low_prec, lse_low_prec, gm_low_prec = self.softmax_numpy(sim_low_prec)
         lse = lse_high.astype(query.dtype)
-        lse_high = lse_high.astype(np.float32)
         lse_high = lse_high.astype(np.float32)
         p = p_high.astype(query.dtype)
         p_high = p_high.astype(np.float32)
@@ -338,10 +341,10 @@ class TestFlashAttentionInfer():
     def calc_data(self, gen_data_params: GenDataParams):
         head_size_qk = gen_data_params.head_size
         head_size_vo = gen_data_params.head_size
-        q_min_range = -5.0
-        q_max_range = 5.0
-        kv_min_range = -5.0
-        kv_max_range = 5.0
+        q_min_range = -1.0
+        q_max_range = 1.0
+        kv_min_range = -1.0
+        kv_max_range = 1.0
         num_tokens = np.array(gen_data_params.q_seqlen_list).sum()
         num_kv_tokens = np.array(gen_data_params.k_seqlen_list).sum()
         batch_size = len(gen_data_params.q_seqlen_list)
@@ -378,23 +381,20 @@ class TestFlashAttentionInfer():
                     size=(batch_size, max_k_seqlen, gen_data_params.kv_heads, head_size_qk)).astype(gen_data_params.dtype)
                 value_cache = np.random.uniform(kv_min_range, kv_max_range,
                     size=(batch_size, max_k_seqlen, gen_data_params.kv_heads, head_size_vo)).astype(gen_data_params.dtype)
-        pre_mask_factor = -10000
         if gen_data_params.mask_type == 1:
-            mask = np.zeros(shape=(num_tokens, max_k_seqlen)).astype(np.float16)
+            mask = np.zeros(shape=(num_tokens, max_k_seqlen)).astype(gen_data_params.dtype)
             pre_qseqlen = 0
             for i in range(batch_size):
                 qseqlen = gen_data_params.q_seqlen_list[i]
                 kseqlen = gen_data_params.k_seqlen_list[i]
                 tri = np.ones((qseqlen, qseqlen))
                 tri = np.triu(tri, 1)
-                tri *= pre_mask_factor
                 mask[pre_qseqlen : (pre_qseqlen + qseqlen), kseqlen - qseqlen : kseqlen] = tri
                 pre_qseqlen += qseqlen
             mask = mask.astype(gen_data_params.dtype)
         elif gen_data_params.mask_type == 2:
             mask = np.ones(shape=(max_q_seqlen, max_k_seqlen)).astype(np.float16)
             mask = np.triu(mask, 1)
-            mask *= pre_mask_factor
         elif gen_data_params.mask_type == 0:
             mask = None
 
@@ -427,7 +427,7 @@ class TestFlashAttentionInfer():
         value_cache.tofile(os.path.join(WORKSPACE, "data", "v.bin"))
         np.array(block_tables).astype(np.int32).tofile(os.path.join(WORKSPACE, "data", "block_table.bin"))
         np.array([num_tokens, num_kv_tokens]).astype(np.int32).tofile(os.path.join(WORKSPACE, "data", "dataext.bin"))
-        if gen_data_params.layout_dtype == 1:
+        if gen_data_params.layout_dtype == 0:
             new_q_seqlen_list = []
             pre_seq_sum = 0
             for i in range(batch):
@@ -446,10 +446,7 @@ class TestFlashAttentionInfer():
         np.array(gen_data_params.k_seqlen_list).astype(np.int64).tofile(
             os.path.join(WORKSPACE, "data", "kv_seqlen.bin"))
         if gen_data_params.mask_type == 1:
-            actual_input_mask_triu = np.triu(np.ones((2048, 2048)), 1).astype(np.int8)
-            actual_input_mask_triu.tofile(os.path.join(WORKSPACE, "data", "mask.bin"))
-        elif gen_data_params.mask_type == 2:
-            actual_input_mask_triu = np.triu(np.ones((128, 128)), 1).astype(np.int8)
+            actual_input_mask_triu = np.triu(np.ones((1024, 1024)), 1).astype(gen_data_params.dtype)
             actual_input_mask_triu.tofile(os.path.join(WORKSPACE, "data", "mask.bin"))
         print(gen_data_params.q_seqlen_list)
         print(gen_data_params.k_seqlen_list)
@@ -485,15 +482,13 @@ if __name__ == "__main__":
         sys.exit()
 
     kv_dtype = int(sys.argv[10])
-    layout_dtype = int(sys.argv[11])
-    num_blocks = int(sys.argv[12])
-    inner_prec = int(sys.argv[13])
-    lse_flag = int(sys.argv[14])
-
+    layout_dtype = 1
+    inner_prec = 0
+    lse_flag = 0
     q_seqlen_list, kv_seqlen_list = gen_seqlen(q_seqlen, kv_seqlen, is_varied_len, batch)
     
     max_kv_seqlen = max(kv_seqlen_list)
-    
+    num_blocks = batch * ((max_kv_seqlen + block_size - 1) // block_size)
     testObj = TestFlashAttentionInfer()
     gen_data_params = testObj.GenDataParams(q_seqlen_list, kv_seqlen_list, num_head,
                                             kv_heads, embedding_size,
