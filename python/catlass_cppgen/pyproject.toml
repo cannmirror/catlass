@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "catlass-cppgen"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy==1.26.4",
+    "torch==2.6.0",
+]
+
+[tool.setuptools]
+packages = [
+    "catlass_cppgen",
+    "catlass_cppgen.catlass",
+    "catlass_cppgen.common",
+    "catlass_cppgen.kernel",
+    "catlass_cppgen.kernel.gemm",
+    "catlass_cppgen.op",
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu" },
+]
+torchvision = [
+    { index = "pytorch-cpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
