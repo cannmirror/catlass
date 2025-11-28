@@ -59,7 +59,7 @@ bash scripts/build.sh 24_conv_bias
 cd output/bin
 # 可执行文件名 |batch|di|cin1|hi|wi|cin0|cout|kd|kh|kw|sD|sH|sW|dD|dH|dW|pD|pH|pW|Device ID
 # Device ID可选，默认为0
-./output/bin/24_conv_bias 32 1 4 32 48 16 128 1 1 1 1 1 1 1 1 1 0 0 0 0
+./24_conv_bias 32 1 4 32 48 16 128 1 1 1 1 1 1 1 1 1 0 0 0 0
 ```
 执行结果如下，说明精度比对成功。
 ```
