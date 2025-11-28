@@ -756,9 +756,6 @@ public:
             GemmCoord innerLoopsMNK = CeilDiv(baseBlockShape, params.l1TileShape);
             uint32_t innerLoops = innerLoopsMNK.m() * innerLoopsMNK.n() * innerLoopsMNK.k();
 
-            MatrixCoord coordBaseBlock{baseOffsetCoord.m() * params.l1TileShape.m(), baseOffsetCoord.n() * params.l1TileShape.n()};
-            uint64_t gmOffsetBaseBlock = layoutC.GetOffset(coordBaseBlock);
-            LayoutC layoutInWC{baseBlockShape.m(), baseBlockShape.n(), baseTile.n()};
             int64_t gmOffsetWcSlice = (aiCoreIdx * GMWC_BUFFER_NUM + flagAivFinishMoveGmcBufId) * gmWcSliceSize;
 
             if ASCEND_IS_AIC {
@@ -824,6 +821,10 @@ public:
                 flagAivFinishMoveGmcBufId = (flagAivFinishMoveGmcBufId + 1) % GMWC_BUFFER_NUM; // update in AIC
             } else if ASCEND_IS_AIV {
                 Catlass::Arch::CrossCoreWaitFlag(flagAicFinish);
+
+                MatrixCoord coordBaseBlock{baseOffsetCoord.m() * params.l1TileShape.m(), baseOffsetCoord.n() * params.l1TileShape.n()};
+                uint64_t gmOffsetBaseBlock = layoutC.GetOffset(coordBaseBlock);
+                LayoutC layoutInWC{baseBlockShape.m(), baseBlockShape.n(), baseTile.n()};
 
                 constexpr bool useSingleCore = true; // only use 2 vector of current aicore
                 removePaddingNDAndCastC(gmC[gmOffsetBaseBlock], gmWC[gmOffsetWcSlice], params.layoutC, layoutInWC, useSingleCore);
