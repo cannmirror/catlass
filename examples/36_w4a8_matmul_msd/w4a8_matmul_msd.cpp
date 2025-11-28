@@ -163,8 +163,8 @@ void Run(Options const &options)
     using DispatchPolicy = Gemm::MmadAtlasA2W4A8GroupedMatmulMSD<
         preloadStages, l1Stages, l0AStages, l0BStages, l0CStages, enableUnitFlag, enableShuffleK>;
 
-    using L1TileShape = GemmShape<128, 256, 320>;  // L1TileShape::K和kGroupSize相等
-    using L0TileShape = GemmShape<128, 256, 128>;
+    using L1TileShape = GemmShape<16, 256, 256>;  // L1TileShape::K和kGroupSize相等
+    using L0TileShape = GemmShape<16, 256, 128>;
 
     using AType = Gemm::GemmType<ElementA, LayoutA>;
     using BType = Gemm::GemmType<ElementB, LayoutB>;
