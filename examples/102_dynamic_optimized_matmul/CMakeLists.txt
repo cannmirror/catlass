@@ -12,8 +12,18 @@ option(COMPILE_DYNAMIC_OPTIMIZED_MATMUL "Generate wrapper code for generalizatio
 
 if(COMPILE_DYNAMIC_OPTIMIZED_MATMUL)
 
+    if(NOT DEFINED Python3_EXECUTABLE)
+        message(WARNING "Python3_EXECUTABLE is not defined, using default python3")
+        find_program(Python3_EXECUTABLE python3 python)
+        if(NOT Python3_EXECUTABLE)
+            message(FATAL_ERROR "Python executable not found. Please install Python 3.")
+        endif()
+    else()
+        message("Using python: ${Python3_EXECUTABLE}")
+    endif()
+
     execute_process(
-        COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/impl/scripts/wrapper_code_gen.py
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/impl/scripts/wrapper_code_gen.py
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/impl/scripts
     )
 
@@ -21,12 +31,12 @@ if(COMPILE_DYNAMIC_OPTIMIZED_MATMUL)
     file(GLOB_RECURSE AUTO_GEN_CODE_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/impl/scripts/*.py)
     add_custom_command(
         TARGET auto_gen_code
-        COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/impl/scripts/wrapper_code_gen.py
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/impl/scripts/wrapper_code_gen.py
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/impl/scripts
         DEPENDS ${AUTO_GEN_CODE_SRC}
         COMMENT "Generate wrapper code, launch_map.h ...done"
     )
-
+    
     add_compile_definitions(TILING_KEY_VAR)
     add_compile_options($<$<COMPILE_LANGUAGE:ASCEND>:--cce-aicore-arch=dav-c220>)
     file(GLOB CATLASS_SHARED_LIB_SRC CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/impl/wrapper/*.cpp)

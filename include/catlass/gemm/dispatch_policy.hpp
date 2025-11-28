@@ -35,7 +35,7 @@ struct MmadAtlasA2Pingpong : public MmadAtlasA2  {
 };
 
 template <bool ENABLE_UNIT_FLAG_ = false>
-struct MmadAtlasA2PingpongSliceK : public MmadAtlasA2  {
+struct MmadAtlasA2PingPongWithPrologue : public MmadAtlasA2 {
     static constexpr uint32_t STAGES = 2;
     static constexpr bool ENABLE_UNIT_FLAG = ENABLE_UNIT_FLAG_;
 };
@@ -51,7 +51,7 @@ struct MmadAtlasA2SingleCoreSplitk : public MmadAtlasA2 {
 };
 
 template <bool ENABLE_UNIT_FLAG_ = false>
-struct MmadAtlasA2PingPongWithPrologue : public MmadAtlasA2 {
+struct MmadAtlasA2PingpongSliceKWithPrologue : public MmadAtlasA2 {
     static constexpr uint32_t STAGES = 2;
     static constexpr bool ENABLE_UNIT_FLAG = ENABLE_UNIT_FLAG_;
 };

@@ -321,8 +321,8 @@ using BlockMmad = Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShap
 using BlockEpilogue = void;
 
 // After the Matmul computation is completed, launch the ReduceAdd kernel to accumulate the partial sums.
-constexpr uint32_t computeLength = 32 * 1024 / sizeof(float);
-using ReduceAdd = Catlass::Gemm::Kernel::ReduceAdd<ArchTag, float, half, computeLength>;
+constexpr uint32_t computeLength = 192 * 1024 / sizeof(float);
+using ReduceAdd = Catlass::Gemm::Kernel::SplitkReduceAdd<ArchTag, float, half, 1, computeLength>;
 
 // Swizzle offset is 3 and direction is 0.
 using BlockScheduler = typename Gemm::Block::SplitkGemmIdentityBlockSwizzle<3, 0>;
@@ -479,8 +479,8 @@ void Run(const Options &options)
     using BlockEpilogue = void;
 
     // After the Matmul computation is completed, launch the ReduceAdd kernel to accumulate the partial sums.
-    constexpr uint32_t computeLength = 32 * 1024 / sizeof(float);
-    using ReduceAdd = Catlass::Gemm::Kernel::ReduceAdd<ArchTag, float, half, computeLength>;
+    constexpr uint32_t computeLength = 192 * 1024 / sizeof(float);
+    using ReduceAdd = Catlass::Gemm::Kernel::SplitkReduceAdd<ArchTag, float, half, 1, computeLength>;
 
     // Swizzle offset is 3 and direction is 0.
     using BlockScheduler = typename Gemm::Block::SplitkGemmIdentityBlockSwizzle<3, 0>;

@@ -102,12 +102,6 @@ public:
         this->description_.gemmKind = GemmKind::BasicMatmul;
     }
 
-    virtual Status Run(aclrtStream stream, uint32_t blockDim, uint64_t fftsAddr) override
-    {
-        (void)fftsAddr;
-        return this->op_.Run(stream, blockDim, 0);
-    }
-
 private:
     virtual void BuildArgs(void *argsPtr, void *configPtr) override
     {
@@ -145,18 +139,33 @@ private:
         this->args_.ptrC = arguments->C;
         this->args_.ptrLayoutC = arguments->layoutCList;
     }
-
-    virtual Status Run(
-        aclrtStream stream,
-        uint32_t blockDim,
-        uint64_t fftsAddr
-    ) override
-    {
-        (void)fftsAddr;
-        return this->op_.Run(stream, blockDim, 0);
-    }
 };
 /********************* grouped matmul end *********************/
+
+/********************* grouped matmul slice M *********************/
+template <typename Operator_>
+class GroupedMatmulSliceMGemmOperation : public GemmOperationBase<Operator_> {
+public:
+    GroupedMatmulSliceMGemmOperation(char const *name = "") : GemmOperationBase<Operator_>(name)
+    {
+        this->description_.gemmKind = GemmKind::GroupedMatmulSliceM;
+    }
+
+private:
+    virtual void BuildArgs(void *argsPtr, void *configPtr) override
+    {
+        GroupedMatmulSliceMGemmArguments *arguments = (GroupedMatmulSliceMGemmArguments *)argsPtr;
+        GroupedMatmulSliceMGemmConfiguration *config = (GroupedMatmulSliceMGemmConfiguration *)configPtr;
+
+        this->args_.problemShape = GemmCoord{config->m, config->n, config->k};
+        this->args_.problemCount = config->groupCount;
+        this->args_.ptrGroupList = arguments->deviceGroupList;
+        this->args_.ptrA = arguments->A;
+        this->args_.ptrB = arguments->B;
+        this->args_.ptrC = arguments->C;
+    }
+};
+/********************* grouped matmul slice M end *********************/
 
 }
 }
