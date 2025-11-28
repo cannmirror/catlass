@@ -132,5 +132,23 @@ private:
     Library::GroupedMatmulSliceMGemmConfiguration config_{};
 };
 
+class OptimizedGemmOpConfig : public GemmOpConfig {
+public:
+    explicit OptimizedGemmOpConfig(const Library::OperationDescription &desp)
+        : GemmOpConfig(desp)
+    {
+        subKind_ = static_cast<uint32_t>(Library::GemmKind::OptimizedMatmul);
+    }
+
+    bool InitConfig(CommandLineParser &parser) override;
+    bool InitArgument(Library::Operation *op) override;
+
+    void* GetConfig() override { return &config_; };
+    void* GetArg() override { return &arg_; };
+
+private:
+    Library::BasicMatmulGemmArguments arg_{};
+    Library::BasicMatmulGemmConfiguration config_{};
+};
 } // namespace Catlass
 #endif // CATLASS_TUNER_GEMM_OP_CONFIG_H
