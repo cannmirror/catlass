@@ -167,6 +167,97 @@ private:
 };
 /********************* grouped matmul slice M end *********************/
 
+/********************* optimized matmul *********************/
+template <typename Operator_>
+class OptimizedMatmulGemmOperation : public GemmOperationBase<Operator_> {
+    using Operator = Operator_;
+    using OperatorKernel = typename Operator::Kernel;
+    using ElementA = typename OperatorKernel::ElementA;
+    using ElementB = typename OperatorKernel::ElementB;
+    using LayoutA = typename OperatorKernel::LayoutA;
+    using LayoutB = typename OperatorKernel::LayoutB;
+    using L1TileShape = typename OperatorKernel::BlockMmad::L1TileShape;
+public:
+    OptimizedMatmulGemmOperation(char const *name = "") : GemmOperationBase<Operator_>(name)
+    {
+        this->description_.gemmKind = GemmKind::OptimizedMatmul;
+    }
+
+private:
+    virtual void BuildArgs(void *argsPtr, void *configPtr) override
+    {
+        BasicMatmulGemmArguments *arguments = (BasicMatmulGemmArguments *)argsPtr;
+        BasicMatmulGemmConfiguration *config = (BasicMatmulGemmConfiguration *)configPtr;
+
+        constexpr uint32_t alignByByte = 512;
+
+        this->args_.problemShape = GemmCoord{config->m, config->n, config->k};
+        this->args_.ptrA = arguments->A;
+        this->args_.ptrB = arguments->B;
+        this->args_.ptrC = arguments->C;
+
+        constexpr uint32_t alignByElement = 512 / sizeof(half);
+
+        if constexpr (!std::is_same<typename OperatorKernel::LayoutWA, typename OperatorKernel::LayoutA>::value) {
+            isThisKernelPaddingA_ = true;
+        }
+        if constexpr (!std::is_same<typename OperatorKernel::LayoutWB, typename OperatorKernel::LayoutB>::value) {
+            isThisKernelPaddingB_ = true;
+        }
+
+        LayoutA layoutA = LayoutA::template MakeLayout<ElementA>(config->m, config->k);
+        isNeedPaddingA_ = IsNeedPadding(layoutA, alignByElement);
+        LayoutA layoutB = LayoutB::template MakeLayout<ElementB>(config->k, config->n);
+        isNeedPaddingB_ = IsNeedPadding(layoutB, alignByElement);
+    }
+
+    virtual Status CanImplement(void *argsPtr, void *configPtr) override
+    {
+        // check the operator's padding configuration is correct under the given problem shape
+        BuildArgs(argsPtr, configPtr);
+
+        if ((isThisKernelPaddingA_ != isNeedPaddingA_) || (isThisKernelPaddingB_ != isNeedPaddingB_)) {
+            return Catlass::Status::kInvalid;
+        }
+
+        return this->op_.CanImplement(this->args_);
+    }
+
+    inline bool IsNeedPadding(Catlass::layout::RowMajor layout, uint32_t align)
+    {
+        // If the stride is greater than 65536, padding is required to reduce the stride.
+        if (layout.stride(0) < 65536) {
+            return layout.stride(0) % align != 0;
+        } else {
+            return true;
+        }
+    }
+
+    inline bool IsNeedPadding(Catlass::layout::ColumnMajor layout, uint32_t align)
+    {
+        // If the stride is greater than 65536, padding is required to reduce the stride.
+        if (layout.stride(1) < 65536) {
+            return layout.stride(1) % align != 0;
+        } else {
+            return true;
+        }
+    }
+
+    inline bool IsNeedPadding(Catlass::layout::zN layout, uint32_t align) {
+        return false;
+    }
+
+    inline bool IsNeedPadding(Catlass::layout::nZ layout, uint32_t align) {
+        return false;
+    }
+
+    bool isThisKernelPaddingA_{false};
+    bool isThisKernelPaddingB_{false};
+    bool isNeedPaddingA_{false};
+    bool isNeedPaddingB_{false};
+};
+/********************* optimized matmul end *********************/
+
 }
 }
 
