@@ -106,6 +106,9 @@ def gen_testcase(path: str, param: OpParam) -> None:
     weightInt4 = pack_4bit_to_bytes(weight)
     weightInt4.dtype = np.int8
     weightInt4 = weightInt4.reshape([k, -1])
+    # ND -> NZ k需要整除 16 n需要整除64 否则需要补充padding逻辑
+    weightInt4 = weightInt4.reshape(k//16, 16, n//64, 32).transpose(2, 0, 1, 3)
+    weightInt4 = weightInt4.reshape(k, -1)
 
     # 存储输入输出和golden
     xInt4.tofile(os.path.join(path, "inputA.dat"))

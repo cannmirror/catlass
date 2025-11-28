@@ -81,6 +81,13 @@ class CatlassExampleTest(unittest.TestCase):
         case_cpp = [str(i) for i in [860, 5712, 4535, 0]]
         self.run_case("32_w4a8_matmul", case_cpp)
 
+    def test_36_w4a8_matmul_msd(self):
+        case_py = [str(i) for i in [256, 48, 3072, 5120]]
+        ret = subprocess.run(["python", os.path.join(
+            CMAKE_EXAMPLES_PATH, "36_w4a8_matmul_msd", "gen_data.py")] + case_py)
+        case_cpp = [str(i) for i in [256, 48, 3072, 5120, 0]]
+        self.run_case("32_w4a8_matmul", case_cpp)
+
 normal_cases = ["00_basic_matmul 256 512 1024 0",
                 "01_batched_matmul 5 256 512 1024 0",
                 "02_grouped_matmul_slice_m 128 512 1024 2048 0",
@@ -110,6 +117,7 @@ normal_cases = ["00_basic_matmul 256 512 1024 0",
                 "30_w8a16_matmul 256 512 1024 0",
                 "31_small_matmul 256 1024 256 0",
                 "33_basic_conv2d 2 33 43 112 80 3 3 2 2 2 2 1 1 1 1 0",
+                "36_w4a8_matmul_msd 256 48 3072 5120 0"
                 "102_dynamic_optimized_matmul 256 512 1024 0 0 0"
                 ]
 

@@ -88,14 +88,14 @@ void Run(Options const &options)
     using ElementD = bfloat16_t;
 
     using LayoutA = layout::RowMajor;
-    using LayoutB = layout::RowMajor;
+    using LayoutB = layout::zN;
     using LayoutScale = layout::RowMajor;
     using LayoutBias = layout::VectorLayout;
     using LayoutPerTokenScale = layout::VectorLayout;
     using LayoutD = layout::RowMajor;
 
     LayoutA layoutA{2 * m, k};
-    LayoutB layoutB{k, n};
+    LayoutB layoutB = LayoutB::template MakeLayout<ElementB>(k, n);
     LayoutScale layoutScale{quantGroupNum, n};
     LayoutBias layoutBias{n};
     LayoutPerTokenScale layoutPerTokenScale{m};
