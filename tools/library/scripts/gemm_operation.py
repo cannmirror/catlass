@@ -44,6 +44,10 @@ class GemmOperation:
             '00_basic_matmul': BasicMatmulKernelInstance,
             '08_grouped_matmul': GroupedMatmulKernelInstance,
             '02_grouped_matmul_slice_m': GroupedMatmulSliceMKernelInstance,
+            '06_optimized_matmul_without_padding': OptimizedMatmulWithoutPaddingKernelInstance,
+            '06_optimized_matmul_padding_ab': OptimizedMatmulPaddingAPaddingBKernelInstance,
+            '06_optimized_matmul_padding_a_only': OptimizedMatmulPaddingAOnlyKernelInstance,
+            '06_optimized_matmul_padding_b_only': OptimizedMatmulPaddingBOnlyKernelInstance,
         }
 
         self.body_template = """
@@ -224,6 +228,363 @@ class BasicMatmulKernelInstance:
             layout_a=gemm_operation.a_type.layout.to_code(),
             layout_b=gemm_operation.b_type.layout.to_code(),
             layout_c=gemm_operation.c_type.layout.to_code(),
+            block_swizzle=gemm_operation.block_swizzle
+        )
+        return src
+
+
+OPTIMIZED_MATMUL_TILE_COPY_DECLARATION = """
+template <
+    /// Tag indicating architecture
+    class ArchTag,
+    /// GemmType for A matrix operand
+    class AType,
+    /// GemmType type for B matrix operand
+    class BType,
+    /// GemmType type for C matrix operand
+    class CType,
+    /// GemmType type for Bias operand
+    class BiasType = void>
+struct TileCopyOpt : public Catlass::Gemm::Tile::TileCopy<ArchTag, AType, BType, CType, BiasType> {
+    using Base = Catlass::Gemm::Tile::TileCopy<ArchTag, AType, BType, CType, BiasType>;
+    using ElementA = typename Base::ElementA;
+    using ElementB = typename Base::ElementB;
+    using ElementAccumulator = typename Base::ElementAccumulator;
+
+    // When matrix A is row-major, if the number of rows in matrix A is less than 16,
+    // using the CopyGmToL1IntervalDataCopy method can improve the transfer efficiency.
+    // The situation is similar for matrix B. If the above conditions are met,
+    // please uncomment the following and comment out the original matrix A transfer method
+
+    // using CopyGmToL1A = Gemm::Tile::CopyGmToL1IntervalDataCopy<ArchTag, AType>;
+
+    using CopyGmToL1A = typename Base::CopyGmToL1A;
+    using CopyGmToL1B = typename Base::CopyGmToL1B;
+
+    using CopyL1ToL0A = typename Base::CopyL1ToL0A;
+    using CopyL1ToL0B = typename Base::CopyL1ToL0B;
+
+    using CopyL0CToGm = typename Base::CopyL0CToGm;
+    using BiasTypeSelector = typename Base::BiasTypeSelector;
+    using CopyGmToL1Bias = typename Base::CopyGmToL1Bias;
+    using CopyL1ToBT = typename Base::CopyL1ToBT;
+};
+"""
+
+
+PADDING_LAYOUT_DICT = {
+    library.LayoutType.zN: 'Catlass::Gemm::Kernel::PaddingTag::NO_PADDING',
+    library.LayoutType.nZ: 'Catlass::Gemm::Kernel::PaddingTag::NO_PADDING',
+}
+
+
+class OptimizedMatmulPaddingAPaddingBKernelInstance:
+    def __init__(self):
+        self.cpp_instance = 'OptimizedMatmulGemmOperation'
+        self.custom_headers = '#include "catlass/gemm/kernel/optimized_matmul.hpp"'
+        self.custom_common_decls = OPTIMIZED_MATMUL_TILE_COPY_DECLARATION
+        self.template = """
+        Gemm::Device::DeviceGemm<
+            Gemm::Kernel::OptimizedMatmul<
+                Catlass::Gemm::Kernel::PaddingBuilder<
+                    {padding_tag_a},
+                    {arch},
+                    {element_a},
+                    {layout_a},
+                    48 * 1024 / sizeof({element_a})
+                >::Padding,
+                Catlass::Gemm::Kernel::PaddingBuilder<
+                    {padding_tag_b},
+                    {arch},
+                    {element_b},
+                    {layout_b},
+                    48 * 1024 / sizeof({element_b})
+                >::Padding,
+                Gemm::Block::BlockMmad<
+                    Gemm::MmadAtlasA2Preload<true, true>,
+                    GemmShape<{l1_m}, {l1_n}, {l1_k}>,
+                    GemmShape<{l0_m}, {l0_n}, {l0_k}>,
+                    Gemm::GemmType<
+                        {element_a},
+                        Catlass::Gemm::Kernel::PaddingBuilder<
+                            {padding_tag_a},
+                            {arch},
+                            {element_a},
+                            {layout_a},
+                            48 * 1024 / sizeof({element_a})
+                        >::LayoutAfterPadding
+                    >,
+                    Gemm::GemmType<
+                        {element_b},
+                        Catlass::Gemm::Kernel::PaddingBuilder<
+                            {padding_tag_b},
+                            {arch},
+                            {element_b},
+                            {layout_b},
+                            48 * 1024 / sizeof({element_b})
+                        >::LayoutAfterPadding
+                    >,
+                    Gemm::GemmType<{element_c}, {layout_c}>,
+                    void,
+                    TileCopyOpt<
+                        {arch},
+                        Gemm::GemmType<
+                            {element_a},
+                            Catlass::Gemm::Kernel::PaddingBuilder<
+                                {padding_tag_a},
+                                {arch},
+                                {element_a},
+                                {layout_a},
+                                48 * 1024 / sizeof({element_a})
+                            >::LayoutAfterPadding
+                        >,
+                        Gemm::GemmType<
+                            {element_b},
+                            Catlass::Gemm::Kernel::PaddingBuilder<
+                                {padding_tag_b},
+                                {arch},
+                                {element_b},
+                                {layout_b},
+                                48 * 1024 / sizeof({element_b})
+                            >::LayoutAfterPadding
+                        >,
+                        Gemm::GemmType<{element_c}, {layout_c}>
+                    >
+                >,
+                void,
+                {block_swizzle}
+            >
+        >"""
+
+    def gen_src(self, gemm_operation):
+        src = self.template.format(
+            l1_m=str(gemm_operation.l1_tile_shape[0]),
+            l1_n=str(gemm_operation.l1_tile_shape[1]),
+            l1_k=str(gemm_operation.l1_tile_shape[2]),
+            l0_m=str(gemm_operation.l0_tile_shape[0]),
+            l0_n=str(gemm_operation.l0_tile_shape[1]),
+            l0_k=str(gemm_operation.l0_tile_shape[2]),
+            element_a=gemm_operation.a_type.element_type.to_code(),
+            element_b=gemm_operation.b_type.element_type.to_code(),
+            element_c=gemm_operation.c_type.element_type.to_code(),
+            layout_a=gemm_operation.a_type.layout.to_code(),
+            layout_b=gemm_operation.b_type.layout.to_code(),
+            layout_c=gemm_operation.c_type.layout.to_code(),
+            arch=gemm_operation.arch.to_code(),
+            padding_tag_a=PADDING_LAYOUT_DICT.get(
+                gemm_operation.a_type.layout,
+                'Catlass::Gemm::Kernel::PaddingTag::PADDING_NZ'
+            ),
+            padding_tag_b=PADDING_LAYOUT_DICT.get(
+                gemm_operation.b_type.layout,
+                'Catlass::Gemm::Kernel::PaddingTag::PADDING_NZ'
+            ),
+            block_swizzle=gemm_operation.block_swizzle
+        )
+        return src
+
+
+class OptimizedMatmulPaddingAOnlyKernelInstance:
+    def __init__(self):
+        self.cpp_instance = 'OptimizedMatmulGemmOperation'
+        self.custom_headers = '#include "catlass/gemm/kernel/optimized_matmul.hpp"'
+        self.custom_common_decls = OPTIMIZED_MATMUL_TILE_COPY_DECLARATION
+        self.template = """
+        Gemm::Device::DeviceGemm<
+            Gemm::Kernel::OptimizedMatmul<
+                Catlass::Gemm::Kernel::PaddingBuilder<
+                    {padding_tag_a},
+                    {arch},
+                    {element_a},
+                    {layout_a},
+                    48 * 1024 / sizeof({element_a})
+                >::Padding,
+                void,
+                Gemm::Block::BlockMmad<
+                    Gemm::MmadAtlasA2Preload<true, true>,
+                    GemmShape<{l1_m}, {l1_n}, {l1_k}>,
+                    GemmShape<{l0_m}, {l0_n}, {l0_k}>,
+                    Gemm::GemmType<
+                        {element_a},
+                        Catlass::Gemm::Kernel::PaddingBuilder<
+                            {padding_tag_a},
+                            {arch},
+                            {element_a},
+                            {layout_a},
+                            48 * 1024 / sizeof({element_a})
+                        >::LayoutAfterPadding
+                    >,
+                    Gemm::GemmType<{element_b}, {layout_b}>,
+                    Gemm::GemmType<{element_c}, {layout_c}>,
+                    void,
+                    TileCopyOpt<
+                        {arch},
+                        Gemm::GemmType<
+                            {element_a},
+                            Catlass::Gemm::Kernel::PaddingBuilder<
+                                {padding_tag_a},
+                                {arch},
+                                {element_a},
+                                {layout_a},
+                                48 * 1024 / sizeof({element_a})
+                            >::LayoutAfterPadding
+                        >,
+                        Gemm::GemmType<{element_b}, {layout_b}>,
+                        Gemm::GemmType<{element_c}, {layout_c}>
+                    >
+                >,
+                void,
+                {block_swizzle}
+            >
+        >"""
+
+    def gen_src(self, gemm_operation):
+        src = self.template.format(
+            l1_m=str(gemm_operation.l1_tile_shape[0]),
+            l1_n=str(gemm_operation.l1_tile_shape[1]),
+            l1_k=str(gemm_operation.l1_tile_shape[2]),
+            l0_m=str(gemm_operation.l0_tile_shape[0]),
+            l0_n=str(gemm_operation.l0_tile_shape[1]),
+            l0_k=str(gemm_operation.l0_tile_shape[2]),
+            element_a=gemm_operation.a_type.element_type.to_code(),
+            element_b=gemm_operation.b_type.element_type.to_code(),
+            element_c=gemm_operation.c_type.element_type.to_code(),
+            layout_a=gemm_operation.a_type.layout.to_code(),
+            layout_b=gemm_operation.b_type.layout.to_code(),
+            layout_c=gemm_operation.c_type.layout.to_code(),
+            arch=gemm_operation.arch.to_code(),
+            padding_tag_a=PADDING_LAYOUT_DICT.get(
+                gemm_operation.a_type.layout,
+                'Catlass::Gemm::Kernel::PaddingTag::PADDING_NZ'
+            ),
+            block_swizzle=gemm_operation.block_swizzle
+        )
+        return src
+
+
+class OptimizedMatmulPaddingBOnlyKernelInstance:
+    def __init__(self):
+        self.cpp_instance = 'OptimizedMatmulGemmOperation'
+        self.custom_headers = '#include "catlass/gemm/kernel/optimized_matmul.hpp"'
+        self.custom_common_decls = OPTIMIZED_MATMUL_TILE_COPY_DECLARATION
+        self.template = """
+        Gemm::Device::DeviceGemm<
+            Gemm::Kernel::OptimizedMatmul<
+                void,
+                Catlass::Gemm::Kernel::PaddingBuilder<
+                    {padding_tag_b},
+                    {arch},
+                    {element_b},
+                    {layout_b},
+                    48 * 1024 / sizeof({element_b})
+                >::Padding,
+                Gemm::Block::BlockMmad<
+                    Gemm::MmadAtlasA2Preload<true, true>,
+                    GemmShape<{l1_m}, {l1_n}, {l1_k}>,
+                    GemmShape<{l0_m}, {l0_n}, {l0_k}>,
+                    Gemm::GemmType<{element_a}, {layout_a}>,
+                    Gemm::GemmType<
+                        {element_b},
+                        Catlass::Gemm::Kernel::PaddingBuilder<
+                            {padding_tag_b},
+                            {arch},
+                            {element_b},
+                            {layout_b},
+                            48 * 1024 / sizeof({element_b})
+                        >::LayoutAfterPadding
+                    >,
+                    Gemm::GemmType<{element_c}, {layout_c}>,
+                    void,
+                    TileCopyOpt<
+                        {arch},
+                        Gemm::GemmType<{element_a}, {layout_a}>,
+                        Gemm::GemmType<
+                            {element_b},
+                            Catlass::Gemm::Kernel::PaddingBuilder<
+                                {padding_tag_b},
+                                {arch},
+                                {element_b},
+                                {layout_b},
+                                48 * 1024 / sizeof({element_b})
+                            >::LayoutAfterPadding
+                        >,
+                        Gemm::GemmType<{element_c}, {layout_c}>
+                    >
+                >,
+                void,
+                {block_swizzle}
+            >
+        >"""
+
+    def gen_src(self, gemm_operation):
+        src = self.template.format(
+            l1_m=str(gemm_operation.l1_tile_shape[0]),
+            l1_n=str(gemm_operation.l1_tile_shape[1]),
+            l1_k=str(gemm_operation.l1_tile_shape[2]),
+            l0_m=str(gemm_operation.l0_tile_shape[0]),
+            l0_n=str(gemm_operation.l0_tile_shape[1]),
+            l0_k=str(gemm_operation.l0_tile_shape[2]),
+            element_a=gemm_operation.a_type.element_type.to_code(),
+            element_b=gemm_operation.b_type.element_type.to_code(),
+            element_c=gemm_operation.c_type.element_type.to_code(),
+            layout_a=gemm_operation.a_type.layout.to_code(),
+            layout_b=gemm_operation.b_type.layout.to_code(),
+            layout_c=gemm_operation.c_type.layout.to_code(),
+            arch=gemm_operation.arch.to_code(),
+            padding_tag_b=PADDING_LAYOUT_DICT.get(
+                gemm_operation.b_type.layout,
+                'Catlass::Gemm::Kernel::PaddingTag::PADDING_NZ'
+            ),
+            block_swizzle=gemm_operation.block_swizzle
+        )
+        return src
+
+
+class OptimizedMatmulWithoutPaddingKernelInstance:
+    def __init__(self):
+        self.cpp_instance = 'OptimizedMatmulGemmOperation'
+        self.custom_headers = '#include "catlass/gemm/kernel/optimized_matmul.hpp"'
+        self.custom_common_decls = OPTIMIZED_MATMUL_TILE_COPY_DECLARATION
+        self.template = """
+        Gemm::Device::DeviceGemm<
+            Gemm::Kernel::OptimizedMatmul<
+                void,
+                void,
+                Gemm::Block::BlockMmad<
+                    Gemm::MmadAtlasA2Preload<true, true>,
+                    GemmShape<{l1_m}, {l1_n}, {l1_k}>,
+                    GemmShape<{l0_m}, {l0_n}, {l0_k}>,
+                    Gemm::GemmType<{element_a}, {layout_a}>,
+                    Gemm::GemmType<{element_b}, {layout_b}>,
+                    Gemm::GemmType<{element_c}, {layout_c}>,
+                    void,
+                    TileCopyOpt<
+                        {arch},
+                        Gemm::GemmType<{element_a}, {layout_a}>,
+                        Gemm::GemmType<{element_b}, {layout_b}>,
+                        Gemm::GemmType<{element_c}, {layout_c}>
+                    >
+                >,
+                void,
+                {block_swizzle}
+            >
+        >"""
+
+    def gen_src(self, gemm_operation):
+        src = self.template.format(
+            l1_m=str(gemm_operation.l1_tile_shape[0]),
+            l1_n=str(gemm_operation.l1_tile_shape[1]),
+            l1_k=str(gemm_operation.l1_tile_shape[2]),
+            l0_m=str(gemm_operation.l0_tile_shape[0]),
+            l0_n=str(gemm_operation.l0_tile_shape[1]),
+            l0_k=str(gemm_operation.l0_tile_shape[2]),
+            element_a=gemm_operation.a_type.element_type.to_code(),
+            element_b=gemm_operation.b_type.element_type.to_code(),
+            element_c=gemm_operation.c_type.element_type.to_code(),
+            layout_a=gemm_operation.a_type.layout.to_code(),
+            layout_b=gemm_operation.b_type.layout.to_code(),
+            layout_c=gemm_operation.c_type.layout.to_code(),
+            arch=gemm_operation.arch.to_code(),
             block_swizzle=gemm_operation.block_swizzle
         )
         return src
