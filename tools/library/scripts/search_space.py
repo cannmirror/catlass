@@ -342,6 +342,226 @@ def register_gemm_08_grouped_matmul_operation(manifest):
 ################## 02_grouped_matmul_slice_m end ##################
 
 
+################## 06_optimized_matmul_padding_ab ##################
+@OperationRegistry.register('06_optimized_matmul_padding_ab')
+def register_gemm_06_optimized_matmul_padding_ab_operation(manifest):
+
+    layouts = [
+        [library.LayoutType.RowMajor, library.LayoutType.RowMajor, library.LayoutType.RowMajor],
+    ]
+    data_types = [
+        [library.DataType.fp16, library.DataType.fp16, library.DataType.fp16],
+    ]
+    block_swizzle_descriptions = [
+        'Gemm::Block::GemmIdentityBlockSwizzle<3, 0>',
+    ]
+
+    # generate L1/L0TileShape search space
+    tile_shapes = list(generate_tile_shapes(
+        tile_shape_constraint_for_pingpong, # 自定义减枝函数
+        element_sizes=(2, 2, 4), # size of ElementA, ElementB, ElementAccumulator
+        stages=(2),
+        step=16,
+        tile_shape_range=TileShapeRange(
+            l1_tile_m_range=(32, 256),
+            l1_tile_n_range=(128, 256),
+            l1_tile_k_range=(128, 256),
+            l0_tile_m_range=(32, 256),
+            l0_tile_n_range=(128, 256),
+            l0_tile_k_range=(32, 64)
+        )
+    ))
+    LOGGER.info(f'06_optimized_matmul_padding_ab tile_shapes size={len(tile_shapes)}')
+
+    # 正交tiling参数组合
+    for layout, data_type, tile_shape, block_swizzle in product(
+        layouts,
+        data_types,
+        tile_shapes,
+        block_swizzle_descriptions
+    ):
+        l1_tile_shape, l0_tile_shape = tile_shape
+        tensor_a = library.GemmTypeDescription(data_type[0], layout[0])
+        tensor_b = library.GemmTypeDescription(data_type[1], layout[1])
+        tensor_c = library.GemmTypeDescription(data_type[2], layout[2])
+        op = GemmOperation(
+            kernel_type='06_optimized_matmul_padding_ab',
+            l1_tile_shape=l1_tile_shape,
+            l0_tile_shape=l0_tile_shape,
+            a_type=tensor_a,
+            b_type=tensor_b,
+            c_type=tensor_c,
+            block_swizzle=block_swizzle,
+        )
+        manifest.append(op)
+################## 06_optimized_matmul_padding_ab end ##################
+
+
+################## 06_optimized_matmul_padding_a_only ##################
+@OperationRegistry.register('06_optimized_matmul_padding_a_only')
+def register_gemm_06_optimized_matmul_padding_a_only_operation(manifest):
+
+    layouts = [
+        [library.LayoutType.RowMajor, library.LayoutType.RowMajor, library.LayoutType.RowMajor],
+    ]
+    data_types = [
+        [library.DataType.fp16, library.DataType.fp16, library.DataType.fp16],
+    ]
+    block_swizzle_descriptions = [
+        'Gemm::Block::GemmIdentityBlockSwizzle<3, 0>',
+    ]
+
+    # generate L1/L0TileShape search space
+    tile_shapes = list(generate_tile_shapes(
+        tile_shape_constraint_for_pingpong, # 自定义减枝函数
+        element_sizes=(2, 2, 4), # size of ElementA, ElementB, ElementAccumulator
+        stages=(2),
+        step=16,
+        tile_shape_range=TileShapeRange(
+            l1_tile_m_range=(32, 256),
+            l1_tile_n_range=(128, 256),
+            l1_tile_k_range=(128, 256),
+            l0_tile_m_range=(32, 256),
+            l0_tile_n_range=(128, 256),
+            l0_tile_k_range=(32, 64)
+        )
+    ))
+    LOGGER.info(f'06_optimized_matmul_padding_a_only tile_shapes size={len(tile_shapes)}')
+
+    # 正交tiling参数组合
+    for layout, data_type, tile_shape, block_swizzle in product(
+        layouts,
+        data_types,
+        tile_shapes,
+        block_swizzle_descriptions
+    ):
+        l1_tile_shape, l0_tile_shape = tile_shape
+        tensor_a = library.GemmTypeDescription(data_type[0], layout[0])
+        tensor_b = library.GemmTypeDescription(data_type[1], layout[1])
+        tensor_c = library.GemmTypeDescription(data_type[2], layout[2])
+        op = GemmOperation(
+            kernel_type='06_optimized_matmul_padding_a_only',
+            l1_tile_shape=l1_tile_shape,
+            l0_tile_shape=l0_tile_shape,
+            a_type=tensor_a,
+            b_type=tensor_b,
+            c_type=tensor_c,
+            block_swizzle=block_swizzle,
+        )
+        manifest.append(op)
+################## 06_optimized_matmul_padding_a_only end ##################
+
+
+################## 06_optimized_matmul_padding_b_only ##################
+@OperationRegistry.register('06_optimized_matmul_padding_b_only')
+def register_gemm_06_optimized_matmul_padding_b_only_operation(manifest):
+
+    layouts = [
+        [library.LayoutType.RowMajor, library.LayoutType.RowMajor, library.LayoutType.RowMajor],
+    ]
+    data_types = [
+        [library.DataType.fp16, library.DataType.fp16, library.DataType.fp16],
+    ]
+    block_swizzle_descriptions = [
+        'Gemm::Block::GemmIdentityBlockSwizzle<3, 0>',
+    ]
+
+    # generate L1/L0TileShape search space
+    tile_shapes = list(generate_tile_shapes(
+        tile_shape_constraint_for_pingpong, # 自定义减枝函数
+        element_sizes=(2, 2, 4), # size of ElementA, ElementB, ElementAccumulator
+        stages=(2),
+        step=16,
+        tile_shape_range=TileShapeRange(
+            l1_tile_m_range=(32, 256),
+            l1_tile_n_range=(128, 256),
+            l1_tile_k_range=(128, 256),
+            l0_tile_m_range=(32, 256),
+            l0_tile_n_range=(128, 256),
+            l0_tile_k_range=(32, 64)
+        )
+    ))
+    LOGGER.info(f'06_optimized_matmul_padding_b_only tile_shapes size={len(tile_shapes)}')
+
+    # 正交tiling参数组合
+    for layout, data_type, tile_shape, block_swizzle in product(
+        layouts,
+        data_types,
+        tile_shapes,
+        block_swizzle_descriptions
+    ):
+        l1_tile_shape, l0_tile_shape = tile_shape
+        tensor_a = library.GemmTypeDescription(data_type[0], layout[0])
+        tensor_b = library.GemmTypeDescription(data_type[1], layout[1])
+        tensor_c = library.GemmTypeDescription(data_type[2], layout[2])
+        op = GemmOperation(
+            kernel_type='06_optimized_matmul_padding_b_only',
+            l1_tile_shape=l1_tile_shape,
+            l0_tile_shape=l0_tile_shape,
+            a_type=tensor_a,
+            b_type=tensor_b,
+            c_type=tensor_c,
+            block_swizzle=block_swizzle,
+        )
+        manifest.append(op)
+################## 06_optimized_matmul_padding_b_only end ##################
+
+
+################## 06_optimized_matmul_without_padding ##################
+@OperationRegistry.register('06_optimized_matmul_without_padding')
+def register_gemm_06_optimized_matmul_without_padding_operation(manifest):
+
+    layouts = [
+        [library.LayoutType.RowMajor, library.LayoutType.RowMajor, library.LayoutType.RowMajor],
+    ]
+    data_types = [
+        [library.DataType.fp16, library.DataType.fp16, library.DataType.fp16],
+    ]
+    block_swizzle_descriptions = [
+        'Gemm::Block::GemmIdentityBlockSwizzle<3, 0>',
+    ]
+
+    # generate L1/L0TileShape search space
+    tile_shapes = list(generate_tile_shapes(
+        tile_shape_constraint_for_pingpong, # 自定义减枝函数
+        element_sizes=(2, 2, 4), # size of ElementA, ElementB, ElementAccumulator
+        stages=(2),
+        step=16,
+        tile_shape_range=TileShapeRange(
+            l1_tile_m_range=(32, 256),
+            l1_tile_n_range=(128, 256),
+            l1_tile_k_range=(128, 256),
+            l0_tile_m_range=(32, 256),
+            l0_tile_n_range=(128, 256),
+            l0_tile_k_range=(32, 64)
+        )
+    ))
+    LOGGER.info(f'06_optimized_matmul_without_padding tile_shapes size={len(tile_shapes)}')
+
+    # 正交tiling参数组合
+    for layout, data_type, tile_shape, block_swizzle in product(
+        layouts,
+        data_types,
+        tile_shapes,
+        block_swizzle_descriptions
+    ):
+        l1_tile_shape, l0_tile_shape = tile_shape
+        tensor_a = library.GemmTypeDescription(data_type[0], layout[0])
+        tensor_b = library.GemmTypeDescription(data_type[1], layout[1])
+        tensor_c = library.GemmTypeDescription(data_type[2], layout[2])
+        op = GemmOperation(
+            kernel_type='06_optimized_matmul_without_padding',
+            l1_tile_shape=l1_tile_shape,
+            l0_tile_shape=l0_tile_shape,
+            a_type=tensor_a,
+            b_type=tensor_b,
+            c_type=tensor_c,
+            block_swizzle=block_swizzle,
+        )
+        manifest.append(op)
+################## 06_optimized_matmul_without_padding end ##################
+
+
 ################## 08_grouped_matmul ##################
 @OperationRegistry.register('08_grouped_matmul')
 def register_gemm_08_grouped_matmul_operation(manifest):
