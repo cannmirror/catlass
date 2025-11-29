@@ -116,7 +116,6 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
     using RemovePaddingC = typename RemovePaddingBuilderC::Padding;
 
     constexpr bool enableUnitFlag = true;
-    constexpr bool enableShuffleK = true;
     constexpr uint32_t l0CStages = 1;
 
     using AType = Catlass::Gemm::GemmType<ElementA, typename PaddingBuilderA::LayoutAfterPadding>;
