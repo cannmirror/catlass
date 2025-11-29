@@ -853,7 +853,7 @@ public:
         uint32_t aivNum, aivId;
         if (useSingleCore) {
             aivNum = AscendC::GetSubBlockNum();
-            aivId = AscendC::GetBlockIdx() % aivNum;
+            aivId = AscendC::GetSubBlockIdx();
         } else {
             aivNum = AscendC::GetBlockNum() * AscendC::GetSubBlockNum();
             aivId = AscendC::GetBlockIdx();
