@@ -71,7 +71,8 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
     * | 46-47  | 2    | m0               | uint16_t  | l0 mTile(16-bit to save space)|
     * | 48-49  | 2    | n0               | uint16_t  | l0 nTile(16-bit to save space)|
     * | 50-51  | 2    | k0               | uint16_t  | l0 kTile(16-bit to save space)|
-    * | 52-55  | 6    | (reserved)       | -         | unused                        |
+    * | 52-53  | 2    | m1Factor         | uint16_t  | m1 factor for swizzle         |
+    * | 54-55  | 2    | n1Factor         | uint16_t  | n1 factor for swizzle         |
     * --------------------------------------------------------------------------------
     */
 
