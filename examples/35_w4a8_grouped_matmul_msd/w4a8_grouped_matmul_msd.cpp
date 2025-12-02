@@ -67,7 +67,7 @@ void Run(Options const &options)
     uint32_t quantGroupNum = k / kGroupSize;
 
     size_t lenA = static_cast<size_t>(m) * k;
-    size_t lenB = static_cast<size_t>(k) * n * problemCount;
+    size_t lenB = static_cast<size_t>(k) * ((n/2+31)/32*32) * problemCount;
     size_t lenScale = static_cast<size_t>(n) * quantGroupNum * problemCount;
     size_t lenBias = static_cast<size_t>(n) * problemCount;
     size_t lenPerTokenScale = static_cast<size_t>(m);
@@ -75,7 +75,7 @@ void Run(Options const &options)
 
     size_t sizeGroupList = problemCount * sizeof(int32_t);
     size_t sizeA = lenA * sizeof(int8_t);
-    size_t sizeB = lenB * sizeof(int8_t) / 2;
+    size_t sizeB = lenB * sizeof(int8_t);
     size_t sizeScale = lenScale * sizeof(uint64_t);
     size_t sizeBias = lenBias * sizeof(float);
     size_t sizePerTokenScale = lenPerTokenScale * sizeof(float);

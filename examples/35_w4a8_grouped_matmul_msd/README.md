@@ -22,7 +22,7 @@ g=30
 kGroupSize=320
 m=77
 k=1280
-n=8192
+n=8190
 device=0
 
 function build() {
