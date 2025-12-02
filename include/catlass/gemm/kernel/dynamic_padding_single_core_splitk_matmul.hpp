@@ -612,6 +612,8 @@ public:
         GM_ADDR ptrWC;
         uint32_t swizzleOffset;
         uint32_t swizzleDirection;
+        uint32_t m1Factor;
+        uint32_t n1Factor;
 
         // Methods
         CATLASS_HOST_DEVICE
@@ -621,10 +623,12 @@ public:
         CATLASS_HOST_DEVICE
         Params(GemmCoord const &problemShape_, GemmCoord const &l1TileShape_, GemmCoord const &l0TileShape_, 
             GM_ADDR ptrA_, LayoutA& layoutA_, GM_ADDR ptrB_, LayoutB& layoutB_, GM_ADDR ptrC_, LayoutC& layoutC_,
-            GM_ADDR ptrWA_, GM_ADDR ptrWB_, GM_ADDR ptrWC_, uint32_t swizzleOffset_, uint32_t swizzleDirection_)
+            GM_ADDR ptrWA_, GM_ADDR ptrWB_, GM_ADDR ptrWC_, uint32_t swizzleOffset_, uint32_t swizzleDirection_,
+            uint32_t m1Factor_, uint32_t n1Factor_)
             : problemShape(problemShape_), l1TileShape(l1TileShape_), l0TileShape(l0TileShape_), ptrA(ptrA_),
             layoutA(layoutA_), ptrB(ptrB_), layoutB(layoutB_), ptrC(ptrC_), layoutC(layoutC_), ptrWA(ptrWA_),
-            ptrWB(ptrWB_), ptrWC(ptrWC_), swizzleOffset(swizzleOffset_), swizzleDirection(swizzleDirection_)
+            ptrWB(ptrWB_), ptrWC(ptrWC_), swizzleOffset(swizzleOffset_), swizzleDirection(swizzleDirection_),
+            m1Factor(m1Factor_), n1Factor(n1Factor_)
         {}
     };
 
@@ -720,64 +724,93 @@ public:
         }
         BlockMmad blockMmad(params.l1TileShape, params.l0TileShape, resource);
 
-        BlockScheduler matmulBlockScheduler(params.problemShape, params.l1TileShape, params.swizzleOffset, params.swizzleDirection);
+        MatrixCoord logicTile{params.l1TileShape.m() * params.m1Factor, params.l1TileShape.n() * params.n1Factor};
+        BlockScheduler matmulBlockScheduler(params.problemShape, logicTile, params.swizzleOffset, params.swizzleDirection);
         uint32_t coreLoops = matmulBlockScheduler.GetCoreLoops();
 
-        GemmCoord baseBlockCoord, nextBaseBlockCoord;
-        GemmCoord baseBlockShape, nextBaseBlockShape;
-        GemmCoord baseOffsetCoord, nextBaseOffsetCoord;
+        GemmCoord logicBlockCoord, nextLogicBlockCoord;
+        GemmCoord logicBlockShape, nextLogicBlockShape;
+        GemmCoord offsetCoord, nextOffsetCoord;
 
         // LayoutWC RowMajor
-        GemmCoord baseTile = matmulBlockScheduler.GetBaseTile();
-        LayoutC layoutWC{baseTile.m(), baseTile.n(), baseTile.n()};
+        uint32_t strideWC = RoundUp(logicTile.column(), 512 / sizeof(ElementAccumulator));
+        LayoutC layoutWC{logicTile.row(), logicTile.column(), strideWC};
         uint64_t gmWcSliceSize = layoutWC.Capacity();
 
         // both AIC and AIV has this variable, and should update it separately
         uint32_t flagAivFinishMoveGmcBufId = 0;
         for (uint32_t loopIdx = aiCoreIdx; loopIdx < coreLoops; loopIdx += AscendC::GetBlockNum()) {
-            bool isFirstBaseBlock = (loopIdx == aiCoreIdx);
-            if (isFirstBaseBlock) {
-                baseBlockCoord = matmulBlockScheduler.GetBaseBlockCoord(loopIdx);
-                baseBlockShape = matmulBlockScheduler.GetBaseBlockShape(baseBlockCoord);
-                baseOffsetCoord = matmulBlockScheduler.GetBaseOffsetCoord(baseBlockCoord);
+            bool isFirstLogicBlock = (loopIdx == aiCoreIdx);
+            if (isFirstLogicBlock) {
+                logicBlockCoord = matmulBlockScheduler.GetBlockCoord(loopIdx);
+                logicBlockShape = matmulBlockScheduler.GetActualBlockShape(logicBlockCoord);
+                offsetCoord = GemmCoord{logicBlockCoord.m() * params.m1Factor, logicBlockCoord.n() * params.n1Factor, 0};
             } else {
-                baseBlockCoord = nextBaseBlockCoord;
-                baseBlockShape = nextBaseBlockShape;
-                baseOffsetCoord = nextBaseOffsetCoord;
+                logicBlockCoord = nextLogicBlockCoord;
+                logicBlockShape = nextLogicBlockShape;
+                offsetCoord = nextOffsetCoord;
             }
 
-            bool hasNextBaseBlock = (loopIdx + AscendC::GetBlockNum() < coreLoops);
-            if (hasNextBaseBlock) {
-                nextBaseBlockCoord = matmulBlockScheduler.GetBaseBlockCoord(loopIdx + AscendC::GetBlockNum());
-                nextBaseBlockShape = matmulBlockScheduler.GetBaseBlockShape(nextBaseBlockCoord);
-                nextBaseOffsetCoord = matmulBlockScheduler.GetBaseOffsetCoord(nextBaseBlockCoord);
+            bool hasNextLogicBlock = (loopIdx + AscendC::GetBlockNum() < coreLoops);
+            if (hasNextLogicBlock) {
+                nextLogicBlockCoord = matmulBlockScheduler.GetBlockCoord(loopIdx + AscendC::GetBlockNum());
+                nextLogicBlockShape = matmulBlockScheduler.GetActualBlockShape(nextLogicBlockCoord);
+                nextOffsetCoord = GemmCoord{nextLogicBlockCoord.m() * params.m1Factor, nextLogicBlockCoord.n() * params.n1Factor, 0};
             }
 
-            GemmCoord innerLoopsMNK = CeilDiv(baseBlockShape, params.l1TileShape);
+            GemmCoord innerLoopsMNK = CeilDiv(logicBlockShape, params.l1TileShape);
             uint32_t innerLoops = innerLoopsMNK.m() * innerLoopsMNK.n() * innerLoopsMNK.k();
 
+            // locate the offset of current logicTile workspace slice
             int64_t gmOffsetWcSlice = (aiCoreIdx * GMWC_BUFFER_NUM + flagAivFinishMoveGmcBufId) * gmWcSliceSize;
 
             if ASCEND_IS_AIC {
                 Catlass::Arch::CrossCoreWaitFlag(flagAivFinishMoveGmcIds[flagAivFinishMoveGmcBufId]);
 
                 GemmCoord innerCoord;
-                GemmCoord blockCoord, nextBlockCoord; // actual BlockCoord
-                GemmCoord actualBlockShape, nextActualBlockShape;
+                GemmCoord blockCoord, nextBlockCoord; // actual blockCoord for mmad
+                GemmCoord actualBlockShape, nextActualBlockShape; // actual blockShape for mmad
+
+                bool reuseL1A = (params.m1Factor <= params.n1Factor);
+                auto GetInnerCoord = [](const GemmCoord &innerLoopsMNK, uint32_t innerLoopIdx, bool reuseL1A) {
+                    uint32_t mIdx, nIdx, kIdx;
+                    if (reuseL1A) {
+                        nIdx = innerLoopIdx % innerLoopsMNK.n();
+                        kIdx = (innerLoopIdx / innerLoopsMNK.n()) % innerLoopsMNK.k();
+                        mIdx = innerLoopIdx / (innerLoopsMNK.n() * innerLoopsMNK.k());
+                    } else {
+                        mIdx = innerLoopIdx % innerLoopsMNK.m();
+                        kIdx = (innerLoopIdx / innerLoopsMNK.m()) % innerLoopsMNK.k();
+                        nIdx = innerLoopIdx / (innerLoopsMNK.m() * innerLoopsMNK.k());
+                    }
+                    return GemmCoord {mIdx, nIdx, kIdx};
+                };
+                // Get actual block shape for mmad
+                auto GetActualBlockShape = [](const GemmCoord &problemShape, const GemmCoord &l1TileShape, const GemmCoord &blockCoord) {
+                    GemmCoord loopsMNK = CeilDiv(problemShape, l1TileShape);
+                    uint32_t mActual = (blockCoord.m() == (loopsMNK.m() - 1)) ? 
+                        (problemShape.m() - blockCoord.m() * l1TileShape.m()) : l1TileShape.m();
+                    uint32_t nActual = (blockCoord.n() == (loopsMNK.n() - 1)) ? 
+                        (problemShape.n() - blockCoord.n() * l1TileShape.n()) : l1TileShape.n();
+                    uint32_t kActual = (blockCoord.k() == (loopsMNK.k() - 1)) ? 
+                        (problemShape.k() - blockCoord.k() * l1TileShape.k()) : l1TileShape.k();
+                    return GemmCoord{mActual, nActual, kActual};
+                };
+
                 for (uint32_t innerLoopIdx = 0; innerLoopIdx < innerLoops; innerLoopIdx++) {
-                    innerCoord = matmulBlockScheduler.GetInnerCoord(innerLoopsMNK, innerLoopIdx);
-                    blockCoord = baseOffsetCoord + innerCoord;
-                    actualBlockShape = matmulBlockScheduler.GetActualBlockShape(blockCoord);
+                    innerCoord = GetInnerCoord(innerLoopsMNK, innerLoopIdx, reuseL1A);
+                    blockCoord = offsetCoord + innerCoord;
+                    actualBlockShape = GetActualBlockShape(params.problemShape, params.l1TileShape, blockCoord);
 
                     if (innerLoopIdx < innerLoops - 1) {
-                        nextBlockCoord = baseOffsetCoord + matmulBlockScheduler.GetInnerCoord(innerLoopsMNK, innerLoopIdx + 1);
+                        nextBlockCoord = offsetCoord + GetInnerCoord(innerLoopsMNK, innerLoopIdx + 1, reuseL1A);
                     } else {
-                        nextBlockCoord = nextBaseOffsetCoord;
+                        nextBlockCoord = nextOffsetCoord;
                     }
-                    nextActualBlockShape = matmulBlockScheduler.GetActualBlockShape(nextBlockCoord);
+                    nextActualBlockShape = GetActualBlockShape(params.problemShape, params.l1TileShape, nextBlockCoord);
 
                     bool needLoadNextA = false, needLoadNextB = false;
-                    if (hasNextBaseBlock || (innerLoopIdx < innerLoops - 1)) {
+                    if (hasNextLogicBlock || (innerLoopIdx < innerLoops - 1)) {
                         needLoadNextA = (blockCoord.k() != nextBlockCoord.k()) || (blockCoord.m() != nextBlockCoord.m());
                         needLoadNextB = (blockCoord.k() != nextBlockCoord.k()) || (blockCoord.n() != nextBlockCoord.n());
                     }
@@ -822,9 +855,9 @@ public:
             } else if ASCEND_IS_AIV {
                 Catlass::Arch::CrossCoreWaitFlag(flagAicFinish);
 
-                MatrixCoord coordBaseBlock{baseOffsetCoord.m() * params.l1TileShape.m(), baseOffsetCoord.n() * params.l1TileShape.n()};
-                uint64_t gmOffsetBaseBlock = layoutC.GetOffset(coordBaseBlock);
-                LayoutC layoutInWC{baseBlockShape.m(), baseBlockShape.n(), baseTile.n()};
+                MatrixCoord coordOffsetCoord{offsetCoord.m() * params.l1TileShape.m(), offsetCoord.n() * params.l1TileShape.n()};
+                uint64_t gmOffsetBaseBlock = layoutC.GetOffset(coordOffsetCoord);
+                LayoutC layoutInWC{logicBlockShape.m(), logicBlockShape.n(), strideWC};
 
                 constexpr bool useSingleCore = true; // only use 2 vector of current aicore
                 removePaddingNDAndCastC(gmC[gmOffsetBaseBlock], gmWC[gmOffsetWcSlice], params.layoutC, layoutInWC, useSingleCore);
@@ -833,6 +866,7 @@ public:
                 flagAivFinishMoveGmcBufId = (flagAivFinishMoveGmcBufId + 1) % GMWC_BUFFER_NUM; // update in AIV
             }
         }
+
         if ASCEND_IS_AIC {
             Catlass::Arch::CrossCoreWaitFlag(flagAivFinishMoveGmcIds[0]);
             Catlass::Arch::CrossCoreWaitFlag(flagAivFinishMoveGmcIds[1]);
