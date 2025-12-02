@@ -234,7 +234,11 @@ void Run(Options const &options)
         devicePerTokenScale, layoutPerTokenScale,
         deviceD, layoutD
     };
-    matmulOp.CanImplement(arguments);
+    
+    if (matmulOp.CanImplement(arguments) == Status::kInvalid) {
+        std::cerr << "matmulOp can not implement current arguments." << std::endl;
+        return;
+    }
 
     size_t sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
     uint8_t *deviceWorkspace = nullptr;

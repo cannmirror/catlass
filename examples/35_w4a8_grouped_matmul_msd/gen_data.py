@@ -108,11 +108,12 @@ def gen_testcase(path: str, param: OpParam) -> None:
     quantGroupNum = k // kGroupSize
 
     assert not transA and not transB, "Transposition is not supported for matrices A and B"
-    assert k % 2 == 0 and n % 2 == 0, "k and n should be even"
-    assert k % kGroupSize == 0, "kGroupSize should be divisible by k"
+    assert k % 16 == 0, "k must be divisible by 16"
+    assert n % 64 == 0, "n must be divisible by 64"
+    assert k % kGroupSize == 0, "kGroupSize must be divisible by k"
 
     # 原始模型输入
-    groupList = generate_group_list(m, g)
+    groupList = generate_group_list(m, g) # 随机切分
     x = np.random.randint(-100, 100, [m, k]).astype(np.int8)
     weight = np.random.randint(-8, 8, [g, k, n]).astype(np.int8)
     scale = np.random.normal(0, 0.01, [g, 1, n]).astype(np.float32)

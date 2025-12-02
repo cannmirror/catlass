@@ -61,6 +61,12 @@ public:
     using BlockScheduler = BlockScheduler_;
     static constexpr uint32_t WORKSPACE_STAGES = WORKSPACE_STAGES_;
 
+    using EpilogueTileShape = typename BlockEpilogue::TileShape;
+    static_assert(
+        L1TileShape::N == EpilogueTileShape::COLUMN,
+        "l1TileShape::N must be equal to EpilogueTileShape::COLUMN"
+    );
+
     /// Parameters structure
     struct Params {
         // Data members
@@ -136,6 +142,13 @@ public:
 
     static bool CanImplement(const Arguments &args)
     {
+        uint32_t kGroupSize = args.kGroupSize;
+        uint32_t n = args.problemShape.n();
+        uint32_t k = args.problemShape.k();
+        if (kGroupSize % 64 != 0 || n % 64 != 0 || kGroupSize > 1024 ||
+            k % kGroupSize !=0 || kGroupSize != L1TileShape::K) {
+            return false;
+        }
         return true;
     }
 
