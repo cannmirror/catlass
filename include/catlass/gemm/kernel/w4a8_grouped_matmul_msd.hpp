@@ -145,7 +145,8 @@ public:
         uint32_t kGroupSize = args.kGroupSize;
         uint32_t n = args.problemShape.n();
         uint32_t k = args.problemShape.k();
-        if (kGroupSize % 64 != 0 || n % 64 != 0 || kGroupSize > 1024 ||
+        // 泛化n 去掉了n的限制
+        if (kGroupSize % 64 != 0 || kGroupSize > 1024 ||
             k % kGroupSize !=0 || kGroupSize != L1TileShape::K) {
             return false;
         }
@@ -290,7 +291,8 @@ public:
 
             gmGroupOffsetScale += static_cast<int64_t>(quantGroupNum) * inGroupProblemShape.n();
             gmGroupOffsetA += inGroupProblemShape.m() * inGroupProblemShape.k();
-            gmGroupOffsetB += inGroupProblemShape.k() * inGroupProblemShape.n();
+            // 如果是NZ场景需要将补齐的部分去掉
+            gmGroupOffsetB += inGroupProblemShape.k() * (((inGroupProblemShape.n() + 63) / 64) * 64);
 
             startCoreIdx = (startCoreIdx + coreLoops) % coreNum;
         }

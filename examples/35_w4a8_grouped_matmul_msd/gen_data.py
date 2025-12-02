@@ -15,6 +15,7 @@ import sys
 import time
 import torch
 import random
+from math import ceil
 import numpy as np
 
 WORKSPACE = os.getcwd()
@@ -76,6 +77,26 @@ def pack_4bit_to_bytes(data):
     packed = (data[..., 1::2] << 4) | (data[..., ::2] & 0x0F)
     return packed
 
+def transdata2D(nd_mat: np.ndarray, block_size: tuple = (16, 32)) -> np.ndarray:
+    r = ceil(nd_mat.shape[0] / block_size[0]) * block_size[0]
+    c = ceil(nd_mat.shape[1] / block_size[1]) * block_size[1]
+    r_pad = r - nd_mat.shape[0]
+    c_pad = c - nd_mat.shape[1]
+    nd_mat = np.pad(nd_mat, ((0, r_pad), (0, c_pad)), 'constant')
+    nz_mat = np.transpose(
+        np.reshape(nd_mat, (r//block_size[0], block_size[0], c//block_size[1], block_size[1])), (2, 0, 1, 3)
+    )
+
+def transdata3D(nd_mat: np.ndarray, block_size: tuple = (16, 32)) -> np.ndarray:
+    if nd_mat.ndim != 3:
+        raise ValueError("Input matrix must be 3-dimensional")
+    g, _, _ = nd_mat.shape
+    processed_slices = []
+    for i in range(g):
+        processed_slices.append(transdata2D(nd_mat[i, ...], block_size))
+    nz_mat = np.stack(processed_slices, axis=0)
+    return nz_mat
+
 def gen_testcase(path: str, param: OpParam) -> None:
 
     # golden函数
@@ -113,7 +134,17 @@ def gen_testcase(path: str, param: OpParam) -> None:
     assert k % kGroupSize == 0, "kGroupSize must be divisible by k"
 
     # 原始模型输入
-    groupList = generate_group_list(m, g) # 随机切分
+    # groupList = generate_group_list(m, g) # 随机切分
+
+    # 均匀切分
+    tokensPerExpertTail = m // g
+    tokensPerExpert = (m + g - 1) // g
+    groupListSplit = np.ones(g, dtype=np.int32)
+    groupListSplit = groupListSplit * tokensPerExpertTail
+    tokensExpert = m - tokensPerExpertTail * g
+    groupListSplit[:tokensExpert] = tokensPerExpert
+    groupList = np.cumsum(groupListSplit).astype(np.int32)
+
     x = np.random.randint(-100, 100, [m, k]).astype(np.int8)
     weight = np.random.randint(-8, 8, [g, k, n]).astype(np.int8)
     scale = np.random.normal(0, 0.01, [g, 1, n]).astype(np.float32)
@@ -146,9 +177,8 @@ def gen_testcase(path: str, param: OpParam) -> None:
     weightInt4 = pack_4bit_to_bytes(weight)
     weightInt4.dtype = np.int8
     weightInt4 = weightInt4.reshape([g, k, -1])
-    # ND->NZ k需要整除16 n需要整除64 否则需要补充padding逻辑
-    weightInt4 = weightInt4.reshape(g, k//16, 16, n//64, 32).transpose(0, 3, 1, 2, 4)
-    weightInt4 = weightInt4.reshape(g, k, -1)
+    # B矩阵 ND->NZ 对于k理论上16对齐就ok 但实测下来int4需要64对齐 当前NZ不对齐场景只泛化n
+    weightInt4 = transdata3D(weightInt4)
 
     # 存储输入输出和golden
     groupList.tofile(os.path.join(path, "inputGroupList.dat"))
