@@ -32,9 +32,10 @@ class Config:
         "PaddingCommonMatmulKernel": 2,
         "PaddingMultiCoreSplitkMatmulKernel": 3,
         "PaddingStreamkMatmulKernel": 4
-        "PaddingSingleCoreSplitkSimpleMatmulKernel": 5,
-        "PaddingSingleCoreSplitkMatmulKernel": 6,
-        "PaddingSingleCoreSplitkAsyncMatmulKernel": 7,
+        "SingleCoreSplitkSimpleMatmulKernel": 5,
+        "PaddingSingleCoreSplitkSimpleMatmulKernel": 6,
+        "PaddingSingleCoreSplitkMatmulKernel": 7,
+        "PaddingSingleCoreSplitkAsyncMatmulKernel": 8,
     }
 
     DTYPE_MAP = {"half": 0, "float": 1}
