@@ -118,6 +118,7 @@
 <summary><strong>34_single_core_splitk_matmul</strong></summary>
 
 - 理论模板：`单核切K模板 SingleCoreSplitK`
+- 理论模板：[单核切K模板 SingleCoreSplitK](#common模板)
 - 工程优化：
     - `读取带宽优化（Padding）- PaddingMatrixNZ`
     - `写出带宽优化`
@@ -132,8 +133,11 @@
 ## 理论模板清单
 
 <details>
+<!-- <summary>[Common模板](#paddingmatrixnd)</summary> -->
 <summary><strong>Common模板</strong></summary>
 
+### Common模板
+11111111111111
 </details>
 
 <details>
