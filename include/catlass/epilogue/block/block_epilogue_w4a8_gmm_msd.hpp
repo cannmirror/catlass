@@ -93,6 +93,11 @@ public:
     );
 
     static_assert(
+        TileShape::ROW % 16 == 0,
+        "Epilogue TileShape::ROW must be divisible by 16"
+    );
+
+    static_assert(
         TileShape::COUNT * sizeof(ElementC) + TileShape::COLUMN * sizeof(ElementBias)
             + TileShape::ROW / 2 * sizeof(ElementPerTokenScale) + TileShape::COUNT / 2 * sizeof(ElementD)
             + 2 * TileShape::COUNT * sizeof(float)
