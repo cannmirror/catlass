@@ -31,6 +31,7 @@ class Config:
         "SmallMatmulKernel": 1,
         "PaddingCommonMatmulKernel": 2,
         "PaddingMultiCoreSplitkMatmulKernel": 3,
+        "SingleCoreSplitkSimpleMatmulKernel": 4,
         "PaddingSingleCoreSplitkSimpleMatmulKernel": 5,
         "PaddingSingleCoreSplitkMatmulKernel": 6,
         "PaddingSingleCoreSplitkAsyncMatmulKernel": 7,
