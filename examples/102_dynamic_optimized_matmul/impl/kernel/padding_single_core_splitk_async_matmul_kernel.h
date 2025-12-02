@@ -94,6 +94,8 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
     uint32_t m1 = static_cast<uint32_t>(tiling->m1);
     uint32_t n1 = static_cast<uint32_t>(tiling->n1);
     uint32_t k1 = static_cast<uint32_t>(tiling->k1);
+    uint32_t m1Factor = static_cast<uint32_t>(tiling->m1Factor);
+    uint32_t n1Factor = static_cast<uint32_t>(tiling->n1Factor);
 
     uint32_t swizzleOffset = static_cast<uint32_t>(tiling->swizzleOffset);
     uint32_t swizzleDirection = static_cast<uint32_t>(tiling->swizzleDirection);
@@ -125,7 +127,7 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
 
     using TileCopy = TileCopyDynamicOptimized<ArchTag, AType, BType, CType>;
     using BlockEpilogue = void;
-    if (swizzleDirection == 0) {
+    if (m1Factor > n1Factor) {
         constexpr uint32_t l1AStages = 2;
         constexpr uint32_t l1BStages = 1;
         using DispatchPolicy = Catlass::Gemm::MmadAtlasA2DynamicSingleCoreSplitk<
@@ -133,16 +135,16 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
         using BlockMmad = Catlass::Gemm::Block::BlockMmad<
             DispatchPolicy, void, void, AType, BType, CType, void, TileCopy>;
 
-        using BlockScheduler = typename Catlass::Gemm::Block::DynamicSingleCoreSplitkAsyncGemmIdentityBlockSwizzle;
+        using BlockScheduler = typename Catlass::Gemm::Block::DynamicGemmIdentityBlockSwizzle;
         // kernel level
         using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingSingleCoreSplitkAsyncMatmul<
             PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingNDAndCastC>;
         typename MatmulKernel::Params params{problemShape, l1TileShape, l0TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC,
-            gmWA, gmWB, gmWC, swizzleOffset, swizzleDirection};
+            gmWA, gmWB, gmWC, swizzleOffset, swizzleDirection, m1Factor, n1Factor};
         // call a kernel
         MatmulKernel matmul;
         matmul(params, resource);
-    } else {
+    } else { // m1Factor <= n1Factor
         constexpr uint32_t l1AStages = 1;
         constexpr uint32_t l1BStages = 2;
         using DispatchPolicy = Catlass::Gemm::MmadAtlasA2DynamicSingleCoreSplitk<
@@ -150,12 +152,12 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
         using BlockMmad = Catlass::Gemm::Block::BlockMmad<
             DispatchPolicy, void, void, AType, BType, CType, void, TileCopy>;
 
-        using BlockScheduler = typename Catlass::Gemm::Block::DynamicSingleCoreSplitkAsyncGemmIdentityBlockSwizzle;
+        using BlockScheduler = typename Catlass::Gemm::Block::DynamicGemmIdentityBlockSwizzle;
         // kernel level
         using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingSingleCoreSplitkAsyncMatmul<
             PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingNDAndCastC>;
         typename MatmulKernel::Params params{problemShape, l1TileShape, l0TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC,
-            gmWA, gmWB, gmWC, swizzleOffset, swizzleDirection};
+            gmWA, gmWB, gmWC, swizzleOffset, swizzleDirection, m1Factor, n1Factor};
         // call a kernel
         MatmulKernel matmul;
         matmul(params, resource);
@@ -220,6 +222,8 @@ size_t PaddingSingleCoreSplitkAsyncMatmulKernelGetWorkspaceSize(TilingParams &ti
     uint32_t m1 = static_cast<uint32_t>(tilingParams.m1);
     uint32_t n1 = static_cast<uint32_t>(tilingParams.n1);
     uint32_t k1 = static_cast<uint32_t>(tilingParams.k1);
+    uint32_t m1Factor = static_cast<uint32_t>(tilingParams.m1Factor);
+    uint32_t n1Factor = static_cast<uint32_t>(tilingParams.n1Factor);
     size_t sizeWA = 0, sizeWB = 0, sizeWC = 0;
     if constexpr (paddingTagA == PaddingTag::PADDING_BLOCK_ND) {
         sizeWA = PaddingBuilderA::Padding::GetWorkspaceSize(m, k, m1, k1);
@@ -239,13 +243,9 @@ size_t PaddingSingleCoreSplitkAsyncMatmulKernelGetWorkspaceSize(TilingParams &ti
         sizeWB = PaddingBuilderB::Padding::GetWorkspaceSize(k, n);
     }
 
-    if (tilingParams.swizzleDirection == 0) {
-        sizeWC = m1 * tilingParams.swizzleOffset * RoundUp(n1, 512 / sizeof(ElementAccumulator)) * 2 * tilingParams.blockDim
-                * sizeof(ElementAccumulator);
-    } else {
-        sizeWC = m1 * RoundUp(n1 * tilingParams.swizzleOffset, 512 / sizeof(ElementAccumulator)) * 2 * tilingParams.blockDim
-            * sizeof(ElementAccumulator);
-    }
+    // Optimal bandwith for 512 Byte aligned fixpipe, using partial fixpipe workspace
+    sizeWC = (m1 * m1Factor) * RoundUp(n1 * n1Factor, 512 / sizeof(ElementAccumulator)) * 2 * tilingParams.blockDim
+        * sizeof(ElementAccumulator);
 
     return sizeWA + sizeWB + sizeWC;
 }

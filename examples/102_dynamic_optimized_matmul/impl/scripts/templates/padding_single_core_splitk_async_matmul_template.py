@@ -62,7 +62,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
 
         PADDING_TAG_SET_A = [0, 3]
         PADDING_TAG_SET_B = [0, 3]
-        PADDING_TAG_SET_C = [0, 1]
+        PADDING_TAG_SET_C = [0]
         combinations = list(
             itertools.product(
                 Config.LAYOUT_TAG_SET, Config.LAYOUT_TAG_SET,
