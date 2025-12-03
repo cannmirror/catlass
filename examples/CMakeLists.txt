@@ -14,47 +14,46 @@ add_custom_target(catlass_examples)
 
 # arch specific compile options
 if(CATLASS_BISHENG_ARCH STREQUAL "a2" OR CATLASS_BISHENG_ARCH STREQUAL "a3")
-    set(CCE_AICORE_ARCH_BASE dav-c220)
+    set(CCE_AICORE_ARCH dav-2201)
     add_compile_options(
-        "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-stack-size=0x8000>"
-        "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-function-stack-size=0x8000>"
-        "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-record-overflow=true>"
-        "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-dcci-insert-for-scalar=false>"
+        "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-mllvm -cce-aicore-stack-size=0x8000>"
+        "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-mllvm -cce-aicore-function-stack-size=0x8000>"
+        "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-mllvm -cce-aicore-record-overflow=true>"
+        "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-mllvm -cce-aicore-dcci-insert-for-scalar=false>"
     )
 endif()
 
 # common compile options
 add_compile_options(
-    $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-macro-redefined>
-    $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-ignored-attributes>
+    $<$<COMPILE_LANGUAGE:ASC>:-Wno-macro-redefined>
+    $<$<COMPILE_LANGUAGE:ASC>:-Wno-ignored-attributes>
 
-    "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-addr-transform>"
+    "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-mllvm -cce-aicore-addr-transform>"
 )
 
 # compile options for debug features
 if(DEFINED ENABLE_PRINT AND ENABLE_PRINT)
-    add_compile_options($<$<COMPILE_LANGUAGE:ASCEND>:--cce-enable-print>)
+    add_compile_options($<$<COMPILE_LANGUAGE:ASC>:--cce-enable-print>)
 endif()
 
 macro(catlass_example_add_executable NAME OPTYPE)
     set(EXAMPLE_DESTINATION bin)
 
-    if(DEFINED ENABLE_SIMULATOR AND ENABLE_SIMULATOR)
-        set(EXAMPLE_DESTINATION bin_sim)
-    endif()
-
     add_executable(${NAME} ${ARGN})
-    if(${OPTYPE} STREQUAL "cube" OR ${OPTYPE} STREQUAL "vec")
-        set(CCE_AICORE_ARCH "${CCE_AICORE_ARCH_BASE}-${OPTYPE}")
+    if(${OPTYPE} STREQUAL "cube")
+        set(KERNEL_TASK_TYPE KERNEL_TYPE_AIC_ONLY)
+    elseif(${OPTYPE} STREQUAL "vec")
+        set(KERNEL_TASK_TYPE KERNEL_TYPE_AIV_ONLY)
     elseif(${OPTYPE} STREQUAL "mix")
-        set(CCE_AICORE_ARCH "${CCE_AICORE_ARCH_BASE}")
+        set(KERNEL_TASK_TYPE KERNEL_TYPE_MIX_AIC_1_2)
     else()
         message("Unsupported op type: ${OPTYPE}")
     endif()
-    target_compile_options(${NAME} PRIVATE $<$<COMPILE_LANGUAGE:ASCEND>:--cce-aicore-arch=${CCE_AICORE_ARCH}>)
+    target_compile_definitions(${NAME} PRIVATE KERNEL_TASK_TYPE=${KERNEL_TASK_TYPE})
+    target_compile_options(${NAME} PRIVATE $<$<COMPILE_LANGUAGE:ASC>:--npu-arch=${CCE_AICORE_ARCH}>)
     if(DEFINED ENABLE_MSSANITIZER AND ENABLE_MSSANITIZER)
-        target_compile_options(${NAME} PRIVATE "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-g --cce-enable-sanitizer>")
-        target_link_options(${NAME} PRIVATE "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:--cce-enable-sanitizer --cce-aicore-arch=${CCE_AICORE_ARCH}>")
+        target_compile_options(${NAME} PRIVATE "SHELL:$<$<COMPILE_LANGUAGE:ASC>:-g --cce-enable-sanitizer>")
+        target_link_options(${NAME} PRIVATE "SHELL:$<$<COMPILE_LANGUAGE:ASC>:--cce-enable-sanitizer --npu-arch=${CCE_AICORE_ARCH}>")
     endif()
     target_compile_definitions(${NAME} PRIVATE CATLASS_EXAMPLE_NAME=${NAME})
     target_include_directories(${NAME} PRIVATE ${ASCEND_HOME_PATH}/include/aclnn)
