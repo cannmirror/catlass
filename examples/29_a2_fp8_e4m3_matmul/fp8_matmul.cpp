@@ -146,7 +146,7 @@ static void Run(const Options &options) {
         ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST));
     }
     matmulOp.Initialize(arguments, deviceWorkspace);
-    matmulOp(stream, aicCoreNum, fftsAddr);
+    matmulOp(stream, aicCoreNum);
 
     ACL_CHECK(aclrtSynchronizeStream(stream));
 
