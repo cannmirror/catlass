@@ -35,7 +35,7 @@
     - `流水优化（Preload）`
     - `读取带宽优化（Padding）- PaddingMatrixNZ`
     - `读取带宽优化（ShuffleK）`
-    - `读取带宽优化（小M下指令替换）`
+    - `读取带宽优化（小M下指令替换）`（需要修改样例使能）
 - 关键交付件
     - host：[06_optimized_matmul](../../../examples/06_optimized_matmul/optimized_matmul.cpp)
     - kernel：[optimized_matmul.hpp](../../../include/catlass/gemm/kernel/optimized_matmul.hpp)
@@ -212,7 +212,7 @@ $2Byte * MNK / k$
 - 搬入L1Cache时的TileShape：$m_1$，$n_1$，$k_1$
 - 搬入L0A/LOB、搬出L0C时的TileShape：$m_0$，$n_0$，$k_0$
 
-相比`Common模板`，为了减少读取数据量，进一步增大抽象上的$m_1$、$n_1$，考虑将$m_1k_1$的tile块直接与对应的所有$k_1n_1$的tile块完成计算（等同于将$n_1$放大到$N$），此时输出$m_0n_0$的tile块没法在$L0C$常驻，需要及时搬出，通过`atomicAdd`在`GM`上累加。硬件上约束如下：
+相比`Common模板`，为了减少读取数据量，进一步增大抽象上的$m_1$、$n_1$，考虑将$m_1k_1$的tile块直接与对应的所有$k_1n_1$的tile块完成计算（等同于将$n_1$放大到$N$），此时输出$m_0n_0$的tile块没法在$L0C$常驻累加，需要及时搬出，通过`atomicAdd`在`GM`上累加。硬件上约束如下：
 - $m_1k_1*L1Stage_A + n_1k_1*L1Stage_B <= L1Size / 2Byte$
 - $m_0k_0*L0AStage <= L0ASize / 2Byte$
 - $n_0k_0*L0BStage <= L0BSize / 2Byte$
@@ -242,26 +242,92 @@ $2Byte * MNK / k_1$
 <summary><strong><font size="4">流水优化（Preload）</font></strong></summary>
 
 ### 现象分析
+
+通过仿真流水发现pingpong策略的blockMmad存在问题：
+- MTE2流水上，“当前C矩阵基本块计算的最后一个A矩阵（B矩阵）的tile块”和“下一个C矩阵基本块计算的最后一个A矩阵（B矩阵）的tile块”之间加载的空泡。
+- 缓解L1->L0的MTE1指令发射阻塞MTE2指令发射的问题
 ### 优化方案
 
+针对GM->L1过程，读取当前轮次的$m_1k_1$（$k_1n_1$）时，计算上一轮读取的数据（假设Preload一轮，PRELOAD_STAGES = 1），步骤伪代码如下：
+```cpp
+for ... {
+    # 搬入当前轮次的数据
+    copyGM2L1A
+    copyGM2L1B
+    preload_count++
+    for (preload_count == PRELOAD_STAGES) {
+        # 计算前PRELOAD_STAGES轮次的数据
+        copyL12L0A
+        copyL12L0B
+        Mmad
+    }
+}
+```
+### 特性承载代码
+- [block_mmad_preload.hpp](../../../include/catlass/gemm/block/block_mmad_preload.hpp)，对应dispatchPolicy：`MmadAtlasA2Preload`，需要在kernel内手动计算传入下一块预载数据的信息。
+- [block_mmad_preload_async.hpp](../../../include/catlass/gemm/block/block_mmad_preload_async.hpp)，对应dispatchPolicy：`MmadAtlasA2PreloadAsync`，通过异步控制，无需手动计算下一块预载数据信息，并支持mmad计算完成后的`Callback`传入。
+- [block_mmad_preload_async_with_callback.hpp](../../../include/catlass/gemm/block/block_mmad_preload_async_with_callback.hpp)，对应dispatchPolicy：`MmadAtlasA2PreloadAsyncWithCallback`，通过异步控制，无需手动计算下一块预载数据信息，并支持blockMmad计算前后的`Callback`传入。
 </details>
 
 <details>
 <summary><strong><font size="4">读取带宽优化（Padding）</font></strong></summary>
 
 ### 现象分析
+当数据读取为主流水时，优化读取带宽能带来性能受益，以fp16的A矩阵为例，目前有以下几种低带宽场景：
+- **Stride非512B对齐导致的低带宽**。搬运参数srcDValue（详见[昇腾文档：DataCopy-随路转换ND2NZ搬运](https://www.hiascend.com/document/detail/zh/canncommercial/83RC1/API/ascendcopapi/atlasascendc_api_07_00127.html)）非512B对齐时，带宽会有明显下降。
+- **搬运指令限制导致的低带宽**。ND2NZ的搬运指令，参数srcDValue是uint16类型，最大值65535。当K>65535时，只能通过取ndNum= 1，在m方向循环调用搬运指令，降低了读取带宽。
+- 相比ND2ND不转换排布，ND2NZ随路转换有带宽损失。
 ### 优化方案
+针对上述情况，可以使用AIV对数据格式进行重排（预处理动作），当重排开销低于带宽损失时，会有性能收益。从复杂度和能应对的场景出发，有下列三种不同的重排方式。
 #### PaddingMatrixND
-#### PaddingMatrixBlockND
-#### PaddingMatrixNZ
+<img src="https://raw.gitcode.com/user-images/assets/7801479/80501346-2ea2-42ba-8cc0-b6f614630606/4paddingND.png" width="100%">
 
+将Stride方向按照512B对齐，实现复杂度最低，可以处理Stride非对齐导致的带宽下降。
+#### PaddingMatrixBlockND
+<img src="https://raw.gitcode.com/user-images/assets/7801479/9e5e0d37-ef6a-41e0-b54a-1f6d079e1179/4paddingBlockND.png" width="100%">
+
+按$m_1*k_1$作为“block”粒度重排，block内行优先、block间行优先，且$k_1$为512B对齐，实现复杂度适中，可以处理Stride非对齐和Stride超过65535导致的带宽下降。
+
+#### PaddingMatrixNZ
+<img src="https://raw.gitcode.com/user-images/assets/7801479/11728de5-073d-481b-a030-b262f425161f/4paddingNZ.png" width="100%">
+
+重排为zN格式，实现复杂度最高，因为和L1上数据排布一致，搬运带宽也最高，可以处理Stride非对齐、Stride超过65535、ND2NZ随路转换导致的带宽下降。
+
+<font color="red">实际应用中，不同case适合的padding方式不同，暂无全局最优Padding选择。</font>
+
+### 特性承载代码
+- [padding_matmul.hpp](../../../include/catlass/gemm/kernel/padding_matmul.hpp)中包含Padding前处理组件。
+- 实际适配可参考[06_optimized_matmul](../../../examples/06_optimized_matmul/optimized_matmul.cpp)，通过`PaddingTag`、`PaddingBuilder`组装出A矩阵/B矩阵的Padding前处理。
 </details>
 
 <details>
 <summary><strong><font size="4">读取带宽优化（ShuffleK）</font></strong></summary>
 
 ### 现象分析
+通常，所有AIC核心都从$K$方向的第一个分块开始搬运计算，会存在多个核心同时读取同一片GM上数据的情况，产生数据读取冲突，导致读取带宽降低。
 ### 优化方案
+<img src="https://raw.gitcode.com/user-images/assets/7801479/3805175c-12d5-4529-828a-5652c2c445b5/5shuffleK.png" width="100%">
+
+以`Common模板`为例，如图：
+- $matC$中的$CoreX$表示该基本块分配给第$X$个AIC进行计算
+- $Aj$表示A矩阵该$m_1$下沿$K$轴切分的第$j$个L1Tile基本块
+- $Bij$表示B矩阵该$n_1$下沿$K$轴切分的第$j$个L1Tile基本块
+
+如图左原始方案，$Core2$和$Core3$搬运A矩阵时均按照“$A0$->$A1$->$A2$->$A3$”的顺序，产生了数据读取冲突。
+
+
+如图右$ShuffleK$方案，根据$CoreIdx$来偏移起始起始搬运序号$j$，$Core2$搬运A矩阵时按照“$A2$->$A3$->$A0$->$A1$”的顺序，对应B矩阵按照“$B12$->$B13$->$B10$->$B11$”的顺序；$Core3$搬运A矩阵均按照“$A3$->$A0$->$A1$->$A2$”的顺序，对应B矩阵按照“$B03$->$B00$->$B01$->$B02$”的顺序。从时间上错开，避免同地址访问冲突。
+### 特性承载代码
+- [block_mmad_preload.hpp](../../../include/catlass/gemm/block/block_mmad_preload.hpp)
+- [block_mmad_preload_async.hpp](../../../include/catlass/gemm/block/block_mmad_preload_async.hpp)
+- [block_mmad_preload_async_with_callback.hpp](../../../include/catlass/gemm/block/block_mmad_preload_async_with_callback.hpp)
+
+上述BlockMmad内均采用设置起始L1序号为$CoreIdx/kTileCount$的方式来实现错位：
+```cpp
+kTileCount = CeilDiv<L1TileShape::K>(actualShape.k());
+startTileIdx = AscendC::GetBlockIdx();
+firstTileIdx = startTileIdx % kTileCount;
+```
 
 </details>
 
@@ -269,15 +335,47 @@ $2Byte * MNK / k_1$
 <summary><strong><font size="4">读取带宽优化（小M下指令替换）</font></strong></summary>
 
 ### 现象分析
+<img src="https://raw.gitcode.com/user-images/assets/7801479/e3a90904-677a-4973-b3b5-93e93ea072e2/6smallM.png" width="80%">
+
+矩阵计算中，当$M$很小时（例如$M$ < 8），采用随路ND2NZ的DataCopy（详见[昇腾文档：DataCopy-随路转换ND2NZ搬运](https://www.hiascend.com/document/detail/zh/canncommercial/83RC1/API/ascendcopapi/atlasascendc_api_07_00127.html)）效率不高。
+
 ### 优化方案
+可以采用普通间隔搬运的DataCopy，for循环每次搬运一行，每一行调用DataCopy多次搬运。
+### 特性承载代码
+- [CopyGmToL1IntervalDataCopy](../../../include/catlass/gemm/tile/copy_gm_to_l1.hpp)
+- 实际适配可参考[06_optimized_matmul](../../../examples/06_optimized_matmul/optimized_matmul.cpp)，在`struct TileCopyOpt`中手动替换`using CopyGmToL1A = Gemm::Tile::CopyGmToL1IntervalDataCopy<ArchTag, AType>;`，而不是默认的`using CopyGmToL1A = typename Base::CopyGmToL1A;`
+
+```diff
+struct TileCopyOpt : public Catlass::Gemm::Tile::TileCopy<ArchTag, AType, BType, CType, BiasType> {
+    ...
+
+-   // using CopyGmToL1A = Gemm::Tile::CopyGmToL1IntervalDataCopy<ArchTag, AType>;
++   using CopyGmToL1A = Gemm::Tile::CopyGmToL1IntervalDataCopy<ArchTag, AType>;
+
+-   using CopyGmToL1A = typename Base::CopyGmToL1A;
++   // using CopyGmToL1A = typename Base::CopyGmToL1A;
+    ...
+};
+```
 
 </details>
 
 <details>
 <summary><strong><font size="4">读取带宽优化（L1常驻）</font></strong></summary>
 
-### 现象分析
 ### 优化方案
+实际开发时，可采用tile块常驻L1的方式，减少tile块数据的重复读取，等效提升了读取带宽，该特性需要结合不同理论模板来考率实现方法。
+### 特性承载代码
+- `Common`模板可参考[25_matmul_full_loadA](../../../examples/09_splitk_matmul/25_matmul_full_loadA.cpp)及相关交付件，该样例通过$M$轴上的单核全载或多核全载来在特定场景下优化性能，并配合专门的swizzle策略来提高L1上全载的A矩阵块的复用频率。
+    - kernel：[matmul_full_loadA.hpp](../../../include/catlass/gemm/kernel/matmul_full_loadA.hpp)
+    - blockMmad：[block_mmad_pingpong_full_loadA.hpp](../../../include/catlass/gemm/block/block_mmad_pingpong_full_loadA.hpp)
+    - dispatchPolicy：`MmadAtlasA2FullLoadA`
+    - BlockScheduler：`GemmIdentityBlockSwizzleL1FullLoad`
+- `单核切K模板`[34_single_core_splitk_matmul](../../../examples/34_single_core_splitk_matmul/single_core_splitk.cpp)在理论设计上就考虑了L1Tile块常驻的优化点。
+    - kernel：[single_core_slicek_matmul.hpp](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp)
+    - blockMmad：[block_mmad_single_core_splitk.hpp](../../../include/catlass/gemm/block/block_mmad_single_core_splitk.hpp)
+    - dispatchPolicy：`MmadAtlasA2SingleCoreSplitk`
+    - BlockScheduler：`SingleCoreSplitkGemmIdentityBlockSwizzle`
 
 </details>
 
@@ -285,7 +383,22 @@ $2Byte * MNK / k_1$
 <summary><strong><font size="4">Scalar开销消减</font></strong></summary>
 
 ### 现象分析
+对于小Shape场景，如`Common模板`中：
+- $M$、$N$方向分核数小于实际物理核数，每个AIC物理核最多仅处理一个基本任务块
+- $k_1$ >= $K$，$K$方向无需切分后从GM搬入L1
+
+此时kernel总耗时较小，scalar开销对性能影响显著。
 ### 优化方案
+消减冗余的scalar计算
+- kernel内不使用 BlockScheduler 来将任务块分配给物理核，手动计算每个物理核对应的任务块
+- kernel内消除基本块循环（每个AIC仅处理1个任务块）
+- kernel内简化offset相关计算
+- blockMmad内消减L1层面$m$、$n$的循环
+- blockMmad内简化offset相关计算
+### 特性承载代码
+- 参考[31_small_matmul](../../../examples/31_small_matmul/small_matmul.cpp)，可以和[00_basic_matmul](../../../examples/00_basic_matmul/basic_matmul.cpp)的相关交付件对比来加深理解
+    - kernel：[small_matmul.hpp](../../../include/catlass/gemm/kernel/small_matmul.hpp)
+    - blockMmad：[block_mmad_small.hpp](../../../include/catlass/gemm/block/block_mmad_small.hpp)
 
 </details>
 
@@ -293,6 +406,11 @@ $2Byte * MNK / k_1$
 <summary><strong><font size="4">写出带宽优化</font></strong></summary>
 
 ### 现象分析
+当数据写出为主流水时，优化写出带宽能够带来性能受益。
+- 当写出时dstStride非512B对齐时，带宽有明显下降
+- 搬出时用NZ2ND随路格式转换，会产生带宽损失
 ### 优化方案
+针对上述情况，可使用AIV对数据格式进行重排，在重排开销低于带宽损失时，会有性能受益。
 
+### 特性承载代码
 </details>
