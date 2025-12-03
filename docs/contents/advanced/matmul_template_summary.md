@@ -124,6 +124,7 @@
 - 关键交付件
     - host：[34_single_core_splitk_matmul](../../../examples/34_single_core_splitk_matmul/single_core_splitk.cpp)
     - kernel：[single_core_slicek_matmul.hpp](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp)
+    - Padding前处理组件和RemovePaddingNDAndCast后处理组件：[padding_matmul.hpp](../../../include/catlass/gemm/kernel/padding_matmul.hpp)
     - blockMmad：[block_mmad_single_core_splitk.hpp](../../../include/catlass/gemm/block/block_mmad_single_core_splitk.hpp)
 - dispatchPolicy：`MmadAtlasA2SingleCoreSplitk`
 - BlockScheduler：`SingleCoreSplitkGemmIdentityBlockSwizzle`
@@ -410,7 +411,24 @@ struct TileCopyOpt : public Catlass::Gemm::Tile::TileCopy<ArchTag, AType, BType,
 - 当写出时dstStride非512B对齐时，带宽有明显下降
 - 搬出时用NZ2ND随路格式转换，会产生带宽损失
 ### 优化方案
-针对上述情况，可使用AIV对数据格式进行重排，在重排开销低于带宽损失时，会有性能受益。
+针对上述情况，可使用AIV对数据格式进行重排，在重排开销低于带宽损失时，会有性能受益。以下提供四种重排方式。
+<img src="https://raw.gitcode.com/user-images/assets/7801479/89afcf74-a193-431b-aea3-a8de2abcb4f9/7rmPadding1.png" width="80%">
+
+（↑）**方式一**：使用局部workSpace，ND写出到GM时512B对齐，再按block块粒度在UB上重排，再写出到GM上。
+
+<img src="https://raw.gitcode.com/user-images/assets/7801479/12665171-d86f-4208-8c11-3bef2359cfa1/7rmPadding2.png" width="80%">
+
+（↑）**方式二**：使用全量workSpace，ND写出到GM时512B对齐，等全量结果写完后，再启动UB上数据重排，写出到GM上。
+
+<img src="https://raw.gitcode.com/user-images/assets/7801479/13bd80b2-d6ab-4520-839c-cf5e700db0d5/7rmPadding3.png" width="80%">
+
+（↑）**方式三**：使用局部workSpace，NZ写出到GM时512B对齐，再按block块粒度在UB上重排，ND写出到GM上。
+
+<img src="https://raw.gitcode.com/user-images/assets/7801479/204d24e9-5dc8-4318-bfe1-7f958598c514/7rmPadding4.png" width="80%">
+
+（↑）**方式四**：使用全量workSpace，NZ写出到GM时512B对齐，等全量结果写完后，再启动UB上数据重排，ND写出到GM上。
 
 ### 特性承载代码
+- [padding_matmul.hpp](../../../include/catlass/gemm/kernel/padding_matmul.hpp)中实现了包含**方式二**的`RemovePaddingNDAndCast`后处理组件
+- 实际适配可参考[34_single_core_splitk_matmul](../../../examples/34_single_core_splitk_matmul/single_core_splitk.cpp)
 </details>
