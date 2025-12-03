@@ -8,12 +8,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # ----------------------------------------------------------------------------
 
-cmake_minimum_required(VERSION 3.22)
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(ASCEND_CMAKE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
-list(APPEND CMAKE_MODULE_PATH ${ASCEND_CMAKE_PATH})
-project(Catlass LANGUAGES ASCEND CXX)
+cmake_minimum_required(VERSION 3.16)
 
 if(NOT DEFINED ENV{ASCEND_HOME_PATH})
     message(FATAL_ERROR "Cannot find ASCEND_HOME_PATH, please run set_env.sh.")
@@ -21,7 +16,18 @@ else()
     set(ASCEND_HOME_PATH $ENV{ASCEND_HOME_PATH})
 endif()
 
-set(CATLASS_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
+message(STATUS "ASCEND_HOME_PATH: ${ASCEND_HOME_PATH}")
+
+find_package(ASC HINTS ${ASCEND_HOME_PATH}/compiler/tikcpp/ascendc_kernel_cmake)
+if(NOT ASC_FOUND)
+    message(FATAL_ERROR "Current version of CANN provides CMake modules for AscendC.")
+    message(FATAL_ERROR "Please upgrade CANN to >= 8.3.RC1.")
+endif()
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+project(catlass LANGUAGES ASC CXX)
 
 if(NOT DEFINED CMAKE_BUILD_TYPE OR NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release")
@@ -32,11 +38,13 @@ if(NOT DEFINED CATLASS_BISHENG_ARCH OR NOT CATLASS_BISHENG_ARCH)
     set(CATLASS_BISHENG_ARCH a2)
 endif()
 
+set(CATLASS_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
+
 # Compile options for secure compile
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_SKIP_RPATH TRUE)
     add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fstack-protector-strong>)
-    add_compile_options("SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-Xhost-start -fstack-protector-strong -Xhost-end>")
+    add_compile_options("SHELL:$<$<COMPILE_LANGUAGE:ASC>:-Xhost-start -fstack-protector-strong -Xhost-end>")
     add_link_options(-Wl,-z,relro,-z,now)
     add_link_options(-Wl,-z,noexecstack)
     add_link_options(-s)
