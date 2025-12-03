@@ -8,7 +8,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # ----------------------------------------------------------------------------
 
-set_source_files_properties(test_self_contained_includes.cpp PROPERTIES LANGUAGE ASCEND)
+set_source_files_properties(test_self_contained_includes.cpp PROPERTIES LANGUAGE ASC)
 add_custom_target(test_self_contained_includes)
 
 include_directories(${CATLASS_INCLUDE_DIR})

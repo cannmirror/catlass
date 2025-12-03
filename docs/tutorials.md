@@ -242,10 +242,17 @@ int main(int argc, const char **argv)
 
 ### 编译与执行
 
-编译过程详情参考[算子编译](./quickstart.md#算子编译)，进入算子产物目录后执行测试，如出现`Compare success`。说明精度比对成功。
-```bash
-cd output/bin
-./basic_matmul 128 256 4096 0
+#### 编辑编译文件
+
+在`catlass/examples/basic_matmul/CMakeLists.txt`文件中写入以下代码
+
+```cmake
+set_source_files_properties(basic_matmul.cpp PROPERTIES LANGUAGE ASC)
+catlass_example_add_executable(
+    basic_matmul
+    cube
+    basic_matmul.cpp
+)
 ```
 - 由于使用CPU进行精度对比，所以执行需要一点时间。
 
@@ -348,7 +355,7 @@ if (sizeWorkspace > 0) {
     );
 }
 matmulOp.Initialize(arguments, deviceWorkspace);
-matmulOp(stream, aicCoreNum, fftsAddr);
+matmulOp(stream, aicCoreNum);
 ```
 
 </details>
@@ -422,11 +429,6 @@ void Run(const Options &options)
     ACL_CHECK(aclInit(nullptr));
     ACL_CHECK(aclrtSetDevice(options.deviceId));
     ACL_CHECK(aclrtCreateStream(&stream));
-
-    // Prepare FFTS address
-    uint64_t fftsAddr{0};
-    uint32_t fftsLen{0};
-    RT_CHECK(rtGetC2cCtrlAddr(&fftsAddr, &fftsLen));
 
     // Get the number of cube cores of the current hardware
     auto aicCoreNum = platform_ascendc::PlatformAscendCManager::GetInstance()->GetCoreNumAic();
@@ -506,7 +508,7 @@ void Run(const Options &options)
         );
     }
     matmulOp.Initialize(arguments, deviceWorkspace);
-    matmulOp(stream, aicCoreNum, fftsAddr);
+    matmulOp(stream, aicCoreNum);
     ACL_CHECK(aclrtSynchronizeStream(stream));
 
     std::vector<fp16_t> hostC(lenC);
@@ -557,7 +559,7 @@ int main(int argc, const char **argv)
 <summary><strong><code>CMakeLists.txt</code> 配置</strong></summary>
 
 ```cmake
-set_source_files_properties(splitk_matmul.cpp PROPERTIES LANGUAGE ASCEND)
+set_source_files_properties(splitk_matmul.cpp PROPERTIES LANGUAGE ASC)
 catlass_example_add_executable(
     splitk_matmul # 可执行程序名称
     mix
@@ -896,7 +898,7 @@ int main(int argc, const char **argv)
 <summary><strong><code>CMakeLists.txt</code> 配置</strong></summary>
 
 ```cmake
-set_source_files_properties(grouped_matmul.cpp PROPERTIES LANGUAGE ASCEND)
+set_source_files_properties(grouped_matmul.cpp PROPERTIES LANGUAGE ASC)
 catlass_example_add_executable(
     grouped_matmul # 可执行程序名称
     cube

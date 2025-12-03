@@ -256,11 +256,6 @@ static void Run(Options &options) {
         layoutWBListDevice, sizeLayoutWBList, layoutWBList.data(), sizeLayoutWBList, ACL_MEMCPY_HOST_TO_DEVICE
     ));
 
-    // Prepare FFTS address
-    uint64_t fftsAddr{0};
-    uint32_t fftsLen{0};
-    RT_CHECK(rtGetC2cCtrlAddr(&fftsAddr, &fftsLen));
-
     auto aicCoreNum = platform_ascendc::PlatformAscendCManager::GetInstance()->GetCoreNumAic();
     using ArchTag = Arch::AtlasA2;
     constexpr bool enableUnitFlag = true;
@@ -294,7 +289,7 @@ static void Run(Options &options) {
     using GroupGemmAdapter = Gemm::Device::DeviceGemm<GroupGemmKernel>;
     GroupGemmAdapter groupgemm_op;
     groupgemm_op.CanImplement(arguments);
-    RunAdapter(groupgemm_op, arguments, stream, aicCoreNum, fftsAddr);
+    RunAdapter(groupgemm_op, arguments, stream, aicCoreNum);
 
     std::vector<fp16_t> hostRes(allMNCnt);
     ACL_CHECK(aclrtMemcpy(hostRes.data(), sizeX, deviceX, sizeX, ACL_MEMCPY_DEVICE_TO_HOST));

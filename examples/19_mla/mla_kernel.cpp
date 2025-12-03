@@ -585,7 +585,6 @@ private:
 };
 
 CATLASS_GLOBAL void MLAFp16(
-    uint64_t fftsAddr,
     GM_ADDR q,
     GM_ADDR qRope,
     GM_ADDR k,
@@ -600,8 +599,6 @@ CATLASS_GLOBAL void MLAFp16(
     GM_ADDR l,
     GM_ADDR tiling
 ) {
-    // Set FFTS address
-    AscendC::SetSyncBaseAddr(fftsAddr);
 
     using ArchTag = Arch::AtlasA2;
     using ElementQ = half;
@@ -670,7 +667,6 @@ CATLASS_GLOBAL void MLAFp16(
 }
 
 CATLASS_GLOBAL void MLABf16(
-    uint64_t fftsAddr,
     GM_ADDR q,
     GM_ADDR qRope,
     GM_ADDR k,
@@ -685,8 +681,6 @@ CATLASS_GLOBAL void MLABf16(
     GM_ADDR l,
     GM_ADDR tiling
 ) {
-    // Set FFTS address
-    AscendC::SetSyncBaseAddr(fftsAddr);
 
     using ArchTag = Arch::AtlasA2;
     using ElementQ = __bf16;

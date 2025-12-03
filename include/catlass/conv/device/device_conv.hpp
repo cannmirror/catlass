@@ -70,26 +70,13 @@ public:
 
     /// Primary run() entry point API that is static allowing users to create and manage their own params.
     /// Supplied params struct must be construct by calling matmul Kernel::to_underling arguments
-    inline Status Run(aclrtStream stream, uint32_t blockDim, uint64_t fftsAddr)
+    inline Status Run(aclrtStream stream, uint32_t blockDim)
     {
-#if defined(ENABLE_ASCENDC_DUMP)
-        uint8_t *ptrDump{nullptr};
-        aclCheck(aclrtMalloc(reinterpret_cast<void **>(&ptrDump), ALL_DUMPSIZE, ACL_MEM_MALLOC_HUGE_FIRST));
-        if (fftsAddr == 0) {
-            Catlass::KernelAdapter<ConvKernel><<<blockDim, nullptr, stream>>>(params_, ptrDump);
-        } else {
-            Catlass::KernelAdapter<ConvKernel><<<blockDim, nullptr, stream>>>(params_, fftsAddr, ptrDump);
-        }
-        aclCheck(aclrtSynchronizeStream(stream));
-        Adx::AdumpPrintWorkSpace(ptrDump, ALL_DUMPSIZE, stream, "device_gemm");
-        aclCheck(aclrtFree(ptrDump));
-#else
-        if (fftsAddr == 0) {
+        try {
             Catlass::KernelAdapter<ConvKernel><<<blockDim, nullptr, stream>>>(params_);
-        } else {
-            Catlass::KernelAdapter<ConvKernel><<<blockDim, nullptr, stream>>>(params_, fftsAddr);
+        } catch (const std::exception &e) {
+            return Status::kInvalid;
         }
-#endif
         return Status::kSuccess;
     }
 
@@ -97,11 +84,6 @@ public:
     inline Status operator()(aclrtStream stream, uint32_t blockDim)
     {
         return Run(stream, blockDim, 0);
-    }
-
-    inline Status operator()(aclrtStream stream, uint32_t blockDim, uint64_t fftsAddr)
-    {
-        return Run(stream, blockDim, fftsAddr);
     }
 };
 ///////////////////////////////////////////////////////////////////////////////////

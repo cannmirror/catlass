@@ -141,10 +141,6 @@ static void Run(const Options &options) {
         deviceWB = deviceB;
     }
     uint8_t *deviceWorkspace{nullptr};
-    // Prepare FFTS address
-    uint64_t fftsAddr{0};
-    uint32_t fftsLen{0};
-    RT_CHECK(rtGetC2cCtrlAddr(&fftsAddr, &fftsLen));
 
     // Get the number of cube cores of the current hardware
     auto aicCoreNum = platform_ascendc::PlatformAscendCManager::GetInstance()->GetCoreNumAic();
@@ -219,7 +215,7 @@ static void Run(const Options &options) {
                 );
             }
             matmulOp.Initialize(arguments, deviceWorkspace);
-            matmulOp(stream, aicCoreNum, fftsAddr);
+            matmulOp(stream, aicCoreNum);
         } else {
             using TileScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
             using BlockEpilogue = void;
@@ -249,7 +245,7 @@ static void Run(const Options &options) {
                 );
             }
             matmulOp.Initialize(arguments, deviceWorkspace);
-            matmulOp(stream, aicCoreNum, fftsAddr);
+            matmulOp(stream, aicCoreNum);
         }
     } else if (!isNeedPaddingA && isNeedPaddingB) {
         // no need to padding A, but B needs padding.
@@ -295,7 +291,7 @@ static void Run(const Options &options) {
                 );
             }
             matmulOp.Initialize(arguments, deviceWorkspace);
-            matmulOp(stream, aicCoreNum, fftsAddr);
+            matmulOp(stream, aicCoreNum);
         } else {
             using TileScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
             using BlockEpilogue = void;
@@ -325,7 +321,7 @@ static void Run(const Options &options) {
                 );
             }
             matmulOp.Initialize(arguments, deviceWorkspace);
-            matmulOp(stream, aicCoreNum, fftsAddr);
+            matmulOp(stream, aicCoreNum);
         }
     } else if (isNeedPaddingA && !isNeedPaddingB) {
         // no need to padding B, but A needs padding.
@@ -371,7 +367,7 @@ static void Run(const Options &options) {
                 );
             }
             matmulOp.Initialize(arguments, deviceWorkspace);
-            matmulOp(stream, aicCoreNum, fftsAddr);
+            matmulOp(stream, aicCoreNum);
         } else {
             using TileScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
             using BlockEpilogue = void;
@@ -401,7 +397,7 @@ static void Run(const Options &options) {
                 );
             }
             matmulOp.Initialize(arguments, deviceWorkspace);
-            matmulOp(stream, aicCoreNum, fftsAddr);
+            matmulOp(stream, aicCoreNum);
         }
     } else {
         // Both A and B need padding.
@@ -448,7 +444,7 @@ static void Run(const Options &options) {
                 );
             }
             matmulOp.Initialize(arguments, deviceWorkspace);
-            matmulOp(stream, aicCoreNum, fftsAddr);
+            matmulOp(stream, aicCoreNum);
         } else {
             using TileScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
             using BlockEpilogue = void;
@@ -478,7 +474,7 @@ static void Run(const Options &options) {
                 );
             }
             matmulOp.Initialize(arguments, deviceWorkspace);
-            matmulOp(stream, aicCoreNum, fftsAddr);
+            matmulOp(stream, aicCoreNum);
         }
     }
     ACL_CHECK(aclrtSynchronizeStream(stream));
