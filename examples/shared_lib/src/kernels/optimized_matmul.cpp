@@ -11,7 +11,6 @@
 #include "catlass/gemm/kernel/optimized_matmul.hpp"
 
 #include <acl/acl.h>
-#include <runtime/rt_ffts.h>
 
 #include "catlass/arch/arch.hpp"
 #include "catlass/catlass.hpp"
@@ -96,10 +95,7 @@ void OptimizedMatmulImpl(const uint32_t blockNum, aclrtStream stream, const Kern
     using PaddingBuilderB = Catlass::Gemm::Kernel::PaddingBuilder<
         paddingTagB, ArchTag, ElementB, LayoutB, COMPUTE_LENGTH_B>;
     using GlobalPaddingB = typename PaddingBuilderB::Padding;
-    // Prepare FFTS address
-    uint32_t fftsLen{0};
-    uint64_t fftsAddr{0};
-    rtCheck(rtGetC2cCtrlAddr(&fftsAddr, &fftsLen));
+
     GemmCoord problemShape{kernelInfo.m, kernelInfo.n, kernelInfo.k};
     LayoutA layoutA{kernelInfo.m, kernelInfo.k};
     LayoutB layoutB{kernelInfo.k, kernelInfo.n};
@@ -136,7 +132,7 @@ void OptimizedMatmulImpl(const uint32_t blockNum, aclrtStream stream, const Kern
         typename MatmulKernel::Arguments arguments{problemShape, deviceA, deviceB, deviceC};
         using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
         MatmulAdapter matmulOp;
-        RunAdapter(matmulOp, arguments, stream, blockNum, fftsAddr);
+        RunAdapter(matmulOp, arguments, stream, blockNum);
     } else if (isNeedPaddingA) {
         using LayoutMmadA = typename PaddingBuilderA::LayoutAfterPadding;
         using ATypeMmad = Gemm::GemmType<ElementA, LayoutMmadA>;
@@ -148,7 +144,7 @@ void OptimizedMatmulImpl(const uint32_t blockNum, aclrtStream stream, const Kern
         typename MatmulKernel::Arguments arguments{problemShape, deviceA, deviceB, deviceC};
         using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
         MatmulAdapter matmulOp;
-        RunAdapter(matmulOp, arguments, stream, blockNum, fftsAddr);
+        RunAdapter(matmulOp, arguments, stream, blockNum);
     } else if (isNeedPaddingB) {
         using LayoutMmadB = typename PaddingBuilderB::LayoutAfterPadding;
         using BTypeMmad = Gemm::GemmType<ElementB, LayoutMmadB>;
@@ -160,7 +156,7 @@ void OptimizedMatmulImpl(const uint32_t blockNum, aclrtStream stream, const Kern
         typename MatmulKernel::Arguments arguments{problemShape, deviceA, deviceB, deviceC};
         using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
         MatmulAdapter matmulOp;
-        RunAdapter(matmulOp, arguments, stream, blockNum, fftsAddr);
+        RunAdapter(matmulOp, arguments, stream, blockNum);
     } else {
         using TileCopy = TileCopyOpt<ArchTag, AType, BType, CType>;
         using BlockMmadOpt =
@@ -169,7 +165,7 @@ void OptimizedMatmulImpl(const uint32_t blockNum, aclrtStream stream, const Kern
         typename MatmulKernel::Arguments arguments{problemShape, deviceA, deviceB, deviceC};
         using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
         MatmulAdapter matmulOp;
-        RunAdapter(matmulOp, arguments, stream, blockNum, fftsAddr);
+        RunAdapter(matmulOp, arguments, stream, blockNum);
     }
 }
 void OptimizedMatmul(const uint32_t blockNum, aclrtStream stream, const KernelInfo &kernelInfo) {

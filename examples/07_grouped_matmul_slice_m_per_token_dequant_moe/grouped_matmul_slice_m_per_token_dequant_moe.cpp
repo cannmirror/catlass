@@ -108,11 +108,6 @@ static void Run(const Options &options) {
     layout::VectorLayout layoutPerTokenScale{m};
     LayoutD layoutD{m, n};
 
-    // Prepare FFTS address
-    uint64_t fftsAddr{0};
-    uint32_t fftsLen{0};
-    RT_CHECK(rtGetC2cCtrlAddr(&fftsAddr, &fftsLen));
-
     auto aicCoreNum = platform_ascendc::PlatformAscendCManager::GetInstance()->GetCoreNumAic();
 
     using ArchTag = Arch::AtlasA2;
@@ -176,7 +171,7 @@ static void Run(const Options &options) {
         ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST));
     }
     matmulOp.Initialize(arguments, deviceWorkspace);
-    matmulOp(stream, aicCoreNum, fftsAddr);
+    matmulOp(stream, aicCoreNum);
 
     ACL_CHECK(aclrtSynchronizeStream(stream));
 

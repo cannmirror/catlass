@@ -83,11 +83,6 @@ static void Run(const Options &options) {
     uint8_t *deviceD{nullptr};
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceD), sizeD, ACL_MEM_MALLOC_HUGE_FIRST));
 
-    // Prepare FFTS address
-    uint64_t fftsAddr{0};
-    uint32_t fftsLen{0};
-    RT_CHECK(rtGetC2cCtrlAddr(&fftsAddr, &fftsLen));
-
     // Get the number of cube cores of the current hardware
     auto aicCoreNum = platform_ascendc::PlatformAscendCManager::GetInstance()->GetCoreNumAic();
 
@@ -126,7 +121,7 @@ static void Run(const Options &options) {
             options.problemShape, sizeof(float), deviceA, deviceB, deviceD};
         using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
         MatmulAdapter matmulOp;
-        RunAdapter(matmulOp, arguments, stream, aicCoreNum, fftsAddr);
+        RunAdapter(matmulOp, arguments, stream, aicCoreNum);
     } else {
         // Define BlockScheduler
         // Swizzle offset is 3 and direction is 1.
@@ -138,7 +133,7 @@ static void Run(const Options &options) {
             options.problemShape, sizeof(float), deviceA, deviceB, deviceD};
         using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
         MatmulAdapter matmulOp;
-        RunAdapter(matmulOp, arguments, stream, aicCoreNum, fftsAddr);
+        RunAdapter(matmulOp, arguments, stream, aicCoreNum);
     }
 
     // Copy the result from device to host

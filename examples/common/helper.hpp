@@ -4,30 +4,22 @@
  * This file is a part of the CANN Open Software.
  * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING
+ * BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE. See LICENSE in the root of
+ * the software repository for the full text of the License.
  */
 
 #ifndef EXAMPLES_COMMON_HELPER_HPP
 #define EXAMPLES_COMMON_HELPER_HPP
 
-#ifdef ASCENDC_MODULE_OPERATOR_H
-#undef inline
-#endif
 #include <cstdio>
 #include <fstream>
 #include <iostream>
-#include <vector>
 
 #include <acl/acl.h>
 #include <opdev/bfloat16.h>
 #include <opdev/fp16_t.h>
-#include <runtime/rt_ffts.h>
 #include <tiling/platform/platform_ascendc.h>
-
-#ifdef ASCENDC_MODULE_OPERATOR_H
-#define inline __inline__ __attribute__((always_inline))
-#endif
 
 #include "catlass/layout/layout.hpp"
 
@@ -57,7 +49,8 @@ using op::fp16_t;
 /**
  * Function for read file.
  */
-inline bool ReadFile(const std::string &filePath, void *buffer, size_t bufferSize) {
+inline bool ReadFile(const std::string &filePath, void *buffer, size_t bufferSize)
+{
     if (buffer == nullptr) {
         printf("Read file %s failed. Buffer is nullptr.\n", filePath.c_str());
         return false;
@@ -86,29 +79,26 @@ inline bool ReadFile(const std::string &filePath, void *buffer, size_t bufferSiz
     return true;
 }
 
-template <class Adapter>
-inline void RunAdapter(
-    Adapter opAdapter,
-    typename Adapter::Arguments args,
-    aclrtStream stream,
-    uint32_t coreNum,
-    uint64_t fftsAddr = 0
-) {
-    size_t sizeWorkspace = opAdapter.GetWorkspaceSize(args);
-    uint8_t *deviceWorkspace = nullptr;
-    if (sizeWorkspace > 0) {
-        ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST));
-    }
-    opAdapter.Initialize(args, deviceWorkspace);
-    opAdapter(stream, coreNum, fftsAddr);
-    ACL_CHECK(aclrtSynchronizeStream(stream));
-    if (sizeWorkspace > 0) {
-        ACL_CHECK(aclrtFree(deviceWorkspace));
-    }
-}
+#define RunAdapter(OpAdapter, Args, Stream, CoreNum)                                                                   \
+    do {                                                                                                               \
+        size_t sizeWorkspace = (OpAdapter).GetWorkspaceSize(Args);                                                     \
+        uint8_t *deviceWorkspace = nullptr;                                                                            \
+        if (sizeWorkspace > 0) {                                                                                       \
+            ACL_CHECK(                                                                                                 \
+                aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST)     \
+            );                                                                                                         \
+        }                                                                                                              \
+        (OpAdapter).Initialize(Args, deviceWorkspace);                                                                 \
+        (OpAdapter)(Stream, CoreNum);                                                                                  \
+        ACL_CHECK(aclrtSynchronizeStream(Stream));                                                                     \
+        if (sizeWorkspace > 0) {                                                                                       \
+            ACL_CHECK(aclrtFree(deviceWorkspace));                                                                     \
+        }                                                                                                              \
+    } while (0);
 
 namespace Catlass {
-inline bool IsNeedPadding(layout::RowMajor layout, uint32_t align) {
+inline bool IsNeedPadding(layout::RowMajor layout, uint32_t align)
+{
     // If the stride is greater than 65536, padding is required to reduce the stride.
     if (layout.stride(0) < 65536) {
         return layout.stride(0) % align != 0;
@@ -117,7 +107,8 @@ inline bool IsNeedPadding(layout::RowMajor layout, uint32_t align) {
     }
 }
 
-inline bool IsNeedPadding(layout::ColumnMajor layout, uint32_t align) {
+inline bool IsNeedPadding(layout::ColumnMajor layout, uint32_t align)
+{
     // If the stride is greater than 65536, padding is required to reduce the stride.
     if (layout.stride(1) < 65536) {
         return layout.stride(1) % align != 0;
@@ -126,11 +117,13 @@ inline bool IsNeedPadding(layout::ColumnMajor layout, uint32_t align) {
     }
 }
 
-inline bool IsNeedPadding(layout::zN layout, uint32_t align) {
+inline bool IsNeedPadding(layout::zN layout, uint32_t align)
+{
     return false;
 }
 
-inline bool IsNeedPadding(layout::nZ layout, uint32_t align) {
+inline bool IsNeedPadding(layout::nZ layout, uint32_t align)
+{
     return false;
 }
 } // namespace Catlass

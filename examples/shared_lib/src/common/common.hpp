@@ -59,7 +59,6 @@ void RunAdapter(
     typename Adapter::Arguments args,
     aclrtStream stream,
     uint32_t aicCoreNum,
-    uint64_t fftsAddr = 0
 ) {
     size_t sizeWorkspace = matmulOp.GetWorkspaceSize(args);
     uint8_t *deviceWorkspace = nullptr;
@@ -67,7 +66,7 @@ void RunAdapter(
         aclCheck(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST));
     }
     matmulOp.Initialize(args, deviceWorkspace);
-    matmulOp(stream, aicCoreNum, fftsAddr);
+    matmulOp(stream, aicCoreNum);
     aclCheck(aclrtSynchronizeStream(stream));
     if (sizeWorkspace > 0) {
         aclCheck(aclrtFree(deviceWorkspace));
