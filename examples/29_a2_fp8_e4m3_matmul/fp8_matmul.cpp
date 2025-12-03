@@ -130,43 +130,6 @@ static void Run(const Options &options) {
     if (options.problemShape.m() > options.problemShape.n()) {
         // Swizzle offset is 3 and direction is 0.
         using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
-
-        // kernel level
-        using MatmulKernel =
-            Gemm::Kernel::FP8Matmul<BlockMmad, BlockEpilogue, BlockScheduler, mScalar, nScalar, splitkLength>;
-
-        using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
-        MatmulKernel::Arguments arguments{
-            options.problemShape, deviceA, deviceB, deviceC, deviceWA, deviceWB, deviceWC, scalar, zeroPoint};
-        MatmulAdapter matmulOp;
-        matmulOp.CanImplement(arguments);
-        sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
-        if (sizeWorkspace > 0) {
-            ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST)
-            );
-        }
-        matmulOp.Initialize(arguments, deviceWorkspace);
-        matmulOp(stream, aicCoreNum);
-    } else {
-        // Swizzle offset is 3 and direction is 1.
-        using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
-
-        // kernel level
-        using MatmulKernel =
-            Gemm::Kernel::FP8Matmul<BlockMmad, BlockEpilogue, BlockScheduler, mScalar, nScalar, splitkLength>;
-
-        using MatmulAdapter = Gemm::Device::DeviceGemm<MatmulKernel>;
-        MatmulKernel::Arguments arguments{
-            options.problemShape, deviceA, deviceB, deviceC, deviceWA, deviceWB, deviceWC, scalar, zeroPoint};
-        MatmulAdapter matmulOp;
-        matmulOp.CanImplement(arguments);
-        sizeWorkspace = matmulOp.GetWorkspaceSize(arguments);
-        if (sizeWorkspace > 0) {
-            ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWorkspace), sizeWorkspace, ACL_MEM_MALLOC_HUGE_FIRST)
-            );
-        }
-        matmulOp.Initialize(arguments, deviceWorkspace);
-        matmulOp(stream, aicCoreNum);
     }
 
     // kernel level
