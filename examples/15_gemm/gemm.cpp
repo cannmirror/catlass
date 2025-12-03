@@ -146,11 +146,6 @@ static void Run(Options options) {
     uint8_t *gmWorkspace{nullptr};
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&gmWorkspace), sizeC, ACL_MEM_MALLOC_HUGE_FIRST));
 
-    // Prepare FFTS address
-    uint64_t fftsAddr{0};
-    uint32_t fftsLen{0};
-    RT_CHECK(rtGetC2cCtrlAddr(&fftsAddr, &fftsLen));
-
     auto aicCoreNum = platform_ascendc::PlatformAscendCManager::GetInstance()->GetCoreNumAic();
 
     using ArchTag = Arch::AtlasA2;
@@ -184,7 +179,7 @@ static void Run(Options options) {
     using GemmAdapter = Gemm::Device::DeviceGemm<GemmKernel>;
     GemmAdapter gemm_op;
     gemm_op.CanImplement(arguments);
-    RunAdapter(gemm_op, arguments, stream, aicCoreNum, fftsAddr);
+    RunAdapter(gemm_op, arguments, stream, aicCoreNum);
 
     std::vector<float> hostRes(lenX);
     ACL_CHECK(aclrtMemcpy(hostRes.data(), sizeX, deviceX, sizeX, ACL_MEMCPY_DEVICE_TO_HOST));

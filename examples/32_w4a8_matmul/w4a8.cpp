@@ -21,7 +21,6 @@
 
 #include <tiling/platform/platform_ascendc.h>
 #include <acl/acl.h>
-#include <runtime/rt_ffts.h>
 
 #include "catlass/catlass.hpp"
 #include "catlass/arch/arch.hpp"
@@ -95,10 +94,6 @@ void Run(Options const &options)
     using ElementB = int8_t;
     using ElementC = half;
 
-    uint64_t fftsAddr{0};
-    uint32_t fftsLen{0};
-    rtGetC2cCtrlAddr(&fftsAddr, &fftsLen);
-
     uint8_t *deviceA, *deviceB, *deviceC;
 
     ACL_CHECK(aclrtMalloc((void **)&deviceA, sizeA, ACL_MEM_MALLOC_HUGE_FIRST));
@@ -164,7 +159,7 @@ void Run(Options const &options)
         }
 
         matmulOp.Initialize(arguments, deviceWorkspace);
-        matmulOp(stream, aicoreNum, fftsAddr);
+        matmulOp(stream, aicoreNum);
         if (sizeWorkspace > 0) {
             ACL_CHECK(aclrtFree(deviceWorkspace));
         }
@@ -193,7 +188,7 @@ void Run(Options const &options)
         }
 
         matmulOp.Initialize(arguments, deviceWorkspace);
-        matmulOp(stream, aicoreNum, fftsAddr);
+        matmulOp(stream, aicoreNum);
         if (sizeWorkspace > 0) {
             ACL_CHECK(aclrtFree(deviceWorkspace));
         }

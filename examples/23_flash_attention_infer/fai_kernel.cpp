@@ -659,7 +659,6 @@ class FAInferKernel {
 };
 
 CATLASS_GLOBAL void FAInferFp16(
-    uint64_t fftsAddr,
     GM_ADDR q,
     GM_ADDR k,
     GM_ADDR v,
@@ -674,7 +673,6 @@ CATLASS_GLOBAL void FAInferFp16(
     GM_ADDR oUpdate,
     GM_ADDR tiling
 ) {
-    AscendC::SetSyncBaseAddr(fftsAddr);
 
     using ArchTag = Arch::AtlasA2;
     using ElementQ = half;
@@ -749,7 +747,6 @@ CATLASS_GLOBAL void FAInferFp16(
 }
 
 CATLASS_GLOBAL void FAInferBf16(
-    uint64_t fftsAddr,
     GM_ADDR q,
     GM_ADDR k,
     GM_ADDR v,
@@ -764,8 +761,6 @@ CATLASS_GLOBAL void FAInferBf16(
     GM_ADDR oUpdate,
     GM_ADDR tiling
 ) {
-    AscendC::SetSyncBaseAddr(fftsAddr);
-
     using ArchTag = Arch::AtlasA2;
     using ElementQ = bfloat16_t;
     using LayoutQ = layout::RowMajor;

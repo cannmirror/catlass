@@ -116,10 +116,7 @@ static void Run(const Options &options) {
     ACL_CHECK(aclrtMalloc(reinterpret_cast<void **>(&deviceWC), sizeWC, ACL_MEM_MALLOC_HUGE_FIRST));
 
     uint8_t *deviceWorkspace{nullptr};
-    // Prepare FFTS address
-    uint64_t fftsAddr{0};
-    uint32_t fftsLen{0};
-    RT_CHECK(rtGetC2cCtrlAddr(&fftsAddr, &fftsLen));
+
     using ArchTag = Arch::AtlasA2;
     using DispatchPolicy = Gemm::MmadAtlasA2PingpongSliceK<true>;
     using L1TileShape = GemmShape<128, 256, 256>;
@@ -151,7 +148,7 @@ static void Run(const Options &options) {
             );
         }
         matmulOp.Initialize(arguments, deviceWorkspace);
-        matmulOp(stream, aicCoreNum, fftsAddr);
+        matmulOp(stream, aicCoreNum);
     } else {
         // Swizzle offset is 3 and direction is 1.
         using BlockScheduler = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 1>;
@@ -171,7 +168,7 @@ static void Run(const Options &options) {
             );
         }
         matmulOp.Initialize(arguments, deviceWorkspace);
-        matmulOp(stream, aicCoreNum, fftsAddr);
+        matmulOp(stream, aicCoreNum);
     }
     ACL_CHECK(aclrtSynchronizeStream(stream));
 
