@@ -19,7 +19,7 @@
 #include "catlass/layout/layout.hpp"
 #include "catlass/gemm/block/block_mmad.hpp"
 #include "catlass/gemm/block/block_swizzle.hpp"
-#include "catlass/gemm/kernel/dynamic_single_core_splitk_for_small_k_matmul.hpp"
+#include "catlass/gemm/kernel/dynamic_single_core_splitk_matmul.hpp"
 #include "catlass/gemm/gemm_type.hpp"
 
 template <
