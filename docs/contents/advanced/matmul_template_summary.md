@@ -278,7 +278,7 @@ for ... {
 当数据读取为主流水时，优化读取带宽能带来性能受益，以fp16的A矩阵为例，目前有以下几种低带宽场景：
 - **Stride非512B对齐导致的低带宽**。搬运参数srcDValue（详见[昇腾文档：DataCopy-随路转换ND2NZ搬运](https://www.hiascend.com/document/detail/zh/canncommercial/83RC1/API/ascendcopapi/atlasascendc_api_07_00127.html)）非512B对齐时，带宽会有明显下降。
 - **搬运指令限制导致的低带宽**。ND2NZ的搬运指令，参数srcDValue是uint16类型，最大值65535。当K>65535时，只能通过取ndNum= 1，在m方向循环调用搬运指令，降低了读取带宽。
-- 相比ND2ND不转换排布，ND2NZ随路转换有带宽损失。
+- 相比ND2ND不转换排布，**ND2NZ随路转换有带宽损失**。
 ### 优化方案
 针对上述情况，可以使用AIV对数据格式进行重排（预处理动作），当重排开销低于带宽损失时，会有性能收益。从复杂度和能应对的场景出发，有下列三种不同的重排方式。
 #### PaddingMatrixND
@@ -432,4 +432,55 @@ struct TileCopyOpt : public Catlass::Gemm::Tile::TileCopy<ArchTag, AType, BType,
 ### 特性承载代码
 - [padding_matmul.hpp](../../../include/catlass/gemm/kernel/padding_matmul.hpp)中实现了包含**方式二**的`RemovePaddingNDAndCast`后处理组件
 - 实际适配可参考[34_single_core_splitk_matmul](../../../examples/34_single_core_splitk_matmul/single_core_splitk.cpp)
+</details>
+
+## 模板应用浅述
+
+参考[102_dynamic_optimized_matmul的select_kernel策略](../../../examples/102_dynamic_optimized_matmul/include/select_kernel_b16.h)
+
+
+<details>
+<summary><strong><font size="4">模板选择</font></strong></summary>
+
+先尝试基于[00_basic_matmul](../../../examples/00_basic_matmul/basic_matmul.cpp)进行TileShape调优并获得**性能基线**，可参考[模板库优化指引
+](./catlass_optimize_guidance.md)
+
+
+依次识别是否满足各模板适合场景，并和性能基线作比较：
+- [31_small_matmul](../../../examples/31_small_matmul/small_matmul.cpp)：
+    - 计算当前基本任务块 taskBlocks
+        ```cpp
+        taskBlocks = CeilDiv(M, m1) * CeilDiv(N, n1);
+        ```
+    - 基本任务块小于AIC数： $taskBlocks < aicCoreNum$
+    - $K$轴较小，$K <= k_1$
+- [09_splitk_matmul](../../../examples/09_splitk_matmul/optimized_matmul.cpp)或[22_padding_splitk_matmul](../../../examples/22_padding_splitk_matmul/padding_splitk_matmul.cpp)（带Padding前处理）
+    - 选择$m_1$、$n_1$、$k_1$
+        - 先设置$m_1 = 128$、$n_1 = 256$、$k_1 = 256$
+        - 满足下列场景其一，修改$m_1 = 256$、$n_1 = 128$
+            - A矩阵和B矩阵均为ColumnMajor
+            - A矩阵为ColumnMajor，B矩阵为RowMajor，且$M > N$
+    - 计算当前基本任务块 taskBlocks
+        ```cpp
+        taskBlocks = CeilDiv(M, m1) * CeilDiv(N, n1);
+        ```
+    - 满足下列两种场景：
+        - 基本任务块小于一半AIC数，且$K$轴够大：$taskBlocks < aicCoreNum / 2, K > 5120$
+        - 基本任务块小于3块，且$K$轴不会小：$taskBlocks <= 2, K > 1024$
+- [06_optimized_matmul](../../../examples/06_optimized_matmul/optimized_matmul.cpp)（带Padding前处理）和[21_basic_matmul_preload_zN](../../../examples/09_splitk_matmul/basic_matmul_preload_zN.cpp)（手动改为ND输入）
+    - 泛化性更强，适用于剩余场景
+    - 不需要使用Padding时，为了节约AIV启动的开销，建议使用[21_basic_matmul_preload_zN](../../../examples/09_splitk_matmul/basic_matmul_preload_zN.cpp)模板
+
+⚠️ 全载特性的使用[25_matmul_full_loadA](../../../examples/09_splitk_matmul/25_matmul_full_loadA.cpp) 和 单核切K方案[34_single_core_splitk_matmul](../../../examples/34_single_core_splitk_matmul/single_core_splitk.cpp)的适用场景待完善
+
+
+</details>
+
+<details>
+<summary><strong><font size="4">Padding选择</font></strong></summary>
+
+当Stride非512B对齐时可以考虑使用Padding前处理，但需要考虑Padding带来的开销以及AIV启动的开销（小shape[31_small_matmul](../../../examples/31_small_matmul/small_matmul.cpp)方法不推荐额外适配Padding）
+
+`PaddingMatrixND`、`PaddingMatrixBlockND`和`PaddingMatrixNZ`各自的适用场景待完善，泛化上`PaddingMatrixNZ`更具有优势。
+
 </details>
