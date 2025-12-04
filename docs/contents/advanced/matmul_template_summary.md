@@ -42,6 +42,7 @@
     - Padding前处理组件：[padding_matmul.hpp](../../../include/catlass/gemm/kernel/padding_matmul.hpp)
     - blockMmad：[block_mmad_preload.hpp](../../../include/catlass/gemm/block/block_mmad_preload.hpp)
 - dispatchPolicy：`MmadAtlasA2Preload`
+- ⚠️ 注意：即使没有使用`PaddingMatrixNZ`前处理，依然会产生AIV启动的开销
 </details>
 
 <details>
@@ -59,7 +60,7 @@
 <details>
 <summary><strong><font size="4">21_basic_matmul_preload_zN</font></strong></summary>
 
-（此样例主要承载NZ排布输入的适配方法）
+（此样例主要承载NZ排布输入的适配方法，也可换成ND排布输入，无AIV启动开销）
 - 理论模板：`Common模板`
 - 工程优化：
     - `流水优化（Preload）`
