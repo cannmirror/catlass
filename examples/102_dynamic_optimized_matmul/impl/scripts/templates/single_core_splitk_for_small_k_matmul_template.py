@@ -73,7 +73,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
             launch_kernel_func_name = "Launch" + kernel_func_name
             # get_workspace_fun_name can be SingleCoreSplitkForSmallKMatmulKernelHalfLayout00GetWorkspaceSize
             get_workspace_func_name = kernel_func_name + "GetWorkspaceSize"
-            # file name can be single_core_splitk_kernel_half_layout_00.cpp
+            # file name can be single_core_splitk_for_small_k_kernel_half_layout_00.cpp
             file_name = Config.camel_to_snake(kernel_func_name) + ".cpp"
 
             element_a = dtype
