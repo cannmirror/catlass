@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef PADDING_SINGLE_CORE_SPLITK_SIMPLE_MATMUL_KERNEL
-#define PADDING_SINGLE_CORE_SPLITK_SIMPLE_MATMUL_KERNEL
+#ifndef PADDING_SINGLE_CORE_SPLITK_FOR_SMALL_K_MATMUL_KERNEL
+#define PADDING_SINGLE_CORE_SPLITK_FOR_SMALL_K_MATMUL_KERNEL
 
 #include "kernel_utils.h"
 #include "tiling_params.h"
@@ -42,7 +42,7 @@ struct TileCopyDynamicOptimized : public Catlass::Gemm::Tile::TileCopy<ArchTag, 
 
 template <class ArchTag, class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC,
     PaddingTag paddingTagA, PaddingTag paddingTagB,  PaddingTag paddingTagC>
-[[bisheng::core_ratio(1, 2)]] CATLASS_GLOBAL void PaddingSingleCoreSplitkSimpleMatmulKernel(uint64_t fftsAddr, __gm__ uint8_t *__restrict__ gmA,
+[[bisheng::core_ratio(1, 2)]] CATLASS_GLOBAL void PaddingSingleCoreSplitkForSmallKMatmulKernel(uint64_t fftsAddr, __gm__ uint8_t *__restrict__ gmA,
     __gm__ uint8_t *__restrict__ gmB, __gm__ uint8_t *__restrict__ gmC, __gm__ uint8_t *__restrict__ gmWA,
     __gm__ uint8_t *__restrict__ gmWB, __gm__ uint8_t *__restrict__ gmWC, __gm__ uint8_t *__restrict__ tilingData)
 {
@@ -134,7 +134,7 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
 
         using BlockScheduler = typename Catlass::Gemm::Block::DynamicSingleCoreSplitkGemmIdentityBlockSwizzle;
         // kernel level
-        using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingSingleCoreSplitkSimpleMatmul<
+        using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingSingleCoreSplitkForSmallKMatmul<
             PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingC>;
         typename MatmulKernel::Params params{problemShape, l1TileShape, l0TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC,
             gmWA, gmWB, gmWC, swizzleOffset, swizzleDirection};
@@ -151,7 +151,7 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
 
         using BlockScheduler = typename Catlass::Gemm::Block::DynamicSingleCoreSplitkGemmIdentityBlockSwizzle;
         // kernel level
-        using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingSingleCoreSplitkSimpleMatmul<
+        using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingSingleCoreSplitkForSmallKMatmul<
             PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingC>;
         typename MatmulKernel::Params params{problemShape, l1TileShape, l0TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC,
             gmWA, gmWB, gmWC, swizzleOffset, swizzleDirection};
@@ -163,7 +163,7 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
 
 template <class ArchTag, class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC,
     PaddingTag paddingTagA, PaddingTag paddingTagB,  PaddingTag paddingTagC>
-void LaunchPaddingSingleCoreSplitkSimpleMatmulKernel(aclrtStream &stream, uint64_t fftsAddr, uint8_t *dA, uint8_t *dB, uint8_t *dC,
+void LaunchPaddingSingleCoreSplitkForSmallKMatmulKernel(aclrtStream &stream, uint64_t fftsAddr, uint8_t *dA, uint8_t *dB, uint8_t *dC,
     uint8_t *dW, uint8_t *dTilingParams, TilingParams &tilingParams)
 {
     using PaddingBuilderA = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagA, ArchTag, ElementA, LayoutA>;
@@ -204,13 +204,13 @@ void LaunchPaddingSingleCoreSplitkSimpleMatmulKernel(aclrtStream &stream, uint64
         dWC = dW + sizeWA + sizeWB;
     }
 
-    PaddingSingleCoreSplitkSimpleMatmulKernel<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC, paddingTagA, paddingTagB, paddingTagC>
+    PaddingSingleCoreSplitkForSmallKMatmulKernel<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC, paddingTagA, paddingTagB, paddingTagC>
         <<<tilingParams.blockDim, nullptr, stream>>>(fftsAddr, dA, dB, dC, dWA, dWB, dWC, dTilingParams);
 }
 
 template <class ArchTag, class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC,
     PaddingTag paddingTagA, PaddingTag paddingTagB,  PaddingTag paddingTagC>
-size_t PaddingSingleCoreSplitkSimpleMatmulKernelGetWorkspaceSize(TilingParams &tilingParams)
+size_t PaddingSingleCoreSplitkForSmallKMatmulKernelGetWorkspaceSize(TilingParams &tilingParams)
 {
     using PaddingBuilderA = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagA, ArchTag, ElementA, LayoutA>;
     using PaddingBuilderB = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagB, ArchTag, ElementB, LayoutB>;
@@ -246,4 +246,4 @@ size_t PaddingSingleCoreSplitkSimpleMatmulKernelGetWorkspaceSize(TilingParams &t
     return sizeWA + sizeWB + sizeWC;
 }
 
-#endif  // PADDING_SINGLE_CORE_SPLITK_SIMPLE_MATMUL_KERNEL
+#endif  // PADDING_SINGLE_CORE_SPLITK_FOR_SMALL_K_MATMUL_KERNEL

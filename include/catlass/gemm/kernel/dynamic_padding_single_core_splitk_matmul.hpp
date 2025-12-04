@@ -24,7 +24,7 @@ namespace Catlass::Gemm::Kernel {
 
 template <class PrologueA_, class PrologueB_, class BlockMmad_, 
     class BlockEpilogue_, class BlockScheduler_, class RemovePaddingC_>
-class DynamicPaddingSingleCoreSplitkSimpleMatmul {
+class DynamicPaddingSingleCoreSplitkForSmallKMatmul {
 public:
     using PrologueA = PrologueA_;
     using PrologueB = PrologueB_;
@@ -89,7 +89,7 @@ public:
 
     // Methods
     CATLASS_DEVICE
-    DynamicPaddingSingleCoreSplitkSimpleMatmul() {}
+    DynamicPaddingSingleCoreSplitkForSmallKMatmul() {}
 
     template <int32_t CORE_TYPE = g_coreType>
     CATLASS_DEVICE

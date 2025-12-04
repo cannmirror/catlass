@@ -33,7 +33,7 @@ class Config:
         "PaddingMultiCoreSplitkMatmulKernel": 3,
         "PaddingStreamkMatmulKernel": 4,
         "SingleCoreSplitkSimpleMatmulKernel": 5,
-        "PaddingSingleCoreSplitkSimpleMatmulKernel": 6,
+        "PaddingSingleCoreSplitkForSmallKMatmulKernel": 6,
         "PaddingSingleCoreSplitkKLoopOuterMatmulKernel": 7,
         "PaddingSingleCoreSplitkKLoopMiddleMatmulKernel": 8,
     }
