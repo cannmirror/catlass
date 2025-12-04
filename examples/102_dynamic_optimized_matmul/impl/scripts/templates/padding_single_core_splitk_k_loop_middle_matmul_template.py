@@ -70,7 +70,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
             )
         )
         for l_tag_a, l_tag_b, p_tag_a, p_tag_b, p_tag_c in combinations:
-            # kernel_fun_name can be PaddingSingleCoreSplitkAsyncMatmulHalfLayout00
+            # kernel_fun_name can be PaddingSingleCoreSplitkKLoopMiddleMatmulHalfLayout00
             kernel_func_name = (
                 PaddingSingleCoreSplitkKLoopMiddleMatmulTemplate.KERNEL_NAME
                 + dtype.capitalize()
@@ -86,9 +86,9 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
             kernel_info[
                 Config.get_tiling_key(kernel_serial, dtype, l_tag_a, l_tag_b, 0, p_tag_a, p_tag_b, p_tag_c)
             ] = kernel_func_name
-            # launch_kernel_fun_name can be LaunchPaddingSingleCoreSplitkAsyncMatmulHalfLayout00
+            # launch_kernel_fun_name can be LaunchPaddingSingleCoreSplitkKLoopMiddleMatmulHalfLayout00
             launch_kernel_func_name = "Launch" + kernel_func_name
-            # get_workspace_fun_name can be PaddingSingleCoreSplitkAsyncMatmulHalfLayout00GetWorkspaceSize
+            # get_workspace_fun_name can be PaddingSingleCoreSplitkKLoopMiddleMatmulHalfLayout00GetWorkspaceSize
             get_workspace_func_name = kernel_func_name + "GetWorkspaceSize"
             # file name can be padding_single_core_splitk_k_loop_middle_matmul_kernel_half_layout_00.cpp
             file_name = Config.camel_to_snake(kernel_func_name) + ".cpp"
