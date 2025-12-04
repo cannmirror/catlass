@@ -42,7 +42,7 @@ struct TileCopyDynamicOptimized : public Catlass::Gemm::Tile::TileCopy<ArchTag, 
 
 template <class ArchTag, class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC,
     PaddingTag paddingTagA, PaddingTag paddingTagB,  PaddingTag paddingTagC>
-[[bisheng::core_ratio(1, 2)]] CATLASS_GLOBAL void PaddingSingleCoreSplitkMatmulKernel(uint64_t fftsAddr, __gm__ uint8_t *__restrict__ gmA,
+[[bisheng::core_ratio(1, 2)]] CATLASS_GLOBAL void PaddingSingleCoreSplitkKLoopOuterMatmulKernel(uint64_t fftsAddr, __gm__ uint8_t *__restrict__ gmA,
     __gm__ uint8_t *__restrict__ gmB, __gm__ uint8_t *__restrict__ gmC, __gm__ uint8_t *__restrict__ gmWA,
     __gm__ uint8_t *__restrict__ gmWB, __gm__ uint8_t *__restrict__ gmWC, __gm__ uint8_t *__restrict__ tilingData)
 {
@@ -135,7 +135,7 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
 
         using BlockScheduler = typename Catlass::Gemm::Block::DynamicSingleCoreSplitkGemmIdentityBlockSwizzle;
         // kernel level
-        using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingSingleCoreSplitkMatmul<
+        using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingSingleCoreSplitkKLoopOuterMatmul<
             PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingNDAndCastC>;
         typename MatmulKernel::Params params{problemShape, l1TileShape, l0TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC,
             gmWA, gmWB, gmWC, swizzleOffset, swizzleDirection};
@@ -152,7 +152,7 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
 
         using BlockScheduler = typename Catlass::Gemm::Block::DynamicSingleCoreSplitkGemmIdentityBlockSwizzle;
         // kernel level
-        using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingSingleCoreSplitkMatmul<
+        using MatmulKernel = Catlass::Gemm::Kernel::DynamicPaddingSingleCoreSplitkKLoopOuterMatmul<
             PaddingA, PaddingB, BlockMmad, BlockEpilogue, BlockScheduler, RemovePaddingNDAndCastC>;
         typename MatmulKernel::Params params{problemShape, l1TileShape, l0TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC,
             gmWA, gmWB, gmWC, swizzleOffset, swizzleDirection};
@@ -164,7 +164,7 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
 
 template <class ArchTag, class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC,
     PaddingTag paddingTagA, PaddingTag paddingTagB,  PaddingTag paddingTagC>
-void LaunchPaddingSingleCoreSplitkMatmulKernel(aclrtStream &stream, uint64_t fftsAddr, uint8_t *dA, uint8_t *dB, uint8_t *dC,
+void LaunchPaddingSingleCoreSplitkKLoopOuterMatmulKernel(aclrtStream &stream, uint64_t fftsAddr, uint8_t *dA, uint8_t *dB, uint8_t *dC,
     uint8_t *dW, uint8_t *dTilingParams, TilingParams &tilingParams)
 {
     using PaddingBuilderA = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagA, ArchTag, ElementA, LayoutA>;
@@ -203,13 +203,13 @@ void LaunchPaddingSingleCoreSplitkMatmulKernel(aclrtStream &stream, uint64_t fft
 
     dWC = dW + sizeWA + sizeWB;
 
-    PaddingSingleCoreSplitkMatmulKernel<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC, paddingTagA, paddingTagB, paddingTagC>
+    PaddingSingleCoreSplitkKLoopOuterMatmulKernel<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC, paddingTagA, paddingTagB, paddingTagC>
         <<<tilingParams.blockDim, nullptr, stream>>>(fftsAddr, dA, dB, dC, dWA, dWB, dWC, dTilingParams);
 }
 
 template <class ArchTag, class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC,
     PaddingTag paddingTagA, PaddingTag paddingTagB,  PaddingTag paddingTagC>
-size_t PaddingSingleCoreSplitkMatmulKernelGetWorkspaceSize(TilingParams &tilingParams)
+size_t PaddingSingleCoreSplitkKLoopOuterMatmulKernelGetWorkspaceSize(TilingParams &tilingParams)
 {
     using PaddingBuilderA = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagA, ArchTag, ElementA, LayoutA>;
     using PaddingBuilderB = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagB, ArchTag, ElementB, LayoutB>;

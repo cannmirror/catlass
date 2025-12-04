@@ -278,7 +278,7 @@ private:
 
 template <class PrologueA_, class PrologueB_, class BlockMmad_, 
     class BlockEpilogue_, class BlockScheduler_, class RemovePaddingNDAndCastC_>
-class DynamicPaddingSingleCoreSplitkMatmul {
+class DynamicPaddingSingleCoreSplitkKLoopOuterMatmul {
 public:
     using PrologueA = PrologueA_;
     using PrologueB = PrologueB_;
@@ -352,7 +352,7 @@ public:
 
     // Methods
     CATLASS_DEVICE
-    DynamicPaddingSingleCoreSplitkMatmul() {}
+    DynamicPaddingSingleCoreSplitkKLoopOuterMatmul() {}
 
     template <int32_t CORE_TYPE = g_coreType>
     CATLASS_DEVICE
