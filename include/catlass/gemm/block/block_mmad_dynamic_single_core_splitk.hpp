@@ -98,16 +98,6 @@ public:
         uint32_t l1ASize = l1TileShape.m() * l1TileShape.k() * sizeof(ElementA);
         uint32_t l1BSize = l1TileShape.k() * l1TileShape.n() * sizeof(ElementB);
 
-        l0kTile =
-            min(L0A_PINGPONG_BUF_SIZE / sizeof(ElementA) / l0TileShape.m() / L1AAlignHelper::ELE_NUM_PER_C0
-                    * L1AAlignHelper::ELE_NUM_PER_C0,
-                L0B_PINGPONG_BUF_SIZE / sizeof(ElementB) / l0TileShape.n() / L1BAlignHelper::ELE_NUM_PER_C0
-                    * L1BAlignHelper::ELE_NUM_PER_C0);
-
-        if constexpr (std::is_same_v<ElementA, float> && std::is_same_v<ElementB, float>) {
-            l0kTile = RoundDown<C0_NUM_PER_FRACTAL>(l0kTile);
-        }
-
         uint32_t l1AOffset = l1BufAddrStart;
         uint32_t l1BOffset = l1BufAddrStart + l1ASize * L1A_STAGES;
         // Init buffers
@@ -250,15 +240,15 @@ public:
                 }
 
                 // Get the loop nums on L0
-                uint32_t l1kLoops = CeilDiv(actualShape.k(), l0kTile);
+                uint32_t l1kLoops = CeilDiv(actualShape.k(), l0TileShape.k());
                 for (uint32_t l1kLoopIdx = 0; l1kLoopIdx < l1kLoops; l1kLoopIdx++) {
-                    uint32_t kActual = (l1kLoopIdx < l1kLoops - 1) ? l0kTile : (actualShape.k() - l1kLoopIdx * l0kTile);
+                    uint32_t kActual = (l1kLoopIdx < l1kLoops - 1) ? l0TileShape.k() : (actualShape.k() - l1kLoopIdx * l0TileShape.k());
 
                     // Locate the current tile on L0A
                     auto l0ATile = l0ATensorList[l0ABufId];
                     LayoutAInL0 layoutAInL0 = LayoutAInL0::template MakeLayout<ElementA>(mRound, kActual);
                     // Locate the current tile of matrix A on L1
-                    MatrixCoord l1ACoord{l1mLoopIdx * l0TileShape.m(), l1kLoopIdx * l0kTile};
+                    MatrixCoord l1ACoord{l1mLoopIdx * l0TileShape.m(), l1kLoopIdx * l0TileShape.k()};
                     auto l1ATile = l1ATensor[layoutAInL1.GetOffset(l1ACoord)];
 
                     AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0AEventList[l0ABufId]);
@@ -276,7 +266,7 @@ public:
                     auto l0BTile = l0BTensorList[l0BBufId];
                     LayoutBInL0 layoutBInL0 = LayoutBInL0::template MakeLayout<ElementB>(kActual, nRound);
                     // Locate the current tile of matrix B on L1
-                    MatrixCoord l1BCoord{l1kLoopIdx * l0kTile, l1nLoopIdx * l0TileShape.n()};
+                    MatrixCoord l1BCoord{l1kLoopIdx * l0TileShape.k(), l1nLoopIdx * l0TileShape.n()};
                     auto l1BTile = l1BTensor[layoutBInL1.GetOffset(l1BCoord)];
 
                     // Wait for mmad finished
@@ -383,7 +373,6 @@ protected:
     uint32_t l0CListId{0};
     GemmCoord l1TileShape;
     GemmCoord l0TileShape;
-    uint32_t l0kTile;
 
     TileMmad tileMmad;
     CopyGmToL1A copyGmToL1A;
