@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef SINGLE_CORE_SPLITK_SIMPLE_MATMUL_KERNEL
-#define SINGLE_CORE_SPLITK_SIMPLE_MATMUL_KERNEL
+#ifndef SINGLE_CORE_SPLITK_FOR_SMALL_K_MATMUL_KERNEL
+#define SINGLE_CORE_SPLITK_FOR_SMALL_K_MATMUL_KERNEL
 
 #include "kernel_utils.h"
 #include "tiling_params.h"
@@ -19,7 +19,7 @@
 #include "catlass/layout/layout.hpp"
 #include "catlass/gemm/block/block_mmad.hpp"
 #include "catlass/gemm/block/block_swizzle.hpp"
-#include "catlass/gemm/kernel/dynamic_single_core_splitk_simple_matmul.hpp"
+#include "catlass/gemm/kernel/dynamic_single_core_splitk_for_small_k_matmul.hpp"
 #include "catlass/gemm/gemm_type.hpp"
 
 template <
@@ -39,7 +39,7 @@ struct TileCopyDynamicOptimized : public Catlass::Gemm::Tile::TileCopy<ArchTag, 
 };
 
 template <class ArchTag, class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC>
-CATLASS_GLOBAL __attribute__((aic)) void SingleCoreSplitkSimpleMatmulKernel(__gm__ uint8_t *__restrict__ gmA,
+CATLASS_GLOBAL __attribute__((aic)) void SingleCoreSplitkForSmallKMatmulKernel(__gm__ uint8_t *__restrict__ gmA,
     __gm__ uint8_t *__restrict__ gmB, __gm__ uint8_t *__restrict__ gmC, __gm__ uint8_t *__restrict__ tilingData)
 {
     Catlass::Arch::Resource<ArchTag> resource;
@@ -122,7 +122,7 @@ CATLASS_GLOBAL __attribute__((aic)) void SingleCoreSplitkSimpleMatmulKernel(__gm
 
         using BlockScheduler = typename Catlass::Gemm::Block::DynamicSingleCoreSplitkGemmIdentityBlockSwizzle;
         // kernel level
-        using MatmulKernel = Catlass::Gemm::Kernel::DynamicSingleCoreSplitkSimpleMatmul<
+        using MatmulKernel = Catlass::Gemm::Kernel::DynamicSingleCoreSplitkForSmallKMatmul<
             BlockMmad, BlockEpilogue, BlockScheduler>;
         typename MatmulKernel::Params params{problemShape, l1TileShape, l0TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC,
             swizzleOffset, swizzleDirection};
@@ -139,7 +139,7 @@ CATLASS_GLOBAL __attribute__((aic)) void SingleCoreSplitkSimpleMatmulKernel(__gm
 
         using BlockScheduler = typename Catlass::Gemm::Block::DynamicSingleCoreSplitkGemmIdentityBlockSwizzle;
         // kernel level
-        using MatmulKernel = Catlass::Gemm::Kernel::DynamicSingleCoreSplitkSimpleMatmul<
+        using MatmulKernel = Catlass::Gemm::Kernel::DynamicSingleCoreSplitkForSmallKMatmul<
             BlockMmad, BlockEpilogue, BlockScheduler>;
         typename MatmulKernel::Params params{problemShape, l1TileShape, l0TileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC,
             swizzleOffset, swizzleDirection};
@@ -150,17 +150,17 @@ CATLASS_GLOBAL __attribute__((aic)) void SingleCoreSplitkSimpleMatmulKernel(__gm
 }
 
 template <class ArchTag, class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC>
-void LaunchSingleCoreSplitkSimpleMatmulKernel(aclrtStream &stream, uint64_t fftsAddr, uint8_t *dA, uint8_t *dB, uint8_t *dC,
+void LaunchSingleCoreSplitkForSmallKMatmulKernel(aclrtStream &stream, uint64_t fftsAddr, uint8_t *dA, uint8_t *dB, uint8_t *dC,
     uint8_t *dTilingParams, TilingParams &tilingParams)
 {
-    SingleCoreSplitkSimpleMatmulKernel<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC>
+    SingleCoreSplitkForSmallKMatmulKernel<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC>
         <<<tilingParams.blockDim, nullptr, stream>>>(dA, dB, dC, dTilingParams);
 }
 
 template <class ArchTag, class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC>
-size_t SingleCoreSplitkSimpleMatmulKernelGetWorkspaceSize(TilingParams &tilingParams)
+size_t SingleCoreSplitkForSmallKMatmulKernelGetWorkspaceSize(TilingParams &tilingParams)
 {
     return 0;
 }
 
-#endif  // SINGLE_CORE_SPLITK_SIMPLE_MATMUL_KERNEL
+#endif  // SINGLE_CORE_SPLITK_FOR_SMALL_K_MATMUL_KERNEL

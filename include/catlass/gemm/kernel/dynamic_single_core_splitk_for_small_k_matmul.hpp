@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef CATLASS_GEMM_KERNEL_DYNAMIC_SINGLE_CORE_SPLITK_SIMPLE_MATMUL_HPP
-#define CATLASS_GEMM_KERNEL_DYNAMIC_SINGLE_CORE_SPLITK_SIMPLE_MATMUL_HPP
+#ifndef CATLASS_GEMM_KERNEL_DYNAMIC_SINGLE_CORE_SPLITK_FOR_SMALL_K_MATMUL_HPP
+#define CATLASS_GEMM_KERNEL_DYNAMIC_SINGLE_CORE_SPLITK_FOR_SMALL_K_MATMUL_HPP
 
 #include "catlass/catlass.hpp"
 #include "catlass/coord.hpp"
@@ -22,7 +22,7 @@
 namespace Catlass::Gemm::Kernel {
 
 template <class BlockMmad_, class BlockEpilogue_, class BlockScheduler_>
-class DynamicSingleCoreSplitkSimpleMatmul {
+class DynamicSingleCoreSplitkForSmallKMatmul {
 public:
     using BlockMmad = BlockMmad_;
     using ArchTag = typename BlockMmad::ArchTag;
@@ -68,7 +68,7 @@ public:
 
     // Methods
     CATLASS_DEVICE
-    DynamicSingleCoreSplitkSimpleMatmul() {}
+    DynamicSingleCoreSplitkForSmallKMatmul() {}
 
     CATLASS_DEVICE
     void operator()(Params const &params, Catlass::Arch::Resource<ArchTag> &resource)
@@ -149,4 +149,4 @@ public:
 
 }  // namespace Catlass::Gemm::Kernel
 
-#endif  // CATLASS_GEMM_KERNEL_DYNAMIC_SINGLE_CORE_SPLITK_SIMPLE_MATMUL_HPP
+#endif  // CATLASS_GEMM_KERNEL_DYNAMIC_SINGLE_CORE_SPLITK_FOR_SMALL_K_MATMUL_HPP
