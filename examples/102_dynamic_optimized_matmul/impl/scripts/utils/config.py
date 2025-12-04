@@ -31,7 +31,8 @@ class Config:
         "SmallMatmulKernel": 1,
         "PaddingCommonMatmulKernel": 2,
         "PaddingMultiCoreSplitkMatmulKernel": 3,
-        "PaddingStreamkMatmulKernel": 4
+        "PaddingStreamkMatmulKernel": 4,
+        "AivMatmulKernel": 9
     }
 
     DTYPE_MAP = {"half": 0, "float": 1}

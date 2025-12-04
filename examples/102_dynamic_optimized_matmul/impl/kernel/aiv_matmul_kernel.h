@@ -19,7 +19,7 @@
 #include "catlass/layout/layout.hpp"
 #include "catlass/gemm/block/block_mmad.hpp"
 #include "catlass/gemm/block/block_swizzle.hpp"
-#include "catlass/gemm/kernel/dynamic_small_matmul.hpp"
+#include "catlass/gemm/kernel/dynamic_aiv_matmul.hpp"
 #include "catlass/gemm/gemm_type.hpp"
 
 enum class DispatchPolicyTag {
@@ -52,7 +52,7 @@ CATLASS_DEVICE void AivMatmul(Catlass::GemmCoord &problemShape, Catlass::MatrixC
 
     using BlockScheduler = typename Catlass::Gemm::Block::GemmIdentityBlockSwizzle<1, 0>;
     // kernel level
-    using MatmulKernel = Catlass::Gemm::Kernel::MatmulAiv<void, void, BlockMmad, BlockEpilogue, BlockScheduler>;
+    using MatmulKernel = Catlass::Gemm::Kernel::AivMatmul<void, void, BlockMmad, BlockEpilogue, BlockScheduler>;
     typename MatmulKernel::Params params{problemShape, taskTileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC};
     // call a kernel
     MatmulKernel matmul;

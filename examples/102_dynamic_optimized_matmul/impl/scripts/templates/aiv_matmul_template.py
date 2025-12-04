@@ -18,7 +18,7 @@ from utils.config import Config
 class AivMatmulTemplate:
 
     TEMPLATE = """
-#include "kernel/small_matmul_kernel.h"
+#include "kernel/aiv_matmul_kernel.h"
 void {launch_kernel_func_name}(aclrtStream& stream, uint64_t fftsAddr,
     uint8_t* dA, uint8_t* dB, uint8_t* dC, uint8_t* dW, uint8_t* dTilingParams, TilingParams& tilingParams)
 {{
