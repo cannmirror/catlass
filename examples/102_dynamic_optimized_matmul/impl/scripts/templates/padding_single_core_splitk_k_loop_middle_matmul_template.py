@@ -15,10 +15,10 @@ import itertools
 
 from utils.config import Config
 
-class PaddingSingleCoreSplitkAsyncMatmulTemplate:
+class PaddingSingleCoreSplitkKLoopMiddleMatmulTemplate:
 
     TEMPLATE = """
-#include "kernel/padding_single_core_splitk_async_matmul_kernel.h"
+#include "kernel/padding_single_core_splitk_k_loop_middle_matmul_kernel.h"
 void {launch_kernel_func_name}(aclrtStream& stream, uint64_t fftsAddr,
     uint8_t* dA, uint8_t* dB, uint8_t* dC, uint8_t* dW, uint8_t* dTilingParams, TilingParams& tilingParams)
 {{
@@ -32,7 +32,7 @@ void {launch_kernel_func_name}(aclrtStream& stream, uint64_t fftsAddr,
     constexpr PaddingTag paddingTagA = {padding_tag_a};
     constexpr PaddingTag paddingTagB = {padding_tag_b};
     constexpr PaddingTag paddingTagC = {padding_tag_c};
-    LaunchPaddingSingleCoreSplitkAsyncMatmulKernel<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
+    LaunchPaddingSingleCoreSplitkKLoopMiddleMatmulKernel<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
         paddingTagA, paddingTagB, paddingTagC>(
         stream, fftsAddr, dA, dB, dC, dW, dTilingParams, tilingParams);
 }}
@@ -49,16 +49,16 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
     constexpr PaddingTag paddingTagA = {padding_tag_a};
     constexpr PaddingTag paddingTagB = {padding_tag_b};
     constexpr PaddingTag paddingTagC = {padding_tag_c};
-    return PaddingSingleCoreSplitkAsyncMatmulKernelGetWorkspaceSize<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
+    return PaddingSingleCoreSplitkKLoopMiddleMatmulKernelGetWorkspaceSize<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC,
         paddingTagA, paddingTagB, paddingTagC>(tilingParams);
 }}
 """
-    KERNEL_NAME = "PaddingSingleCoreSplitkAsyncMatmulKernel"
+    KERNEL_NAME = "PaddingSingleCoreSplitkKLoopMiddleMatmulKernel"
 
     @staticmethod
     def gen_code(dtype, kernel_info):
 
-        kernel_serial = Config.KERNEL_SERIAL_MAP[PaddingSingleCoreSplitkAsyncMatmulTemplate.KERNEL_NAME]
+        kernel_serial = Config.KERNEL_SERIAL_MAP[PaddingSingleCoreSplitkKLoopMiddleMatmulTemplate.KERNEL_NAME]
 
         PADDING_TAG_SET_A = [0, 3]
         PADDING_TAG_SET_B = [0, 3]
@@ -72,7 +72,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
         for l_tag_a, l_tag_b, p_tag_a, p_tag_b, p_tag_c in combinations:
             # kernel_fun_name can be PaddingSingleCoreSplitkAsyncMatmulHalfLayout00
             kernel_func_name = (
-                PaddingSingleCoreSplitkAsyncMatmulTemplate.KERNEL_NAME
+                PaddingSingleCoreSplitkKLoopMiddleMatmulTemplate.KERNEL_NAME
                 + dtype.capitalize()
                 + "Layout"
                 + str(l_tag_a)
@@ -90,7 +90,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
             launch_kernel_func_name = "Launch" + kernel_func_name
             # get_workspace_fun_name can be PaddingSingleCoreSplitkAsyncMatmulHalfLayout00GetWorkspaceSize
             get_workspace_func_name = kernel_func_name + "GetWorkspaceSize"
-            # file name can be padding_single_core_splitk_async_matmul_kernel_half_layout_00.cpp
+            # file name can be padding_single_core_splitk_k_loop_middle_matmul_kernel_half_layout_00.cpp
             file_name = Config.camel_to_snake(kernel_func_name) + ".cpp"
 
             element_a = dtype
@@ -103,7 +103,7 @@ size_t {get_workspace_func_name}(TilingParams& tilingParams)
             padding_tag_b = Config.PADDING_TAG_MAP[p_tag_b]
             padding_tag_c = Config.PADDING_TAG_MAP[p_tag_c]
 
-            content = PaddingSingleCoreSplitkAsyncMatmulTemplate.TEMPLATE.format(
+            content = PaddingSingleCoreSplitkKLoopMiddleMatmulTemplate.TEMPLATE.format(
                 launch_kernel_func_name=launch_kernel_func_name,
                 get_workspace_func_name=get_workspace_func_name,
                 element_a=element_a,
