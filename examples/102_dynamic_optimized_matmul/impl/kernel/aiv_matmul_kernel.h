@@ -60,7 +60,7 @@ CATLASS_DEVICE void AivMatmul(Catlass::GemmCoord &problemShape, Catlass::MatrixC
 }
 
 template <class ArchTag, class ElementA, class LayoutA, class ElementB, class LayoutB, class ElementC, class LayoutC, DispatchPolicyTag dispatchPolicyTag>
-CATLASS_GLOBAL __attribute__((aic)) void AivMatmulKernel(__gm__ uint8_t *__restrict__ gmA,
+CATLASS_GLOBAL __attribute__((aiv)) void AivMatmulKernel(__gm__ uint8_t *__restrict__ gmA,
     __gm__ uint8_t *__restrict__ gmB, __gm__ uint8_t *__restrict__ gmC, __gm__ uint8_t *__restrict__ tilingData)
 {
     Catlass::Arch::Resource<ArchTag> resource;
@@ -72,15 +72,15 @@ CATLASS_GLOBAL __attribute__((aic)) void AivMatmulKernel(__gm__ uint8_t *__restr
     * --------------------------------------------------------------------------------
     * | Offset | Size | Variable         | Type      | Description                   |
     * |--------|------|------------------|-----------|-------------------------------|
-    * | 0-7    | 8    | strideA          | uint64_t  | matrix A stride               |
-    * | 8-15   | 8    | strideB          | uint64_t  | matrix B stride               |
+    * | 0-7    | 8    | strideA          | uint64_t  | unused                        |
+    * | 8-15   | 8    | strideB          | uint64_t  | unused                        |
     * | 16-23  | 8    | strideC          | uint64_t  | matrix C stride               |
     * | 24-27  | 4    | m                | uint32_t  | matrix M dimension            |
     * | 28-31  | 4    | n                | uint32_t  | matrix N dimension            |
     * | 32-35  | 4    | k                | uint32_t  | matrix K dimension            |
     * | 36-37  | 2    | m1               | uint16_t  | l1 mTile(16-bit to save space)|
     * | 38-39  | 2    | n1               | uint16_t  | l1 nTile(16-bit to save space)|
-    * | 40-41  | 2    | k1               | uint16_t  | l1 kTile(16-bit to save space)|
+    * | 40-41  | 2    | k1               | uint16_t  | unused                        |
     * | 42-47  | 4    | (reserved)       | -         | unused                        |
     * --------------------------------------------------------------------------------
     */
@@ -104,27 +104,27 @@ CATLASS_GLOBAL __attribute__((aic)) void AivMatmulKernel(__gm__ uint8_t *__restr
     uint32_t k1 = static_cast<uint32_t>(tiling->k1);
 
     Catlass::GemmCoord problemShape(m, n, k);
-    Catlass::GemmCoord l1TileShape(m1, n1, k1);
+    Catlass::MatrixCoord taskTileShape(m1, n1);
     LayoutA layoutA{m};
-    LayoutB layoutB{k};
+    LayoutB layoutB{n};
     LayoutC layoutC{m, n, strideC};
 
     // default impl: m axis as scalar axis
     if constexpr (dispatchPolicyTag == DispatchPolicyTag::DEFAULT) {
         constexpr uint32_t SCALAR_BUFFER_ELE_NUM = 256;
         constexpr uint32_t STAGES = 2;
-        using DispatchPolicy = Catlass::Gemm::MmadAtlasA2Aiv<SCALAR_BUFFER_ELE_NUM, STAGES>;
+        using DispatchPolicy = Catlass::Gemm::MmadAtlasA2DynamicAiv<SCALAR_BUFFER_ELE_NUM, STAGES>;
         AivMatmul<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC, DispatchPolicy>(
             problemShape, taskTileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC, resource);
     } else if constexpr (dispatchPolicyTag == DispatchPolicyTag::MATMUL_AIV_SIMPLE) {
         constexpr uint32_t SCALAR_BUFFER_ELE_NUM = 256;
         constexpr bool IS_TILE_M = true;
-        using DispatchPolicy = Catlass::Gemm::MmadAtlasA2AivSimple<SCALAR_BUFFER_ELE_NUM, IS_TILE_M>;
+        using DispatchPolicy = Catlass::Gemm::MmadAtlasA2DynamicAivSimple<SCALAR_BUFFER_ELE_NUM, IS_TILE_M>;
         AivMatmul<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC, DispatchPolicy>(
             problemShape, taskTileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC, resource);
     } else if constexpr (dispatchPolicyTag == DispatchPolicyTag::MATMUL_AIV_TRANS) {
         constexpr uint32_t SCALAR_BUFFER_ELE_NUM = 256;
-        using DispatchPolicy = Catlass::Gemm::MmadAtlasA2AivTrans<SCALAR_BUFFER_ELE_NUM>;
+        using DispatchPolicy = Catlass::Gemm::MmadAtlasA2DynamicAivTrans<SCALAR_BUFFER_ELE_NUM>;
         AivMatmul<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC, DispatchPolicy>(
             problemShape, taskTileShape, gmA, layoutA, gmB, layoutB, gmC, layoutC, resource);
     }
@@ -134,7 +134,7 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
 void LaunchAivMatmulKernel(aclrtStream &stream, uint64_t fftsAddr, uint8_t *dA, uint8_t *dB, uint8_t *dC,
     uint8_t *dTilingParams, TilingParams &tilingParams)
 {
-    AivMatmulKernel<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC>
+    AivMatmulKernel<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC, dispatchPolicyTag>
         <<<tilingParams.blockDim, nullptr, stream>>>(dA, dB, dC, dTilingParams);
 }
 

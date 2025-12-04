@@ -385,7 +385,7 @@ bool AivMatmulB16Handler(TilingParams& params, PlatformInfo& platformInfo)
     }
     uint32_t aivCoreNums = platformInfo.coreNum * 2;
     constexpr uint32_t SCALAR_BUFFER_ELE_NUM = 256;
-    uint8_t kernelSerial = 5;
+    uint8_t kernelSerial = 9;
     uint8_t dispatchPolicyTag = 0;
     if (params.m <= params.n || params.n > 64) {
         uint32_t nTile = RoundUp(params.n, 16);
