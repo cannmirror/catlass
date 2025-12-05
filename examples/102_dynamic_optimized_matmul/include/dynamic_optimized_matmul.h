@@ -15,7 +15,9 @@
 #include <iomanip>
 
 #include "do_tiling_b16.h"
+#include "do_tiling_b32.h"
 #include "select_kernel_b16.h"
+#include "select_kernel_b32.h"
 #include "launch_map.h"
 
 template <class DType>
@@ -27,10 +29,25 @@ void DoTiling(TilingParams &tilingParams, PlatformInfo &platformInfo)
     DoTilingB16[layoutTagA][layoutTagB](tilingParams, platformInfo);
 }
 
+template <>
+void DoTiling<float>(TilingParams &tilingParams, PlatformInfo &platformInfo)
+{
+    uint32_t layoutTagA = tilingParams.layoutTagA;
+    uint32_t layoutTagB = tilingParams.layoutTagB;
+
+    DoTilingB32[layoutTagA][layoutTagB](tilingParams, platformInfo);
+}
+
 template <class DType>
 void SelectKernel(TilingParams &tilingParams, PlatformInfo &platformInfo)
 {
     SelectKernelB16(tilingParams, platformInfo);
+}
+
+template <>
+void SelectKernel<float>(TilingParams &tilingParams, PlatformInfo &platformInfo)
+{
+    SelectKernelB32(tilingParams, platformInfo);
 }
 
 template <class DType>
