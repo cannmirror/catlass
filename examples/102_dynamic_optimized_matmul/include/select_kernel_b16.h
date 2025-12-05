@@ -27,7 +27,7 @@ double GetBandwidth(uint32_t nValue, uint32_t dValue, uint32_t srcDValue) {
     double unalignBand = a6 * pow(static_cast<double>(dValue), 6) + a5 * pow(static_cast<double>(dValue), 5)
         + a4 * pow(static_cast<double>(dValue), 4) + a3 * pow(static_cast<double>(dValue), 3)
         + a2 * pow(static_cast<double>(dValue), 2) + a1 * static_cast<double>(dValue) + a0;
-    
+
     if (dValue == srcDValue && dValue <= 128) {
         if (dValue % 16 == 0) {
             unalignBand = 60;
@@ -113,7 +113,7 @@ void GetPaddingTag(TilingParams& tilingParams, PlatformInfo& platformInfo) {
         aBandwidthAiv = 10;
     }
     double aBandwidthBeforePaddingAic = GetBandwidth(nValueA, dValueA, innerAxisA);
-    
+
     uint32_t tasksAic = CeilDiv(m, m1) * CeilDiv(n, n1) * splitkFactor;
     uint32_t blockDimAic = tasksAic > platformInfo.coreNum ? platformInfo.coreNum : tasksAic;
     if (CeilDiv(m, m1) < blockDimAic / 2 && k <= k1 && CeilDiv(m, m1) <= 2) {
@@ -129,7 +129,7 @@ void GetPaddingTag(TilingParams& tilingParams, PlatformInfo& platformInfo) {
     if (matrixBSize > 192 * 1024 * 1024) { // L2 cache size
         bBandwidthAiv = 10;
     }
-    double bBandwidthBeforePaddingAic = GetBandwidth(nValueB, dValueB, innerAxisB); 
+    double bBandwidthBeforePaddingAic = GetBandwidth(nValueB, dValueB, innerAxisB);
     if (CeilDiv(n, n1) < blockDimAic / 2 && k <= k1 && CeilDiv(n, n1) <= 2) {
         bBandwidthBeforePaddingAic = bBandwidthBeforePaddingAic / (blockDimAic / CeilDiv(n, n1)) * 1.5;
     }
@@ -195,7 +195,7 @@ void GetPaddingTag(TilingParams& tilingParams, PlatformInfo& platformInfo) {
         + static_cast<double>(bMaxDataSizeAic) / bBandwidthAfterPaddingAic / 1000
         + static_cast<double>(aMaxDataSizeAiv) / aBandwidthAiv / 1000
         + static_cast<double>(bMaxDataSizeAiv) / bBandwidthAiv / 1000 + headCost + 2;
-    
+
     double minCost = std::numeric_limits<double>::max();
     PaddingTag paddingTagA = PaddingTag::PADDING_NONE;
     PaddingTag paddingTagB = PaddingTag::PADDING_NONE;
@@ -243,7 +243,7 @@ void GetPaddingTag(TilingParams& tilingParams, PlatformInfo& platformInfo) {
     }
 
     tilingParams.paddingTagA = static_cast<uint8_t>(paddingTagA);
-    tilingParams.paddingTagB = static_cast<uint8_t>(paddingTagB); 
+    tilingParams.paddingTagB = static_cast<uint8_t>(paddingTagB);
     tilingParams.paddingTagC = static_cast<uint8_t>(paddingTagC);
 
     uint32_t blockDim = blockDimAic;
@@ -256,7 +256,7 @@ void GetPaddingTag(TilingParams& tilingParams, PlatformInfo& platformInfo) {
         actualTasksAivB = tasksAivB;
     }
     uint32_t actualTasksAiv = std::max(actualTasksAivA, actualTasksAivB);
-    uint32_t blockDimAiv = CeilDiv(actualTasksAiv, 2) > platformInfo.coreNum 
+    uint32_t blockDimAiv = CeilDiv(actualTasksAiv, 2) > platformInfo.coreNum
         ? platformInfo.coreNum : CeilDiv(actualTasksAiv, 2);
     if (tilingParams.paddingTagA || tilingParams.paddingTagB) {
         blockDim = std::max(blockDimAic, blockDimAiv);
@@ -296,8 +296,8 @@ bool PaddingCommonMatmulB16Handler(TilingParams &params, PlatformInfo& platformI
 {
     uint8_t kernelSerial = 2;
     if (params.paddingTagA || params.paddingTagB || params.paddingTagC) {
-        params.tilingKey.SetTilingKey(kernelSerial, 
-            params.layoutTagA, params.layoutTagB, 0, params.paddingTagA, params.paddingTagB, params.paddingTagC); 
+        params.tilingKey.SetTilingKey(kernelSerial,
+            params.layoutTagA, params.layoutTagB, 0, params.paddingTagA, params.paddingTagB, params.paddingTagC);
         return true;
     }
     return false;
@@ -312,7 +312,7 @@ bool PaddingMultiCoreSplitkMatmulB16Handler(TilingParams& params, PlatformInfo& 
     LayoutTag layoutTagA = static_cast<LayoutTag>(params.layoutTagA);
     LayoutTag layoutTagB = static_cast<LayoutTag>(params.layoutTagB);
     bool cond1 = (layoutTagA == LayoutTag::TagColumnMajor && layoutTagB == LayoutTag::TagColumnMajor);
-    bool cond2 = (layoutTagA == LayoutTag::TagColumnMajor && layoutTagB == LayoutTag::TagRowMajor) && (m > n); 
+    bool cond2 = (layoutTagA == LayoutTag::TagColumnMajor && layoutTagB == LayoutTag::TagRowMajor) && (m > n);
     if (cond1 || cond2) {
         m1t = 256;
         n1t = 128;
@@ -338,8 +338,8 @@ bool PaddingMultiCoreSplitkMatmulB16Handler(TilingParams& params, PlatformInfo& 
         params.splitkFactor = std::min(platformInfo.coreNum / blocks, maxSplitkFactor);
         GetPaddingTag(params, platformInfo);
         uint8_t kernelSerial = 3;
-        params.tilingKey.SetTilingKey(kernelSerial, 
-            params.layoutTagA, params.layoutTagB, 0, params.paddingTagA, params.paddingTagB, 0); 
+        params.tilingKey.SetTilingKey(kernelSerial,
+            params.layoutTagA, params.layoutTagB, 0, params.paddingTagA, params.paddingTagB, 0);
         return true;
     }
     return false;
@@ -356,14 +356,14 @@ bool PaddingStreamkMatmulB16Handler(TilingParams& params, PlatformInfo& platform
     LayoutTag layoutTagA = static_cast<LayoutTag>(params.layoutTagA);
     LayoutTag layoutTagB = static_cast<LayoutTag>(params.layoutTagB);
     bool cond1 = (layoutTagA == LayoutTag::TagColumnMajor && layoutTagB == LayoutTag::TagColumnMajor);
-    bool cond2 = (layoutTagA == LayoutTag::TagColumnMajor && layoutTagB == LayoutTag::TagRowMajor) && (m > n); 
+    bool cond2 = (layoutTagA == LayoutTag::TagColumnMajor && layoutTagB == LayoutTag::TagRowMajor) && (m > n);
     if (cond1 || cond2) {
         m1t = 256;
         n1t = 128;
     }
     uint32_t blocks = CeilDiv(m, m1t) * CeilDiv(n, n1t);
     uint32_t skBlocks = blocks % platformInfo.coreNum;
-    if (blocks > platformInfo.coreNum && blocks < 8 * platformInfo.coreNum && skBlocks > 0 
+    if (blocks > platformInfo.coreNum && blocks < 8 * platformInfo.coreNum && skBlocks > 0
         && skBlocks < 0.8 * platformInfo.coreNum && params.k > 3072) {
             params.m1 = m1t;
             params.n1 = n1t;
@@ -371,14 +371,14 @@ bool PaddingStreamkMatmulB16Handler(TilingParams& params, PlatformInfo& platform
             GetPaddingTag(params, platformInfo);
             params.blockDim = platformInfo.coreNum;
             uint32_t kernelSerial = 4;
-            params.tilingKey.SetTilingKey(kernelSerial, 
-                params.layoutTagA, params.layoutTagB, 0, params.paddingTagA, params.paddingTagB, 0); 
+            params.tilingKey.SetTilingKey(kernelSerial,
+                params.layoutTagA, params.layoutTagB, 0, params.paddingTagA, params.paddingTagB, 0);
         return true;
     }
     return false;
 }
 
-void SetSwizzleParams(TilingParams &tilingParams)
+void SetSwizzleParamsB16(TilingParams &tilingParams)
 {
     if (tilingParams.m > tilingParams.n) {
         tilingParams.swizzleOffset = 3;
@@ -422,7 +422,7 @@ void SelectKernelB16(TilingParams &tilingParams, PlatformInfo& platformInfo)
     tilingParams.layoutTagA = layoutTagATmp;
     tilingParams.layoutTagB = layoutTagBTmp;
 
-    SetSwizzleParams(tilingParams);
+    SetSwizzleParamsB16(tilingParams);
 }
 
 #endif  // SELECT_KERNEL_HALF_H

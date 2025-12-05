@@ -382,6 +382,17 @@ bool PaddingStreamkMatmulB32Handler(TilingParams& params, PlatformInfo& platform
     return false;
 }
 
+void SetSwizzleParamsB32(TilingParams &tilingParams)
+{
+    if (tilingParams.m > tilingParams.n) {
+        tilingParams.swizzleOffset = 3;
+        tilingParams.swizzleDirection = 0;
+    } else {
+        tilingParams.swizzleOffset = 3;
+        tilingParams.swizzleDirection = 1;
+    }
+}
+
 void SelectKernelB32(TilingParams& tilingParams, PlatformInfo& platformInfo)
 {
     // Temporarily store the original layoutTagA and layoutTagB
@@ -415,7 +426,7 @@ void SelectKernelB32(TilingParams& tilingParams, PlatformInfo& platformInfo)
     tilingParams.layoutTagA = layoutTagATmp;
     tilingParams.layoutTagB = layoutTagBTmp;
 
-    SetSwizzleParams(tilingParams);
+    SetSwizzleParamsB32(tilingParams);
 
     uint32_t m = tilingParams.m;
     uint32_t n = tilingParams.n;
