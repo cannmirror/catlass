@@ -14,7 +14,7 @@
 #include "platform_info.h"
 #include <limits>
 
-double GetBandwidthFloat(uint32_t nValue, uint32_t dValue, uint32_t srcDValue, double& MAX_BANDWIDTH_AIC) {
+double GetBandwidthB32(uint32_t nValue, uint32_t dValue, uint32_t srcDValue, double& MAX_BANDWIDTH_AIC) {
     double a6 = -0.000000000000009004592101;
     double a5 = 0.000000000019396510970002;
     double a4 = -0.00000001611519890867614;
@@ -83,7 +83,7 @@ double GetBandwidthFloat(uint32_t nValue, uint32_t dValue, uint32_t srcDValue, d
     return unalignBand;
 }
 
-void GetPaddingTagFloat(TilingParams& tilingParams, PlatformInfo& platformInfo) {
+void GetPaddingTagB32(TilingParams& tilingParams, PlatformInfo& platformInfo) {
     uint32_t m = tilingParams.m;
     uint32_t n = tilingParams.n;
     uint32_t k = tilingParams.k;
@@ -122,7 +122,7 @@ void GetPaddingTagFloat(TilingParams& tilingParams, PlatformInfo& platformInfo) 
     if (matrixASize > 192 * 1024 * 1024) { // L2 Cache size
         aBandwidthAiv = 10;
     }
-    double aBandwidthBeforePaddingAic = GetBandwidthFloat(nValueA, dValueA, innerAxisA, MAX_BANDWIDTH_AIC);
+    double aBandwidthBeforePaddingAic = GetBandwidthB32(nValueA, dValueA, innerAxisA, MAX_BANDWIDTH_AIC);
 
     uint32_t tasksAic = CeilDiv(m, m1) * CeilDiv(n, n1);
     uint32_t blockDimAic = tasksAic > platformInfo.coreNum ? platformInfo.coreNum : tasksAic;
@@ -136,7 +136,7 @@ void GetPaddingTagFloat(TilingParams& tilingParams, PlatformInfo& platformInfo) 
     if (matrixBSize > 192 * 1024 * 1024) {
         bBandwidthAiv = 10;
     }
-    double bBandwidthBeforePaddingAic = GetBandwidthFloat(nValueB, dValueB, innerAxisB, MAX_BANDWIDTH_AIC);
+    double bBandwidthBeforePaddingAic = GetBandwidthB32(nValueB, dValueB, innerAxisB, MAX_BANDWIDTH_AIC);
     if (CeilDiv(n, n1) < blockDimAic / 2 && k <= k1 && CeilDiv(n, n1) <= 2) {
         bBandwidthBeforePaddingAic = bBandwidthBeforePaddingAic / (blockDimAic / CeilDiv(n, n1)) * 1.5;
     }
@@ -264,9 +264,9 @@ void GetPaddingTagFloat(TilingParams& tilingParams, PlatformInfo& platformInfo) 
     tilingParams.blockDim = blockDim;
 }
 
-bool SmallMatmulFloatHandler(TilingParams& params, PlatformInfo& platformInfo) {
+bool SmallMatmulB32Handler(TilingParams& params, PlatformInfo& platformInfo) {
     uint8_t kernelSerial = 1;
-    GetPaddingTagFloat(params, platformInfo);
+    GetPaddingTagB32(params, platformInfo);
 
     if (static_cast<PaddingTag>(params.paddingTagA) == PaddingTag::PADDING_NONE
         && static_cast<PaddingTag>(params.paddingTagB) == PaddingTag::PADDING_NONE
@@ -281,7 +281,7 @@ bool SmallMatmulFloatHandler(TilingParams& params, PlatformInfo& platformInfo) {
     return false;
 }
 
-bool PaddingMatmulFloatHandler(TilingParams& params, PlatformInfo& platformInfo) {
+bool PaddingCommonMatmulB32Handler(TilingParams& params, PlatformInfo& platformInfo) {
     uint8_t kernelSerial = 2;
     if (params.paddingTagA || params.paddingTagB || params.paddingTagC) {
         params.tilingKey.SetTilingKey(kernelSerial,
@@ -291,7 +291,7 @@ bool PaddingMatmulFloatHandler(TilingParams& params, PlatformInfo& platformInfo)
     return false;
 }
 
-bool CommonMatmulFloatHandler(TilingParams& params, PlatformInfo& platformInfo) {
+bool CommonMatmulB32Handler(TilingParams& params, PlatformInfo& platformInfo) {
     uint8_t kernelSerial = 0;
     uint32_t taskBlocks = CeilDiv(params.m, params.m1) * CeilDiv(params.n, params.n1);
     params.blockDim = taskBlocks > platformInfo.coreNum ? platformInfo.coreNum : taskBlocks;
@@ -301,7 +301,7 @@ bool CommonMatmulFloatHandler(TilingParams& params, PlatformInfo& platformInfo) 
     return true;
 }
 
-bool SplitkMatmulFloatHandler(TilingParams& params, PlatformInfo& platformInfo) {
+bool PaddingMultiCoreSplitkMatmulB32Handler(TilingParams& params, PlatformInfo& platformInfo) {
     if (params.k <= 128) {
         params.splitkFactor = 1;
         return false;
@@ -343,7 +343,7 @@ bool SplitkMatmulFloatHandler(TilingParams& params, PlatformInfo& platformInfo) 
         params.k1 = k1t;
         uint8_t kernelSerial = 3;
         params.splitkFactor = std::min(platformInfo.coreNum / blocks, maxSplitkFactor);
-        GetPaddingTagFloat(params, platformInfo);
+        GetPaddingTagB32(params, platformInfo);
         params.tilingKey.SetTilingKey(
             kernelSerial, params.layoutTagA, params.layoutTagB, 0, params.paddingTagA, params.paddingTagB, 0, 1);
         return true;
@@ -351,7 +351,7 @@ bool SplitkMatmulFloatHandler(TilingParams& params, PlatformInfo& platformInfo) 
     return false;
 }
 
-bool StreamkMatmulFloatHandler(TilingParams& params, PlatformInfo& platformInfo) {
+bool PaddingStreamkMatmulB32Handler(TilingParams& params, PlatformInfo& platformInfo) {
     uint32_t m1 = params.m1;
     uint32_t n1 = params.n1;
     uint32_t k1 = params.k1;
@@ -373,7 +373,7 @@ bool StreamkMatmulFloatHandler(TilingParams& params, PlatformInfo& platformInfo)
         params.m1 = m1t;
         params.n1 = n1t;
         params.k1 = k1t;
-        GetPaddingTagFloat(params, platformInfo);
+        GetPaddingTagB32(params, platformInfo);
         uint8_t kernelSerial = 4;
         params.tilingKey.SetTilingKey(
             kernelSerial, params.layoutTagA, params.layoutTagB, 0, params.paddingTagA, params.paddingTagB, 0, 1);
@@ -398,11 +398,11 @@ void SelectKernelB32(TilingParams& tilingParams, PlatformInfo& platformInfo)
 
     using HandlerPtr = bool (*)(TilingParams& tilingParams, PlatformInfo& platformInfo);
     HandlerPtr Handlers[] = {
-        SmallMatmulFloatHandler,
-        SplitkMatmulFloatHandler,
-        StreamkMatmulFloatHandler,
-        PaddingMatmulFloatHandler,
-        CommonMatmulFloatHandler
+        SmallMatmulB32Handler,
+        PaddingMultiCoreSplitkMatmulB32Handler,
+        PaddingStreamkMatmulB32Handler,
+        PaddingCommonMatmulB32Handler,
+        CommonMatmulB32Handler
     };
 
     for (auto handler : Handlers) {

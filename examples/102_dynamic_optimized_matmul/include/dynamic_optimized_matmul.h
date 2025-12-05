@@ -21,40 +21,26 @@
 #include "launch_map.h"
 
 template <class DType>
-void DoTiling(TilingParams &tilingParams, PlatformInfo &platformInfo)
+void DoTilingAndSelectKernel(TilingParams &tilingParams, PlatformInfo &platformInfo) {}
+
+template <>
+void DoTilingAndSelectKernel<fp16_t>(TilingParams &tilingParams, PlatformInfo &platformInfo)
 {
     uint32_t layoutTagA = tilingParams.layoutTagA;
     uint32_t layoutTagB = tilingParams.layoutTagB;
 
     DoTilingB16[layoutTagA][layoutTagB](tilingParams, platformInfo);
+    SelectKernelB16(tilingParams, platformInfo);
 }
 
 template <>
-void DoTiling<float>(TilingParams &tilingParams, PlatformInfo &platformInfo)
+void DoTilingAndSelectKernel<float>(TilingParams &tilingParams, PlatformInfo &platformInfo)
 {
     uint32_t layoutTagA = tilingParams.layoutTagA;
     uint32_t layoutTagB = tilingParams.layoutTagB;
 
     DoTilingB32[layoutTagA][layoutTagB](tilingParams, platformInfo);
-}
-
-template <class DType>
-void SelectKernel(TilingParams &tilingParams, PlatformInfo &platformInfo)
-{
-    SelectKernelB16(tilingParams, platformInfo);
-}
-
-template <>
-void SelectKernel<float>(TilingParams &tilingParams, PlatformInfo &platformInfo)
-{
     SelectKernelB32(tilingParams, platformInfo);
-}
-
-template <class DType>
-void DoTilingAndSelectKernel(TilingParams &tilingParams, PlatformInfo &platformInfo)
-{
-    DoTiling<DType>(tilingParams, platformInfo);
-    SelectKernel<DType>(tilingParams, platformInfo);
 }
 
 size_t DynamicOptimizedMatmulGetWorkspace(TilingParams &tilingParams)

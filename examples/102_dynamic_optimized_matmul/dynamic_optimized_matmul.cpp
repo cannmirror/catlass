@@ -118,7 +118,7 @@ int main(int argc, const char **argv)
     uint32_t k = std::atoi(argv[3]);
     LayoutTag layoutTagA = static_cast<LayoutTag>(std::atoi(argv[4]));
     LayoutTag layoutTagB = static_cast<LayoutTag>(std::atoi(argv[5]));
-    Run<float>(stream, m, n, k, layoutTagA, layoutTagB, platformInfo);
+    Run<fp16_t>(stream, m, n, k, layoutTagA, layoutTagB, platformInfo);
 
     ACL_CHECK(aclrtDestroyStream(stream));
     ACL_CHECK(aclrtResetDevice(deviceId));
