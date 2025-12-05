@@ -53,27 +53,27 @@ template <class ArchTag, class ElementA, class LayoutA, class ElementB, class La
     * Load tiling parameters from global memory (tilingData) to local array tilingParams
     * 
     * tilingData memory layout corresponds to tilingParams as follows:
-    * --------------------------------------------------------------------------------
-    * | Offset | Size | Variable         | Type      | Description                   |
-    * |--------|------|------------------|-----------|-------------------------------|
-    * | 0-7    | 8    | strideA          | uint64_t  | matrix A stride               |
-    * | 8-15   | 8    | strideB          | uint64_t  | matrix B stride               |
-    * | 16-23  | 8    | strideC          | uint64_t  | matrix C stride               |
-    * | 24-27  | 4    | m                | uint32_t  | matrix M dimension            |
-    * | 28-31  | 4    | n                | uint32_t  | matrix N dimension            |
-    * | 32-35  | 4    | k                | uint32_t  | matrix K dimension            |
-    * | 36-37  | 2    | m1               | uint16_t  | l1 mTile(16-bit to save space)|
-    * | 38-39  | 2    | n1               | uint16_t  | l1 nTile(16-bit to save space)|
-    * | 40-41  | 2    | k1               | uint16_t  | l1 kTile(16-bit to save space)|
-    * | 42-42  | 1    | swizzleOffset    | uint8_t   | swizzle offset                |
-    * | 43-43  | 1    | swizzleDirection | uint8_t   | swizzle direction             |
-    * | 44-45  | 2    | splitkFactor     | uint16_t  | splitk factor                 |
-    * | 46-47  | 2    | m0               | uint16_t  | l0 mTile(16-bit to save space)|
-    * | 48-49  | 2    | n0               | uint16_t  | l0 nTile(16-bit to save space)|
-    * | 50-51  | 2    | k0               | uint16_t  | l0 kTile(16-bit to save space)|
-    * | 52-53  | 2    | m1Factor         | uint16_t  |m1*m1Factor for block C swizzle|
-    * | 54-55  | 2    | n1Factor         | uint16_t  |n1*n1Factor for block C swizzle|
-    * --------------------------------------------------------------------------------
+    * ----------------------------------------------------------------------------------------------------
+    * | Offset | Size | Variable         | Type      | Description                                       |
+    * |--------|------|------------------|-----------|---------------------------------------------------|
+    * | 0-7    | 8    | strideA          | uint64_t  | matrix A stride                                   |
+    * | 8-15   | 8    | strideB          | uint64_t  | matrix B stride                                   |
+    * | 16-23  | 8    | strideC          | uint64_t  | matrix C stride                                   |
+    * | 24-27  | 4    | m                | uint32_t  | matrix M dimension                                |
+    * | 28-31  | 4    | n                | uint32_t  | matrix N dimension                                |
+    * | 32-35  | 4    | k                | uint32_t  | matrix K dimension                                |
+    * | 36-37  | 2    | m1               | uint16_t  | l1 mTile(16-bit to save space)                    |
+    * | 38-39  | 2    | n1               | uint16_t  | l1 nTile(16-bit to save space)                    |
+    * | 40-41  | 2    | k1               | uint16_t  | l1 kTile(16-bit to save space)                    |
+    * | 42-42  | 1    | swizzleOffset    | uint8_t   | swizzle offset                                    |
+    * | 43-43  | 1    | swizzleDirection | uint8_t   | swizzle direction                                 |
+    * | 44-45  | 2    | splitkFactor     | uint16_t  | splitk factor                                     |
+    * | 46-47  | 2    | m0               | uint16_t  | l0 mTile(16-bit to save space)                    |
+    * | 48-49  | 2    | n0               | uint16_t  | l0 nTile(16-bit to save space)                    |
+    * | 50-51  | 2    | k0               | uint16_t  | l0 kTile(16-bit to save space)                    |
+    * | 52-53  | 2    | m1Factor         | uint16_t  | (m1*m1Factor, n1*n1Factor) is for C block swizzle |
+    * | 54-55  | 2    | n1Factor         | uint16_t  | (m1*m1Factor, n1*n1Factor) is for C block swizzle |
+    * ----------------------------------------------------------------------------------------------------
     */
 
     // This kernel only needs to read TILING_PARAMS_BYTES bytes of data.
