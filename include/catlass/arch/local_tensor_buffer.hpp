@@ -49,9 +49,7 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        AscendC::TBuf<AscendC::TPosition::A1> tbufA1;
-        GetTPipePtr()->InitBuffer(tbufA1, ArchTag::L1_SIZE);
-        tensor = tbufA1.Get<uint8_t>();
+        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::A1, 0, ArchTag::L1_SIZE);
     }
 };
 
@@ -66,9 +64,7 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        AscendC::TBuf<AscendC::TPosition::A2> tbufA2;
-        GetTPipePtr()->InitBuffer(tbufA2, ArchTag::L0A_SIZE);
-        tensor = tbufA2.Get<uint8_t>();
+        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::A2, 0, ArchTag::L0A_SIZE);
     }
 };
 
@@ -83,15 +79,13 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        AscendC::TBuf<AscendC::TPosition::B1> tbufB1;
-        GetTPipePtr()->InitBuffer(tbufB1, ArchTag::L1_SIZE);
-        tensor = tbufB1.Get<uint8_t>();
+        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::B1, 0, ArchTag::L1_SIZE);
     }
 };
 
 ///////////////////////////////////////////////////////////
 
-/// Partial specialization for AtlasA2, TPosition::B2
+/// Partial specialization for TPosition::B2
 template <class ArchTag>
 struct LocalTensorBuffer<ArchTag, AscendC::TPosition::B2> : LocalTensorBufferBase {
 public:
@@ -100,45 +94,37 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        AscendC::TBuf<AscendC::TPosition::B2> tbufB2;
-        GetTPipePtr()->InitBuffer(tbufB2, ArchTag::L0B_SIZE);
-        tensor = tbufB2.Get<uint8_t>();
+        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::B2, 0, ArchTag::L0B_SIZE);
     }
 };
 
 ///////////////////////////////////////////////////////////
 
-/// Partial specialization for AtlasA2, TPosition::C1
-template <>
-struct LocalTensorBuffer<Arch::AtlasA2, AscendC::TPosition::C1> : LocalTensorBufferBase {
+/// Partial specialization for TPosition::C1
+template <class ArchTag>
+struct LocalTensorBuffer<ArchTag, AscendC::TPosition::C1> : LocalTensorBufferBase {
 public:
-    using ArchTag = Arch::AtlasA2;
     static constexpr AscendC::TPosition Position = AscendC::TPosition::C1;
 
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        AscendC::TBuf<AscendC::TPosition::C1> tbufC1;
-        GetTPipePtr()->InitBuffer(tbufC1, ArchTag::L1_SIZE);
-        tensor = tbufC1.Get<uint8_t>();
+        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::C1, 0, ArchTag::L1_SIZE);
     }
 };
 
 ///////////////////////////////////////////////////////////
 
-/// Partial specialization for AtlasA2, TPosition::C2
-template <>
-struct LocalTensorBuffer<Arch::AtlasA2, AscendC::TPosition::C2> : LocalTensorBufferBase {
+/// Partial specialization for TPosition::C2
+template <class ArchTag>
+struct LocalTensorBuffer<ArchTag, AscendC::TPosition::C2> : LocalTensorBufferBase {
 public:
-    using ArchTag = Arch::AtlasA2;
     static constexpr AscendC::TPosition Position = AscendC::TPosition::C2;
 
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        AscendC::TBuf<AscendC::TPosition::C2> tbufC2;
-        GetTPipePtr()->InitBuffer(tbufC2, ArchTag::BIAS_SIZE);
-        tensor = tbufC2.Get<uint8_t>();
+        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::C2, 0, ArchTag::BIAS_SIZE);
     }
 };
 
@@ -153,27 +139,22 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        AscendC::TBuf<AscendC::TPosition::CO1> tbufCO1;
-        GetTPipePtr()->InitBuffer(tbufCO1, ArchTag::L0C_SIZE);
-        tensor = tbufCO1.Get<uint8_t>();
+        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::CO1, 0, ArchTag::L0C_SIZE);
     }
 };
 
 ///////////////////////////////////////////////////////////
 
-/// Partial specialization for AtlasA2, TPosition::C2PIPE2GM
-template <>
-struct LocalTensorBuffer<Arch::AtlasA2, AscendC::TPosition::C2PIPE2GM> : LocalTensorBufferBase {
+/// Partial specialization for TPosition::C2PIPE2GM
+template <class ArchTag>
+struct LocalTensorBuffer<ArchTag, AscendC::TPosition::C2PIPE2GM> : LocalTensorBufferBase {
 public:
-    using ArchTag = Arch::AtlasA2;
     static constexpr AscendC::TPosition Position = AscendC::TPosition::C2PIPE2GM;
 
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        AscendC::TBuf<AscendC::TPosition::C2PIPE2GM> tbufC2PIPE2GM;
-        GetTPipePtr()->InitBuffer(tbufC2PIPE2GM, ArchTag::FIXBUF_SIZE);
-        tensor = tbufC2PIPE2GM.Get<uint8_t>();
+        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::C2PIPE2GM, 0, ArchTag::FIXBUF_SIZE);
     }
 };
 
@@ -188,9 +169,7 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        AscendC::TBuf<AscendC::TPosition::VECIN> tbufVECIN;
-        GetTPipePtr()->InitBuffer(tbufVECIN, ArchTag::UB_SIZE);
-        tensor = tbufVECIN.Get<uint8_t>();
+        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::VECIN, 0, ArchTag::UB_SIZE);
     }
 };
 
@@ -205,9 +184,7 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        AscendC::TBuf<AscendC::TPosition::VECOUT> tbufVECOUT;
-        GetTPipePtr()->InitBuffer(tbufVECOUT, ArchTag::UB_SIZE);
-        tensor = tbufVECOUT.Get<uint8_t>();
+        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::VECOUT, 0, ArchTag::UB_SIZE);
     }
 };
 
@@ -222,9 +199,7 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        AscendC::TBuf<AscendC::TPosition::VECCALC> tbufVECCALC;
-        GetTPipePtr()->InitBuffer(tbufVECCALC, ArchTag::UB_SIZE);
-        tensor = tbufVECCALC.Get<uint8_t>();
+        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::VECCALC, 0, ArchTag::UB_SIZE);
     }
 };
 
