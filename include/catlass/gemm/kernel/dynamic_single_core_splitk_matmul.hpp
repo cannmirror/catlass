@@ -110,8 +110,8 @@ public:
             if (loopIdx < coreLoops - 1) {
                 nextBlockCoord = matmulBlockScheduler.GetBlockCoord(loopIdx + 1);
                 nextActualBlockShape = matmulBlockScheduler.GetActualBlockShape(nextBlockCoord);
-                needLoadNextA = (blockCoord.k() != nextBlockCoord.k()) || (blockCoord.m() != nextBlockCoord.m());
-                needLoadNextB = (blockCoord.k() != nextBlockCoord.k()) || (blockCoord.n() != nextBlockCoord.n());
+                needLoadNextA = (blockCoord.m() != nextBlockCoord.m());
+                needLoadNextB = (blockCoord.n() != nextBlockCoord.n());
             }
 
             // Compute initial location in logical coordinates
@@ -358,8 +358,8 @@ public:
             if (loopIdx < coreLoops - 1) {
                 nextBlockCoord = matmulBlockScheduler.GetBlockCoord(loopIdx + 1);
                 nextActualBlockShape = matmulBlockScheduler.GetActualBlockShape(nextBlockCoord);
-                needLoadNextA = (blockCoord.k() != nextBlockCoord.k()) || (blockCoord.m() != nextBlockCoord.m());
-                needLoadNextB = (blockCoord.k() != nextBlockCoord.k()) || (blockCoord.n() != nextBlockCoord.n());
+                needLoadNextA = (blockCoord.m() != nextBlockCoord.m());
+                needLoadNextB = (blockCoord.n() != nextBlockCoord.n());
             }
 
             // Compute initial location in logical coordinates
