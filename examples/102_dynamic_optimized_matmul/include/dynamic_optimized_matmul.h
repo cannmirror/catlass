@@ -59,7 +59,7 @@ void PrintTilingParams(TilingParams &tilingParams, PlatformInfo& platformInfo)
     uint32_t c0NumPerFractal = 16;
     uint32_t elePerC0 = bytePerC0 / sizeof(DType);
     uint32_t m0 = tilingParams.m1, n0 = tilingParams.n1, k0 = 0;
-    if (m0 && n0) {
+    if (m0 && n0 && tilingParams.k > 1) {
         uint32_t kTileMaxA = platformInfo.l0ASize / 2 / sizeof(DType) / m0 / elePerC0 * elePerC0;
         uint32_t kTileMaxB = platformInfo.l0BSize / 2 / sizeof(DType) / n0 / elePerC0 * elePerC0;
         k0 = kTileMaxA > kTileMaxB ? kTileMaxB : kTileMaxA;
