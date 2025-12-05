@@ -70,6 +70,7 @@ void PrintTilingParams(TilingParams &tilingParams, PlatformInfo& platformInfo)
             k0 = k0 / c0NumPerFractal * c0NumPerFractal;
         }
     }
+    std::cout << "--BATCH_TEST_MARKER--" << std::endl;
     std::cout << std::dec << "┌─────────────────────────────────────────────┐\n"
               << "│            Tiling Parameters                │\n"
               << "├───────────────────┬─────────────────────────┤\n"
