@@ -18,6 +18,10 @@ from templates.small_matmul_template import SmallMatmulTemplate
 from templates.padding_common_matmul_template import PaddingCommonMatmulTemplate
 from templates.padding_multi_core_splitk_matmul_template import PaddingMultiCoreSplitkMatmulTemplate
 from templates.padding_streamk_matmul_template import PaddingStreamkMatmulTemplate
+from templates.single_core_splitk_for_small_k_matmul_template import SingleCoreSplitkForSmallKMatmulTemplate
+from templates.padding_single_core_splitk_for_small_k_matmul_template import PaddingSingleCoreSplitkForSmallKMatmulTemplate
+from templates.padding_single_core_splitk_k_loop_outer_matmul_template import PaddingSingleCoreSplitkKLoopOuterMatmulTemplate
+from templates.padding_single_core_splitk_k_loop_middle_matmul_template import PaddingSingleCoreSplitkKLoopMiddleMatmulTemplate
 from templates.launch_map_template import LaunchMapTemplate
 
 if __name__ == "__main__":
@@ -30,4 +34,8 @@ if __name__ == "__main__":
     PaddingCommonMatmulTemplate.gen_code("half", kernel_info)
     PaddingMultiCoreSplitkMatmulTemplate.gen_code("half", kernel_info)
     PaddingStreamkMatmulTemplate.gen_code("half", kernel_info)
+    SingleCoreSplitkForSmallKMatmulTemplate.gen_code("half", kernel_info)
+    PaddingSingleCoreSplitkForSmallKMatmulTemplate.gen_code("half", kernel_info)
+    PaddingSingleCoreSplitkKLoopOuterMatmulTemplate.gen_code("half", kernel_info)
+    PaddingSingleCoreSplitkKLoopMiddleMatmulTemplate.gen_code("half", kernel_info)
     LaunchMapTemplate.gen_code(kernel_info)

@@ -755,6 +755,19 @@ struct PaddingBuilder<PaddingTag::PADDING_BLOCK_ND, ArchTag, Element, LayoutIn, 
     >;
 };
 
+template <class ArchTag, class Element, class LayoutIn, uint32_t COMPUTE_LENGTH>
+struct PaddingBuilder<PaddingTag::PADDING_NZ, ArchTag, Element, LayoutIn, COMPUTE_LENGTH> {
+    using LayoutAfterPadding = std::conditional_t<std::is_same_v<LayoutIn, layout::RowMajor>,
+        layout::zN, layout::nZ>;
+    using Padding = std::conditional_t<
+        (COMPUTE_LENGTH > 0),
+        Catlass::Gemm::Kernel::PaddingMatrixNZ<ArchTag, Element, LayoutIn, LayoutAfterPadding, COMPUTE_LENGTH>,
+        Catlass::Gemm::Kernel::PaddingMatrixNZ<
+            ArchTag, Element, LayoutIn, LayoutAfterPadding, 48 * 1024 / sizeof(Element)>
+    >;
+};
+
+
 template<
     PaddingTag paddingTag_,
     class ArchTag_,
@@ -832,13 +845,19 @@ public:
     CATLASS_DEVICE
     void operator()(AscendC::GlobalTensor<ElementOut> const &dst,
                     AscendC::GlobalTensor<ElementIn> const &src,
-                    Layout const &layoutDst, Layout const &layoutSrc)
+                    Layout const &layoutDst, Layout const &layoutSrc, bool useSingleCore = false)
     {
         ComputeLayout computeLayoutSrc = GetPaddingComputeLayout(layoutSrc);
         ComputeLayout computeLayoutDst = GetPaddingComputeLayout(layoutDst);
 
-        uint32_t aivNum = AscendC::GetBlockNum() * AscendC::GetSubBlockNum();
-        uint32_t aivId = AscendC::GetBlockIdx();
+        uint32_t aivNum, aivId;
+        if (useSingleCore) {
+            aivNum = AscendC::GetSubBlockNum();
+            aivId = AscendC::GetSubBlockIdx();
+        } else {
+            aivNum = AscendC::GetBlockNum() * AscendC::GetSubBlockNum();
+            aivId = AscendC::GetBlockIdx();
+        }
 
         // Each line is a tile.
         uint32_t tilesNum = computeLayoutSrc.shape(0);
@@ -975,17 +994,6 @@ private:
         std::is_same_v<LayoutIn, layout::ColumnMajor>, "Unsported layout for RemovePaddingNDAndCast!");
 };
 
-template <class ArchTag, class Element, class LayoutIn, uint32_t COMPUTE_LENGTH>
-struct PaddingBuilder<PaddingTag::PADDING_NZ, ArchTag, Element, LayoutIn, COMPUTE_LENGTH> {
-    using LayoutAfterPadding = std::conditional_t<std::is_same_v<LayoutIn, layout::RowMajor>,
-        layout::zN, layout::nZ>;
-    using Padding = std::conditional_t<
-        (COMPUTE_LENGTH > 0),
-        Catlass::Gemm::Kernel::PaddingMatrixNZ<ArchTag, Element, LayoutIn, LayoutAfterPadding, COMPUTE_LENGTH>,
-        Catlass::Gemm::Kernel::PaddingMatrixNZ<
-            ArchTag, Element, LayoutIn, LayoutAfterPadding, 48 * 1024 / sizeof(Element)>
-    >;
-};
 
 template <
     class BlockMmad_,
