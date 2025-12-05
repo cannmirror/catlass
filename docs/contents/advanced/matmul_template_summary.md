@@ -2,6 +2,8 @@
 
 当前库上`examples`内包含多种矩阵乘的`样例模板`，其来源是不同的matmul`理论模板`与工程实践中发现的`工程优化`点的组合。在充分理解了各个`理论模板`和`工程优化`后，开发者可以基于问题场景选择适合的`样例模板`、甚至进一步自行组合出库上没有的新的`样例模板`，来达到矩阵乘的性能极致优化。
 
+注意，本文档仅总结矩阵乘方案相关的样例，其他涉及量化、groupMatmul、后处理等的矩阵乘不在此处总结。
+
 ## 样例模板清单
 <details>
 <summary><strong><font size="4">00_basic_matmul</font></strong></summary>
@@ -42,7 +44,7 @@
     - Padding前处理组件：[padding_matmul.hpp](../../../include/catlass/gemm/kernel/padding_matmul.hpp)
     - blockMmad：[block_mmad_preload.hpp](../../../include/catlass/gemm/block/block_mmad_preload.hpp)
 - dispatchPolicy：`MmadAtlasA2Preload`
-- ⚠️ 注意：即使没有使用`PaddingMatrixNZ`前处理，依然会产生AIV启动的开销
+- ⚠️ 注意：即使没有使用`PaddingMatrixNZ`前处理，依然会产生MIX算子编译和CV1:0启动的开销（比仅AIC启动的开销大）
 </details>
 
 <details>
@@ -60,7 +62,7 @@
 <details>
 <summary><strong><font size="4">21_basic_matmul_preload_zN</font></strong></summary>
 
-（此样例主要承载NZ排布输入的适配方法，也可换成ND排布输入，无AIV启动开销）
+（此样例主要承载NZ排布输入的适配方法，也可换成ND排布输入，无MIX算子编译启动的开销）
 - 理论模板：`Common模板`
 - 工程优化：
     - `流水优化（Preload）`
@@ -145,11 +147,11 @@
 - 搬入L1Cache时的TileShape：$m_1$，$n_1$，$k_1$
 - 搬入L0A/LOB、搬出L0C时的TileShape：$m_0$，$n_0$，$k_0$
 
-采用 $M$、$N$ 方向分核，产生$\frac{MN}{m_1n_1}$个基本任务块、分配给AIC核完成搬运和计算，每个基本任务块需要搬运$m_1K+Kn_1$的数据、计算得到$m_1n_1$的结果并搬出。由此产生约束：
+采用 $M$、$N$ 方向分核，按照$m_1$、$n_1$切分，产生$\frac{MN}{m_1n_1}$个基本任务块、分配给AIC核完成搬运和计算，每个基本任务块需要搬运$m_1K+Kn_1$的数据、计算得到$m_1n_1$的结果并搬出。由此产生约束：
 - $m_1k_1*L1Stage_A + n_1k_1*L1Stage_B <= L1Size / 2Byte$
 - $m_0k_0*L0AStage <= L0ASize / 2Byte$
 - $n_0k_0*L0BStage <= L0BSize / 2Byte$
-- $n_0n_0*L0CStage <= L0CSize / 4Byte$
+- $m_0n_0*L0CStage <= L0CSize / 4Byte$
 - $m_0 = m_1$
 - $n_0 = n_1$
 
@@ -198,7 +200,7 @@ $2Byte * MNK / k$
 
 ### 定性分析
 
-相较`Common模板`，搬入数据量不变，写出数据量增加，并产生后处理ReduceAdd的开销（包含AIV启动的开销），但切分基本块更多、更易负载均衡。
+相较`Common模板`，搬入数据量不变，写出数据量增加，并产生后处理ReduceAdd的开销（包含MIX算子编译启动的开销），但切分基本块更多、更易负载均衡。
 
 </details>
 
@@ -218,7 +220,7 @@ $2Byte * MNK / k$
 - $m_1k_1*L1Stage_A + n_1k_1*L1Stage_B <= L1Size / 2Byte$
 - $m_0k_0*L0AStage <= L0ASize / 2Byte$
 - $n_0k_0*L0BStage <= L0BSize / 2Byte$
-- $n_0n_0*L0CStage <= L0CSize / 4Byte$
+- $m_0n_0*L0CStage <= L0CSize / 4Byte$
 - $m_0 <= m_1$
 - $n_0 <= n_1$
 
@@ -246,7 +248,7 @@ $2Byte * MNK / k_1$
 ### 现象分析
 
 通过仿真流水发现pingpong策略的blockMmad存在问题：
-- MTE2流水上，“当前C矩阵基本块计算的最后一个A矩阵（B矩阵）的tile块”和“下一个C矩阵基本块计算的最后一个A矩阵（B矩阵）的tile块”之间加载的空泡。
+- MTE2流水上，“当前C矩阵基本块计算的最后一个A矩阵（B矩阵）的tile块”和“下一个C矩阵基本块计算的第一个A矩阵（B矩阵）的tile块”之间加载的空泡。
 - 缓解L1->L0的MTE1指令发射阻塞MTE2指令发射的问题
 ### 优化方案
 
@@ -308,12 +310,13 @@ for ... {
 ### 现象分析
 通常，所有AIC核心都从$K$方向的第一个分块开始搬运计算，会存在多个核心同时读取同一片GM上数据的情况，产生数据读取冲突，导致读取带宽降低。
 ### 优化方案
-<img src="https://raw.gitcode.com/user-images/assets/7801479/3805175c-12d5-4529-828a-5652c2c445b5/5shuffleK.png" width="100%">
+<img src="https://raw.gitcode.com/user-images/assets/7801479/38a89e31-dda4-4a30-943e-b3f11f065534/5shuffleK.png" width="100%">
 
 以`Common模板`为例，如图：
 - $matC$中的$CoreX$表示该基本块分配给第$X$个AIC进行计算
 - $Aj$表示A矩阵该$m_1$下沿$K$轴切分的第$j$个L1Tile基本块
 - $Bij$表示B矩阵该$n_1$下沿$K$轴切分的第$j$个L1Tile基本块
+- 图中matC基本块分核采用Swizzle<2, 1>，详见[swizzle_explanation](./swizzle_explanation.md)
 
 如图左原始方案，$Core2$和$Core3$搬运A矩阵时均按照“$A0$->$A1$->$A2$->$A3$”的顺序，产生了数据读取冲突。
 
@@ -469,7 +472,7 @@ struct TileCopyOpt : public Catlass::Gemm::Tile::TileCopy<ArchTag, AType, BType,
         - 基本任务块小于3块，且$K$轴不会小：$taskBlocks <= 2, K > 1024$
 - [06_optimized_matmul](../../../examples/06_optimized_matmul/optimized_matmul.cpp)（带Padding前处理）和[21_basic_matmul_preload_zN](../../../examples/09_splitk_matmul/basic_matmul_preload_zN.cpp)（手动改为ND输入）
     - 泛化性更强，适用于剩余场景
-    - 不需要使用Padding时，为了节约AIV启动的开销，建议使用[21_basic_matmul_preload_zN](../../../examples/09_splitk_matmul/basic_matmul_preload_zN.cpp)模板
+    - 不需要使用Padding时，为了节约MIX算子编译启动的开销，建议使用[21_basic_matmul_preload_zN](../../../examples/09_splitk_matmul/basic_matmul_preload_zN.cpp)模板
 
 ⚠️ 全载特性的使用[25_matmul_full_loadA](../../../examples/09_splitk_matmul/25_matmul_full_loadA.cpp) 和 单核切K方案[34_single_core_splitk_matmul](../../../examples/34_single_core_splitk_matmul/single_core_splitk.cpp)的适用场景待完善
 
@@ -479,7 +482,7 @@ struct TileCopyOpt : public Catlass::Gemm::Tile::TileCopy<ArchTag, AType, BType,
 <details>
 <summary><strong><font size="4">Padding选择</font></strong></summary>
 
-当Stride非512B对齐时可以考虑使用Padding前处理，但需要考虑Padding带来的开销以及AIV启动的开销（小shape[31_small_matmul](../../../examples/31_small_matmul/small_matmul.cpp)方法不推荐额外适配Padding）
+当Stride非512B对齐时可以考虑使用Padding前处理，但需要考虑Padding带来的开销以及MIX算子编译启动的开销（小shape[31_small_matmul](../../../examples/31_small_matmul/small_matmul.cpp)方法不推荐额外适配Padding）
 
 `PaddingMatrixND`、`PaddingMatrixBlockND`和`PaddingMatrixNZ`各自的适用场景待完善，泛化上`PaddingMatrixNZ`更具有优势。
 
