@@ -85,7 +85,7 @@ public:
 
 ///////////////////////////////////////////////////////////
 
-/// Partial specialization for TPosition::B2
+/// Partial specialization for AtlasA2, TPosition::B2
 template <class ArchTag>
 struct LocalTensorBuffer<ArchTag, AscendC::TPosition::B2> : LocalTensorBufferBase {
 public:
@@ -100,10 +100,11 @@ public:
 
 ///////////////////////////////////////////////////////////
 
-/// Partial specialization for TPosition::C1
-template <class ArchTag>
-struct LocalTensorBuffer<ArchTag, AscendC::TPosition::C1> : LocalTensorBufferBase {
+/// Partial specialization for AtlasA2, TPosition::C1
+template <>
+struct LocalTensorBuffer<Arch::AtlasA2, AscendC::TPosition::C1> : LocalTensorBufferBase {
 public:
+    using ArchTag = Arch::AtlasA2;
     static constexpr AscendC::TPosition Position = AscendC::TPosition::C1;
 
     CATLASS_DEVICE
@@ -115,10 +116,11 @@ public:
 
 ///////////////////////////////////////////////////////////
 
-/// Partial specialization for TPosition::C2
-template <class ArchTag>
-struct LocalTensorBuffer<ArchTag, AscendC::TPosition::C2> : LocalTensorBufferBase {
+/// Partial specialization for AtlasA2, TPosition::C2
+template <>
+struct LocalTensorBuffer<Arch::AtlasA2, AscendC::TPosition::C2> : LocalTensorBufferBase {
 public:
+    using ArchTag = Arch::AtlasA2;
     static constexpr AscendC::TPosition Position = AscendC::TPosition::C2;
 
     CATLASS_DEVICE
@@ -145,10 +147,11 @@ public:
 
 ///////////////////////////////////////////////////////////
 
-/// Partial specialization for TPosition::C2PIPE2GM
-template <class ArchTag>
-struct LocalTensorBuffer<ArchTag, AscendC::TPosition::C2PIPE2GM> : LocalTensorBufferBase {
+/// Partial specialization for AtlasA2, TPosition::C2PIPE2GM
+template <>
+struct LocalTensorBuffer<Arch::AtlasA2, AscendC::TPosition::C2PIPE2GM> : LocalTensorBufferBase {
 public:
+    using ArchTag = Arch::AtlasA2;
     static constexpr AscendC::TPosition Position = AscendC::TPosition::C2PIPE2GM;
 
     CATLASS_DEVICE
