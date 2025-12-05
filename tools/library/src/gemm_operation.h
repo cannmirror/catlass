@@ -144,9 +144,9 @@ private:
 
 /********************* grouped matmul slice M *********************/
 template <typename Operator_>
-class GroupedMatmulSliceMGemmOperation : public GemmOperationBase<Operator_> {
+class GroupedMatmulSliceMGemmOperation : public GemmOperationBase<Operator_, GemmOperationDescription> {
 public:
-    GroupedMatmulSliceMGemmOperation(char const *name = "") : GemmOperationBase<Operator_>(name)
+    GroupedMatmulSliceMGemmOperation(char const *name = "") : GemmOperationBase<Operator_, GemmOperationDescription>(name)
     {
         this->description_.gemmKind = GemmKind::GroupedMatmulSliceM;
     }
@@ -169,7 +169,7 @@ private:
 
 /********************* optimized matmul *********************/
 template <typename Operator_>
-class OptimizedMatmulGemmOperation : public GemmOperationBase<Operator_> {
+class OptimizedMatmulGemmOperation : public GemmOperationBase<Operator_, GemmOperationDescription> {
     using Operator = Operator_;
     using OperatorKernel = typename Operator::Kernel;
     using ElementA = typename OperatorKernel::ElementA;
@@ -178,7 +178,7 @@ class OptimizedMatmulGemmOperation : public GemmOperationBase<Operator_> {
     using LayoutB = typename OperatorKernel::LayoutB;
     using L1TileShape = typename OperatorKernel::BlockMmad::L1TileShape;
 public:
-    OptimizedMatmulGemmOperation(char const *name = "") : GemmOperationBase<Operator_>(name)
+    OptimizedMatmulGemmOperation(char const *name = "") : GemmOperationBase<Operator_, GemmOperationDescription>(name)
     {
         this->description_.gemmKind = GemmKind::OptimizedMatmul;
     }

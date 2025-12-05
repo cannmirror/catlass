@@ -656,7 +656,7 @@ def register_gemm_quant_matmul_operation(manifest):
         tensor_b = library.GemmTypeDescription(data_type[1], layout[1])
         tensor_c = library.GemmTypeDescription(data_type[2], layout[2])
         op = GemmOperation(
-            kernel_type='quant_matmul',
+            kernel_type='12_quant_matmul',
             l1_tile_shape=l1_tile_shape,
             l0_tile_shape=l0_tile_shape,
             a_type=tensor_a,
