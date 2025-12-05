@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef PADDING_SINGLE_CORE_SPLITK_MATMUL_KERNEL
-#define PADDING_SINGLE_CORE_SPLITK_MATMUL_KERNEL
+#ifndef PADDING_SINGLE_CORE_SPLITK_K_LOOP_OUTER_MATMUL_KERNEL
+#define PADDING_SINGLE_CORE_SPLITK_K_LOOP_OUTER_MATMUL_KERNEL
 
 #include "kernel_utils.h"
 #include "tiling_params.h"
@@ -249,4 +249,4 @@ size_t PaddingSingleCoreSplitkKLoopOuterMatmulKernelGetWorkspaceSize(TilingParam
     return sizeWA + sizeWB + sizeWC;
 }
 
-#endif  // PADDING_SINGLE_CORE_SPLITK_MATMUL_KERNEL
+#endif  // PADDING_SINGLE_CORE_SPLITK_K_LOOP_OUTER_MATMUL_KERNEL
