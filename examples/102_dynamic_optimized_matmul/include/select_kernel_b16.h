@@ -380,6 +380,7 @@ bool PaddingStreamkMatmulB16Handler(TilingParams& params, PlatformInfo& platform
 
 bool AivMatmulB16Handler(TilingParams& params, PlatformInfo& platformInfo)
 {
+    // AivMatmul is only used when K=1
     if (params.k != 1) {
         return false;
     }
