@@ -82,15 +82,17 @@ union TilingKey {
 };
 
 struct TilingParams {
-    uint32_t m{0};
-    uint32_t n{0};
-    uint32_t k{0};
     uint64_t strideA{0};
     uint64_t strideB{0};
     uint64_t strideC{0};
+    uint32_t m{0};
+    uint32_t n{0};
+    uint32_t k{0};
     uint16_t m1{0};
     uint16_t n1{0};
     uint16_t k1{0};
+    uint8_t swizzleOffset{1};
+    uint8_t swizzleDirection{0};
     uint16_t splitkFactor{1};
     // The following parameters are only used in tiling and are not read by the kernel.
     uint8_t layoutTagA;

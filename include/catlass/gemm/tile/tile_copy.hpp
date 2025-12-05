@@ -25,6 +25,7 @@
 #include "catlass/gemm/tile/copy_ub_to_gm.hpp"
 #include "catlass/gemm/tile/cast_int4_to_int8.hpp"
 #include "catlass/gemm/tile/cast_int8_to_fp16.hpp"
+#include "catlass/gemm/tile/cast_fp8_to_fp16.hpp"
 #include "catlass/gemm/helper.hpp"
 
 
@@ -118,7 +119,7 @@ template <
     class PrologueB_,
     class BiasType = void
 >
-struct TileCopyWithProligue {
+struct TileCopyWithPrologue {
     using ElementA = typename AType::Element;
     using ElementB = typename BType::Element;
 

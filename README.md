@@ -21,13 +21,14 @@ CATLASS(**CA**NN **T**emplates for **L**inear **A**lgebra **S**ubroutine**s**)�
 ## ⚡️ 快速上手
 
 为快速体验CATLASS的算子开发与使用，请参考下述内容。
- - [快速入门](./docs/quickstart.md)：以基础Matmul算子为例，基于CATLASS的第一个算子开发与编译；
+ - [快速入门](./docs/quickstart.md)：快速上手模板库使用，编译执行已有的算子样例。
+ - [基础开发指南](./docs/dev_guide.md)：以基础Matmul算子为例，基于CATLASS的算子开发实践；
  - [开发者实践](./docs/tutorials.md): 从算子编写至编译测试，再到Tiling调优与算子优化，从新手到进阶的实践示例。
 
 ## 📚 进阶参考
 
 下述资料可助力您深入开展CATLASS算子的开发与调优，实现更优性能的GEMM类算子。
- - [CATLASS API](./docs/contents/advanced/api.md): 介绍CATLASS的分层特征与通用矩阵乘法Gemm API。
+ - [CATLASS API](./docs/contents/advanced/api.md): 介绍CATLASS的分层特征与通用矩阵乘法GEMM API。
  - [CATLASS性能调测](./docs/evaluation_collections.md): 汇总CATLASS工程开发中的调测办法，有助于消除漏洞，分析性能的瓶颈点。
  - [CATLASS进阶实践](./docs/advanced_collections.md): 汇总CATLASS的进阶知识，如Tiling调参方法、Dispatch策略等，实现更高性能。
 
@@ -94,7 +95,7 @@ CATLASS所需的软硬件环境依赖如下：
   </tbody>
 </table>
 
- - 对于某些调测工具，可能需要较上述更新的CANN版本，详请参考[调测工具文档](./docs/evaluation_collections.md)。
+ - 对于某些调测工具，可能需要较上述更新的CANN版本，详情参考[调测工具文档](./docs/evaluation_collections.md)。
 
 下述环境经测试支持[当前CATLASS](https://gitcode.com/cann/catlass/releases/v1.2.0)构建：
 

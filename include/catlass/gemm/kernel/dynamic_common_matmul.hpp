@@ -46,6 +46,8 @@ public:
         LayoutB layoutB;
         GM_ADDR ptrC;
         LayoutC layoutC;
+        uint32_t swizzleOffset;
+        uint32_t swizzleDirection;
 
         // Methods
         CATLASS_HOST_DEVICE
@@ -54,9 +56,10 @@ public:
 
         CATLASS_HOST_DEVICE
         Params(GemmCoord const &problemShape_, GemmCoord const &l1TileShape_, GM_ADDR ptrA_, LayoutA& layoutA_,
-            GM_ADDR ptrB_, LayoutB& layoutB_, GM_ADDR ptrC_, LayoutC& layoutC_)
-            : problemShape(problemShape_), l1TileShape(l1TileShape_), ptrA(ptrA_), layoutA(layoutA_), ptrB(ptrB_),
-              layoutB(layoutB_), ptrC(ptrC_), layoutC(layoutC_)
+            GM_ADDR ptrB_, LayoutB& layoutB_, GM_ADDR ptrC_, LayoutC& layoutC_, uint32_t swizzleOffset_, 
+            uint32_t swizzleDirection_) : problemShape(problemShape_), l1TileShape(l1TileShape_), ptrA(ptrA_), 
+            layoutA(layoutA_), ptrB(ptrB_), layoutB(layoutB_), ptrC(ptrC_), layoutC(layoutC_), 
+            swizzleOffset(swizzleOffset_), swizzleDirection(swizzleDirection_)
         {}
     };
 
@@ -68,8 +71,8 @@ public:
     /// Executes matmul
     CATLASS_DEVICE void operator()(Params const &params, Catlass::Arch::Resource<ArchTag> &resource)
     {
-        BlockScheduler matmulBlockScheduler(
-            params.problemShape, MakeCoord(params.l1TileShape.m(), params.l1TileShape.n()));
+        BlockScheduler matmulBlockScheduler(params.problemShape,
+            MakeCoord(params.l1TileShape.m(), params.l1TileShape.n()), params.swizzleOffset, params.swizzleDirection);
         uint32_t coreLoops = matmulBlockScheduler.GetCoreLoops();
 
         // Represent the full gm

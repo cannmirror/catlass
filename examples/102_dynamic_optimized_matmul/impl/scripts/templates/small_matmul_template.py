@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # ----------------------------------------------------------------------------
+# This program is free software, you can redistribute it and/or modify.
 # Copyright (c) 2025 Huawei Technologies Co., Ltd.
-# This program is free software, you can redistribute it and/or modify it under the terms and contiditions of
-# CANN Open Software License Agreement Version 2.0 (the "License").
+# This file is a part of the CANN Open Software.
+# Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
-# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
-# INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 # ----------------------------------------------------------------------------
 
@@ -22,25 +22,27 @@ class SmallMatmulTemplate:
 void {launch_kernel_func_name}(aclrtStream& stream, uint64_t fftsAddr,
     uint8_t* dA, uint8_t* dB, uint8_t* dC, uint8_t* dW, uint8_t* dTilingParams, TilingParams& tilingParams)
 {{
+    using ArchTag = Catlass::Arch::AtlasA2;
     using ElementA = {element_a};
     using ElementB = {element_b};
     using ElementC = {element_c};
     using LayoutA = {layout_a};
     using LayoutB = {layout_b};
     using LayoutC = {layout_c};
-    LaunchSmallMatmulKernel<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC>(
+    LaunchSmallMatmulKernel<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC>(
         stream, fftsAddr, dA, dB, dC, dTilingParams, tilingParams);
 }}
 
 size_t {get_workspace_func_name}(TilingParams& tilingParams)
 {{
+    using ArchTag = Catlass::Arch::AtlasA2;
     using ElementA = {element_a};
     using ElementB = {element_b};
     using ElementC = {element_c};
     using LayoutA = {layout_a};
     using LayoutB = {layout_b};
     using LayoutC = {layout_c};
-    return SmallMatmulKernelGetWorkspaceSize<ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC>(tilingParams);
+    return SmallMatmulKernelGetWorkspaceSize<ArchTag, ElementA, LayoutA, ElementB, LayoutB, ElementC, LayoutC>(tilingParams);
 }}
 """
 

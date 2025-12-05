@@ -1,10 +1,10 @@
 /**
+ * This program is free software, you can redistribute it and/or modify.
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and contiditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
+ * This file is a part of the CANN Open Software.
+ * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
@@ -67,6 +67,8 @@ public:
         GM_ADDR ptrWA;
         GM_ADDR ptrWB;
         GM_ADDR ptrWC;
+        uint32_t swizzleOffset;
+        uint32_t swizzleDirection;
 
         // Methods
         CATLASS_HOST_DEVICE
@@ -76,9 +78,10 @@ public:
         CATLASS_HOST_DEVICE
         Params(GemmCoord const &problemShape_, GemmCoord const &l1TileShape_, GM_ADDR ptrA_, LayoutA& layoutA_,
             GM_ADDR ptrB_, LayoutB& layoutB_, GM_ADDR ptrC_, LayoutC& layoutC_, GM_ADDR ptrWA_, GM_ADDR ptrWB_,
-            GM_ADDR ptrWC_)
+            GM_ADDR ptrWC_, uint32_t swizzleOffset_, uint32_t swizzleDirection_)
             : problemShape(problemShape_), l1TileShape(l1TileShape_), ptrA(ptrA_), layoutA(layoutA_), ptrB(ptrB_),
-              layoutB(layoutB_), ptrC(ptrC_), layoutC(layoutC_), ptrWA(ptrWA_), ptrWB(ptrWB_), ptrWC(ptrWC_)
+              layoutB(layoutB_), ptrC(ptrC_), layoutC(layoutC_), ptrWA(ptrWA_), ptrWB(ptrWB_), ptrWC(ptrWC_),
+              swizzleOffset(swizzleOffset_), swizzleDirection(swizzleDirection_)
         {}
     };
 
@@ -157,8 +160,8 @@ public:
             Catlass::Arch::CrossCoreWaitFlag(flagAivFinishPadding);
         }
 
-        BlockScheduler matmulBlockScheduler(
-            params.problemShape, MakeCoord(params.l1TileShape.m(), params.l1TileShape.n()));
+        BlockScheduler matmulBlockScheduler(params.problemShape,
+            MakeCoord(params.l1TileShape.m(), params.l1TileShape.n()), params.swizzleOffset, params.swizzleDirection);
         uint32_t coreLoops = matmulBlockScheduler.GetCoreLoops();
 
         typename BlockMmad::LayoutA layoutA;

@@ -283,7 +283,6 @@ using L0TileShape = GemmShape<128, 256, 64>;
 
 ### 原理说明
 
-<!-- ![](./images/split_k_matmul.png) -->
 <div style="display: flex; justify-content: center;">
     <img src="./images/split_k_matmul.png" width="42%" height="auto">
 </div>
@@ -322,8 +321,8 @@ using BlockMmad = Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShap
 using BlockEpilogue = void;
 
 // After the Matmul computation is completed, launch the ReduceAdd kernel to accumulate the partial sums.
-constexpr uint32_t computeLength = 32 * 1024 / sizeof(float);
-using ReduceAdd = Catlass::Gemm::Kernel::ReduceAdd<ArchTag, float, half, computeLength>;
+constexpr uint32_t computeLength = 192 * 1024 / sizeof(float);
+using ReduceAdd = Catlass::Gemm::Kernel::SplitkReduceAdd<ArchTag, float, half, 1, computeLength>;
 
 // Swizzle offset is 3 and direction is 0.
 using BlockScheduler = typename Gemm::Block::SplitkGemmIdentityBlockSwizzle<3, 0>;
@@ -480,8 +479,8 @@ void Run(const Options &options)
     using BlockEpilogue = void;
 
     // After the Matmul computation is completed, launch the ReduceAdd kernel to accumulate the partial sums.
-    constexpr uint32_t computeLength = 32 * 1024 / sizeof(float);
-    using ReduceAdd = Catlass::Gemm::Kernel::ReduceAdd<ArchTag, float, half, computeLength>;
+    constexpr uint32_t computeLength = 192 * 1024 / sizeof(float);
+    using ReduceAdd = Catlass::Gemm::Kernel::SplitkReduceAdd<ArchTag, float, half, 1, computeLength>;
 
     // Swizzle offset is 3 and direction is 0.
     using BlockScheduler = typename Gemm::Block::SplitkGemmIdentityBlockSwizzle<3, 0>;
@@ -660,6 +659,9 @@ struct Options {
         } catch (const std::invalid_argument& e) {
             std::cerr << "invalid argument: " << e.what() << std::endl;
             return FAILED;
+        } catch (const std::out_of_range& e) {
+            std::cerr << "argument out of range: " << e.what() << std::endl;
+            return FAILED;
         }
     }
 
@@ -686,7 +688,11 @@ struct Options {
             } catch (const std::invalid_argument& e) {
                 std::cerr << "invalid argument: " << e.what() << std::endl;
                 return FAILED;
+            } catch (const std::out_of_range& e) {
+                std::cerr << "argument out of range: " << e.what() << std::endl;
+                return FAILED;
             }
+        }
         }
         return SUCCESS;
     }

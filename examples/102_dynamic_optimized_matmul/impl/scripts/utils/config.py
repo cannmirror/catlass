@@ -29,7 +29,9 @@ class Config:
     KERNEL_SERIAL_MAP = {
         "CommonMatmulKernel": 0,
         "SmallMatmulKernel": 1,
-        "PaddingCommonMatmulKernel": 2
+        "PaddingCommonMatmulKernel": 2,
+        "PaddingMultiCoreSplitkMatmulKernel": 3,
+        "PaddingStreamkMatmulKernel": 4
     }
 
     DTYPE_MAP = {"half": 0, "float": 1}

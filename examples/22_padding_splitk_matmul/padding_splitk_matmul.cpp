@@ -102,8 +102,8 @@ static void Run(const Options &options) {
     std::vector<fp16_t> hostC(lenC);
 
     // After the Matmul computation is completed, launch the ReduceAdd kernel to accumulate the partial sums.
-    constexpr uint32_t computeLength = 32 * 1024 / sizeof(float);
-    using ReduceAdd = Catlass::Gemm::Kernel::ReduceAdd<ArchTag, float, half, computeLength>;
+    constexpr uint32_t computeLength = 192 * 1024 / sizeof(float);
+    using ReduceAdd = Catlass::Gemm::Kernel::SplitkReduceAdd<ArchTag, float, half, 1, computeLength>;
 
     if (m > n) {
         // Swizzle offset is 3 and direction is 0.
