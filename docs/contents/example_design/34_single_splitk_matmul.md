@@ -1,17 +1,10 @@
 # CATLASS GMM_single_splitK_Matmul
 
-## 原型设计
-|名称/Name|类型/Class|数据类型/Dtype|维度/Dims|格式/Format|描述/Description|
-|---|---|---|---|---|---|
-|matA|inTensor|fp16/bf16/fp32|[m, k]|ND/NZ|左矩阵，支持转置|
-|matB|inTensor|fp16/bf16/fp32|[k, n]|ND/NZ|右矩阵，支持转置|
-|matC|outTensor|fp16/bf16/fp32|[m, n]|ND|输出矩阵|
-
-## 样例实现
+## ## 样例实现
 CATLASS GMM_single_splitK_Matmul样例算子是基于CATLASS Gemm Api实现的亲和昇腾AtlasA2硬件的GMM算子，关键算子件包括以下几部分:
  - **Example组装**：[single_core_splitk.cpp](../../../examples/34_single_core_splitk_matmul/single_core_splitk.cpp)
  - **Kernel实现**：
-   - 主Kernel文件：[single_core_slicek_matmul.cpp](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp)
+   - 主Kernel文件：[single_core_slicek_matmul.hpp](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp)
    - 复用Padding组件：[padding_matmul.hpp](../../../include/catlass/gemm/kernel/padding_matmul.hpp)
 
  - **Block组件**： [block_mmad_single_core_splitk.hpp](../../../include/catlass/gemm/block/block_mmad_single_core_splitk.hpp)
@@ -80,7 +73,7 @@ graph LR
  - 使用前述模板[组装Kernel](../../../examples/34_single_core_splitk_matmul/single_core_splitk.cpp#L143)
  - 将[Kernel传入适配器](../../../examples/34_single_core_splitk_matmul/single_core_splitk.cpp#L160)并[实例化](../../../examples/34_single_core_splitk_matmul/single_core_splitk.cpp#L148)
  - 构造[入参参数](../../../examples/34_single_core_splitk_matmul/single_core_splitk.cpp#L163)
- - 参数[校验](../../../examples/34_single_core_splitk_matmul/single_core_splitk.cpp#L166)
+ - 向Kernel侧[传入参数](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#L150)
  - 调用Kernel层[Workspace计算](../../../examples/34_single_core_splitk_matmul/single_core_splitk.cpp#L166)
  - 在Device侧[申请Workspace](../../../examples/34_single_core_splitk_matmul/single_core_splitk.cpp#L166)(如有必要)
  - [适配器初始化算子](../../../examples/34_single_core_splitk_matmul/single_core_splitk.cpp#L166)
@@ -110,8 +103,8 @@ graph LR
  - [`struct Arguments`](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#L116)：封装Host侧传入的参数
  - [`static size_t GetWorkspaceSize`](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#L128)：预先计算对齐所需的准备的空间
  - [`static Params ToUnderlyingArguments`](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#L150)：将host侧入参解析为算子侧的`Params`结构体
- - [`void operator()<AscendC::AIV>`](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#L204)：AIV算子执行代码
- - [`void operator()<AscendC::AIC>`](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#L253): AIC部分执行代码
+ - [`void operator()<AscendC::AIV>`](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#L204)：AIV(Vector)部分执行代码
+ - [`void operator()<AscendC::AIC>`](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#L253): AIC(Cube)部分执行代码
 
 ## AIV/AIC部分计算流程
 
@@ -126,10 +119,10 @@ graph LR
   - 调用PaddingA对象的`operator()`方法，即[执行数据对齐](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#213)操作
   - 进行[核间同步](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#228)，设置标志位通知AIC对齐操作已完成(`CrossCoreSetFlag`)
 
-- 如果C尾块的对齐操作已启用：
+- 结果矩阵搬出：
   - [等待AIC](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#233)完成计算(`CrossCoreWaitFlag`)
-  - [初始化GlobalTensor](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#234)：`gmC`, `gmWC`
-  - 进行[对齐搬运操作](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#240)
+  - [初始化GlobalTensor](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#234)：`gmC`(目的地址), `gmWC`(临时累加地址)
+  - 将数据搬出到目的地址，进行[升精度映射](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#240)(`RemovePaddingNDAndCastC`)
 </details>
 
 <details>
@@ -141,7 +134,7 @@ graph LR
  
  - [初始化`GlobalTensor`](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#270): `gmA`, `gmB`, `gmC`
  - 初始化[`BlockScheduler`](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#260)和[`BlockMmad`](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#300)对象
- - 获取当前AIC序号`coreIdx`、AIC总数`coreNum`(在[`Swizzle`策略](../../../include/catlass/gemm/block/block_swizzle.hpp)内)以及所需的`coreLoops`(../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#262)
+ - 获取当前AIC序号`coreIdx`、AIC总数`coreNum`(在[`Swizzle`策略](../../../include/catlass/gemm/block/block_swizzle.hpp)内)以及所需的[`coreLoops`](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#262)
  - 进入主循环（循环次`coreLoops`）
    - 计算当前A，B矩阵读入的偏移量[`gmOffsetA`](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#333), [`gmOffsetB`](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#334)以及下一块的偏移量[`gmOffsetNextA`](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#341), [`gmOffsetNextB`](../../../include/catlass/gemm/kernel/single_core_slicek_matmul.hpp#342)(如果开DoubleBuffer)
    > 注意：优化算法下左矩阵重载，因此`gmOffsetNextA`实际不会“启用”
@@ -167,7 +160,7 @@ graph LR
 在本单核切K策略下，单个AI Core上的流程图如下所示：
 
 <div style="display: flex; justify-content: center;">
-    <img src="https://raw.gitcode.com/user-images/assets/7831925/6afdf347-8c18-4a12-84e9-f00967361c96/tmp3.jpg" width="85%" height="auto">
+<img src="https://raw.gitcode.com/user-images/assets/7831925/113740e9-bef5-477f-8a5f-a0e1b0d3595b/splitk_newfig.png" width="85%" height="auto">
 </div>
 
 显然，该办法能有效减轻MTE2的搬运负担，但是会加重L0C计算结果搬回到GM的负担，需要在GM上开启原子加。
@@ -182,7 +175,21 @@ if (atomicAdd) {
 ```
 
  - 增大L1利用空间
- 简单建模可知，从L0C搬运回GM的数据量正比于$MNK/k_{\text{L1}}$，其中$M$, $N$, $K$分别为输入的矩阵尺寸，$k_{\text{L1}}$是K轴上L1Tile的尺寸大小。在符合L1A, L1B物理尺寸限制的条件下，$k_{\text{L1}}$越大可减少写出次数，推荐`L1TileShape`按下表进行配置。
+ 简单建模可知（见下述补充），从L0C搬运回GM的数据量正比于$MNK/k_{\text{L1}}$，其中$M$, $N$, $K$分别为输入的矩阵尺寸，$k_{\text{L1}}$是K轴上L1Tile的尺寸大小。在符合L1A, L1B物理尺寸限制的条件下，$k_{\text{L1}}$越大可减少写出次数，推荐`L1TileShape`按下表进行配置。
+
+<details>
+
+<summary><strong>数据搬运理论建模</strong></summary>
+
+我们首先分析下基础Matmul（详见本仓[00_basic_matmul](../../../examples/00_basic_matmul/README.md)样例）的内存访问量。设矩阵乘的尺寸为$(M, N, K)$，L1上的Tile尺寸相应为$m$, $n$, $k$。假设二者对齐。则单个分形（结果）矩阵从GM（Global Memory）至L1所需的搬运量是$K(mk+kn)/k$，加之分形矩阵个数为$MN/mn$，因此总的访问量为$MNK(1/m+1/n)$。另一方面，由于在L0C上进行累加，因此搬出的单位数据量即为$MN$。
+再考虑使用本优化策略后的内存访问，设复用左矩阵，则单核总的数据搬运量为$mK + KN$，总的访问量是$(mK + KN)M/m$，也即$MNK(1/m+1/N)$，显著小于基础Matmul的情形。另外由于计算结果并不能在L0C上进行累加，需“随算随搬”，因此搬出的数据量为$MNK/k$， 较基础有一定升高。
+| 类别 | 内存访问操作总量 | 
+| --- | ------- | 
+| 基础矩阵乘 |  $MNK(1/m+1/n) + MN$    | 
+| 单核切K    | $MNK(1/m+1/N) + MNK/k$ |
+
+
+</details>
  
 | 数据类型 | `L1TileShape::M` | `L1TileShape::N` | `L1TileShape::K` | 
 | --- | --- | --- | --- |
@@ -190,7 +197,7 @@ if (atomicAdd) {
 | FP32 | 256 | 128 | 256 | 
 
  - 使用对齐写出
- 对于本优化策略，关键瓶颈是数据写出FIX_PILE的带宽，因此需要启用对齐，以提高非对齐场景下`gmWC`搬运至`gmC`的带宽性能。
+ 对于本优化策略，关键瓶颈是数据写出`FIX_PIPE`的带宽，因此需要启用对齐，以提高非对齐场景下`gmWC`搬运至`gmC`的带宽性能。
 
  ```cpp
 // RemovePaddingNDAndCast的核心处理逻辑
@@ -222,7 +229,7 @@ for (uint32_t loopIdx = 0; loopIdx < coreLoops; ++loopIdx) {
 在矩阵C上的swizzle策略采用S型特征，相较于Z型的swizzle排布，在换行处可节约一次搬运。如上图所示，按S型Swizzle策略加载，前一组需要加载到L1A, L1B上的分形矩阵为`<A01, <B10, B11>>`，后一次需要加载的是`<A11, <B10, B11>>`。“换行”过程下，可以固定L1B上的数据，仅从GM上重读入A11 到L1A上，以减轻载入负担。
 
 <div style="display: flex; justify-content: center;">
-    <img src="https://raw.gitcode.com/user-images/assets/7831925/82464c03-ecfc-4a3f-afbb-82740c77103f/tmp4.png" width="55%" height="auto">
+    <img src="https://raw.gitcode.com/user-images/assets/7831925/82464c03-ecfc-4a3f-afbb-82740c77103f/tmp4.png" width="35%" height="auto">
 </div>
 
 
@@ -232,21 +239,20 @@ for (uint32_t loopIdx = 0; loopIdx < coreLoops; ++loopIdx) {
 
 经过实测，应用上述单核切K算法在大尺寸场景下有较好收益，且随着K轴的尺寸增大，GM至L1节省的正向收益高过重复写入GM的负向收益，可参考下表。
 
-不过需要说明的是，在M，N过小，或者K偏低的情况下，使用这种单核切K性能收益是劣化的，**小尺寸下分核负载不均衡**，利用率偏低。
+不过需要说明的是，在M，N过小，或者K偏低的情况下，会出现**分核负载不均衡**的情况，利用率偏低。
 
-| M | N | K | 耗时[us] | 耗时[标杆][us] | 
-| -- | -- | ---- | ----- | ----- | 
-| 2048 |	4096 |	4000 | 260.53 |	270.01 |
-| 4096 | 4096	| 8000 | 929.96 |	997.60 |
-| 2048 | 4096	| 20000	| 1174.66 | 1330.36 |
-| 4096 |	4096 |	40000	| 4732.43 |	5739.74 |
-| 2048 | 4096 | 150000 | 9129.22 |	13438.43 |
+| M | N | K | 耗时(us) | 耗时[标杆]`(us) | 加速比 | 
+| -- | -- | ---- | ----- | ----- | ----- | 
+| 2048 |	4096 |	4000 | 261 |	 445 | 1.7049 | 
+| 4096 | 4096	| 8000 | 917 |	1231 | 1.3424 |
+| 4096 |	4096 |	40000	| 4669 |	7775 | 1.6652 | 
+| 2048 | 4096 | 80000 | 16850 |	57144 | 1.7499 | 
 
 
 说明：
- - 标杆为[`aclnnMatmul(V2)`](https://www.hiascend.com/document/detail/zh/canncommercial/80RC1/apiref/appdevgapi/context/aclnnMatmul.md)
- - 上述耗时均统计的是核心计算耗时（如二者`TransData`的过程耗时（如有）不计其中）
- - 上述测试例中A，B及C矩阵均为`layout::RowMajor`排布方式，本matmul计算应用`PaddingA`为`Padding_ND`，`PaddingB`不启用。
+ - 标杆为[`BasicMatmul`](../../../examples/00_basic_matmul/README.md)算子
+ - 统计耗时均为核函数总耗时，使用[`msprof`](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850alpha001/devaids/optool/atlasopdev_16_0082.html)工具得到
+ - 上述测试例中A，B及C矩阵均为`layout::RowMajor`排布方式。
 
 
 
