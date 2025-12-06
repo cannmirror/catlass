@@ -36,7 +36,7 @@ using op::bfloat16;
 using op::fp16_t;
 
 typedef int32_t rtError_t;
-extern static const int32_t RT_ERROR_NONE; // success
+extern const int32_t RT_ERROR_NONE; // success
 extern "C" int rtGetC2cCtrlAddr(uint64_t *, uint32_t *);
 
 // Macro function for unwinding acl errors.
