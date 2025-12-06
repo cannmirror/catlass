@@ -2,7 +2,7 @@
 
 ## 环境准备
 
-> **说明**：请先行确认[基础依赖](../README.md#-软硬件配套说明)、[NPU驱动](基础依赖、NPU驱动和固件已安装。)和固件已安装，及[基础依赖](../README.md#-软硬件配套说明)是否满足。
+> **说明**：请先行确认[基础依赖](../README.md#-软硬件配套说明)、[NPU驱动](https://www.hiascend.com/hardware/firmware-drivers/community)和固件已安装，及[基础依赖](../README.md#-软硬件配套说明)是否满足。
 
 1. **安装社区版CANN toolkit包**
 
@@ -27,7 +27,7 @@ chmod +x Ascend-cann-toolkit_{version}_linux-{arch}.run
 
 ```bash
 # 默认路径安装，以root用户为例（非root用户，将/usr/local替换为${HOME}）
-source /usr/local/Ascend/set_env.sh
+source /usr/local/Ascend/ascend_toolkit/set_env.sh
 # 指定路径安装
 # source ${install_path}/set_env.sh
 ```
@@ -60,7 +60,7 @@ bash scripts/build.sh [options] <target>
    - `--enable_profiling`：使能Profiling工具，详见[CATLASS样例性能调优](./tools/performance_tools.md#profiling简介)。
    - `--enable_print`：启用编译器的打印功能，详见[基于`cce::printf`进行设备侧打印](./tools/print.md)。
    - `--enable_ascendc_dump`：启用`AscendC`相关算子调测API，详见[CATLASS样例使用AscendC算子调测API](./tools/ascendc_dump.md)。
-   - `-DCATLASS_BISHENG_ARCH`：指明NPU架构，支持`a2`或`a3`。
+   - `-DCATLASS_BISHENG_ARCH`：指明NPU架构，当前支持`a2`或`a3`。
    - `-D<option>`：给CMake传递其他的编译选项。
 
  - `target`： 要编译的算子样例，可指定为特定的样例名，也可指定为：
@@ -93,7 +93,7 @@ cd output/bin
  - `256`， `512`， `1024`分别为矩阵乘法的在m轴、n轴、k轴的维度（左/右矩阵数据随机生成）
  - `deviceId`可选（默认为0），指定NPU卡的ID号。
 
-执行该算子样例后，如出现下述结果则表明其计算符合精度预期。
+执行该算子样例后，如出现下述结果则表明其计算符合精度预期（该样例中Matmul的左、右矩阵使用随机数填充，真值以cpu计算为准）。
 ```
 Compare success.
 ```
