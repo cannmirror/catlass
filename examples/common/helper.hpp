@@ -35,7 +35,7 @@
 using op::bfloat16;
 using op::fp16_t;
 
-#define rtError_t int;
+#define rtError_t int
 #define RT_ERROR_NONE ACL_ERROR_NONE
 int rtGetC2cCtrlAddr(uint64_t, uint32_t);
 
