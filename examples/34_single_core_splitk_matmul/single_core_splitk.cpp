@@ -87,8 +87,12 @@ static void Run(const Options &options) {
     // Padding objects
     using ElementAccumulator = typename Catlass::Gemm::helper::ElementAccumulatorSelector<ElementA, ElementB>::ElementAccumulator;
     
-    constexpr PaddingTag paddingTagA = PaddingTag::PADDING_NZ;
-    constexpr PaddingTag paddingTagB = PaddingTag::NO_PADDING;
+    constexpr PaddingTag paddingTagA = (std::is_same_v<LayoutA, layout::zN> || std::is_same_v<LayoutA, layout::nZ>)
+                                           ? PaddingTag::NO_PADDING
+                                           : PaddingTag::PADDING_NZ;
+    constexpr PaddingTag paddingTagB = (std::is_same_v<LayoutB, layout::zN> || std::is_same_v<LayoutB, layout::nZ>)
+                                           ? PaddingTag::NO_PADDING
+                                           : PaddingTag::PADDING_NZ;
     constexpr PaddingTag paddingTagC = PaddingTag::NO_PADDING;
     using PaddingBuilderA = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagA, ArchTag, ElementA, LayoutA>;
     using PaddingBuilderB = Catlass::Gemm::Kernel::PaddingBuilder<paddingTagB, ArchTag, ElementB, LayoutB>;
