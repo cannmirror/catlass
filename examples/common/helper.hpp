@@ -22,7 +22,6 @@
 #include <acl/acl.h>
 #include <opdev/bfloat16.h>
 #include <opdev/fp16_t.h>
-#include <runtime/rt_ffts.h>
 #include <tiling/platform/platform_ascendc.h>
 
 #ifdef ASCENDC_MODULE_OPERATOR_H
@@ -35,6 +34,9 @@
 
 using op::bfloat16;
 using op::fp16_t;
+
+#define rtError_t int;
+int rtGetC2cCtrlAddr(uint32_t, uint64_t);
 
 // Macro function for unwinding acl errors.
 #define ACL_CHECK(status)                                                                                              \
