@@ -49,7 +49,7 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::A1, 0, ArchTag::L1_SIZE);
+        tensor = AscendC::LocalTensor<uint8_t>(Position, 0, ArchTag::L1_SIZE);
     }
 };
 
@@ -64,7 +64,7 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::A2, 0, ArchTag::L0A_SIZE);
+        tensor = AscendC::LocalTensor<uint8_t>(Position, 0, ArchTag::L0A_SIZE);
     }
 };
 
@@ -79,7 +79,7 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::B1, 0, ArchTag::L1_SIZE);
+        tensor = AscendC::LocalTensor<uint8_t>(Position, 0, ArchTag::L1_SIZE);
     }
 };
 
@@ -94,7 +94,7 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::B2, 0, ArchTag::L0B_SIZE);
+        tensor = AscendC::LocalTensor<uint8_t>(Position, 0, ArchTag::L0B_SIZE);
     }
 };
 
