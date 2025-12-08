@@ -110,7 +110,7 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::C1, 0, ArchTag::L1_SIZE);
+        tensor = AscendC::LocalTensor<uint8_t>(Position, 0, ArchTag::L1_SIZE);
     }
 };
 
@@ -126,7 +126,7 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::C2, 0, ArchTag::BIAS_SIZE);
+        tensor = AscendC::LocalTensor<uint8_t>(Position, 0, ArchTag::BIAS_SIZE);
     }
 };
 
@@ -141,7 +141,7 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::CO1, 0, ArchTag::L0C_SIZE);
+        tensor = AscendC::LocalTensor<uint8_t>(Position, 0, ArchTag::L0C_SIZE);
     }
 };
 
@@ -157,7 +157,7 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::C2PIPE2GM, 0, ArchTag::FIXBUF_SIZE);
+        tensor = AscendC::LocalTensor<uint8_t>(Position, 0, ArchTag::FIXBUF_SIZE);
     }
 };
 
@@ -172,7 +172,7 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::VECIN, 0, ArchTag::UB_SIZE);
+        tensor = AscendC::LocalTensor<uint8_t>(Position, 0, ArchTag::UB_SIZE);
     }
 };
 
@@ -187,7 +187,7 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::VECOUT, 0, ArchTag::UB_SIZE);
+        tensor = AscendC::LocalTensor<uint8_t>(Position, 0, ArchTag::UB_SIZE);
     }
 };
 
@@ -202,7 +202,7 @@ public:
     CATLASS_DEVICE
     LocalTensorBuffer()
     {
-        tensor = AscendC::LocalTensor<uint8_t>(AscendC::TPosition::VECCALC, 0, ArchTag::UB_SIZE);
+        tensor = AscendC::LocalTensor<uint8_t>(Position, 0, ArchTag::UB_SIZE);
     }
 };
 
