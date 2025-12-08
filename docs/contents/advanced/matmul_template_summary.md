@@ -9,7 +9,7 @@
 <summary><strong><font size="4">00_basic_matmul</font></strong></summary>
 
 - 理论模板：`Common模板`
-- 工程优化：无
+- 工程优化：`流水优化（Multi Buffer）`
 - 关键交付件
     - host：[00_basic_matmul](../../../examples/00_basic_matmul/basic_matmul.cpp)
     - kernel：[basic_matmul.hpp](../../../include/catlass/gemm/kernel/basic_matmul.hpp)
@@ -21,7 +21,9 @@
 <summary><strong><font size="4">04_padding_matmul</font></strong></summary>
 
 - 理论模板：`Common模板`
-- 工程优化：`读取带宽优化（padding）- PaddingMatrixND`
+- 工程优化：
+    - `流水优化（Multi Buffer）`
+    - `读取带宽优化（padding）- PaddingMatrixND`
 - 关键交付件
     - host：[04_padding_matmul](../../../examples/04_padding_matmul/padding_matmul.cpp)
     - kernel：[padding_matmul.hpp](../../../include/catlass/gemm/kernel/padding_matmul.hpp)
@@ -34,6 +36,7 @@
 
 - 理论模板：`Common模板`
 - 工程优化：
+    - `流水优化（Multi Buffer）`
     - `流水优化（Preload）`
     - `读取带宽优化（Padding）- PaddingMatrixNZ`
     - `读取带宽优化（ShuffleK）`
@@ -51,7 +54,7 @@
 <summary><strong><font size="4">09_splitk_matmul</font></strong></summary>
 
 - 理论模板：`多核切K模板 MultiCoreSplitK`
-- 工程优化：无
+- 工程优化：`流水优化（Multi Buffer）`
 - 关键交付件
     - host：[09_splitk_matmul](../../../examples/09_splitk_matmul/optimized_matmul.cpp)
     - kernel：[splitk_matmul.hpp](../../../include/catlass/gemm/kernel/splitk_matmul.hpp)
@@ -65,6 +68,7 @@
 （此样例主要承载NZ排布输入的适配方法，也可换成ND排布输入，无MIX算子编译启动的开销）
 - 理论模板：`Common模板`
 - 工程优化：
+    - `流水优化（Multi Buffer）`
     - `流水优化（Preload）`
     - `读取带宽优化（ShuffleK）`
 - 关键交付件
@@ -78,7 +82,9 @@
 <summary><strong><font size="4">22_padding_splitk_matmul</font></strong></summary>
 
 - 理论模板：`多核切K模板 MultiCoreSplitK`
-- 工程优化：`读取带宽优化（padding）- PaddingMatrixND`
+- 工程优化：
+    - `流水优化（Multi Buffer）`
+    - `读取带宽优化（padding）- PaddingMatrixND`
 - 关键交付件
     - host：[22_padding_splitk_matmul](../../../examples/22_padding_splitk_matmul/padding_splitk_matmul.cpp)
     - kernel：[padding_splitk_matmul.hpp](../../../include/catlass/gemm/kernel/padding_splitk_matmul.hpp)
@@ -94,6 +100,7 @@
 （此样例及相关组件仅适配了A矩阵全载实现，需要实现B矩阵全载可参考关键交付件自行开发）
 - 理论模板：`Common模板`
 - 工程优化：
+    - `流水优化（Multi Buffer）`(全载的A矩阵在L1上不使用多buffer)
     - `读取带宽优化（L1常驻）`
 - 关键交付件
     - host：[25_matmul_full_loadA](../../../examples/09_splitk_matmul/25_matmul_full_loadA.cpp)
@@ -108,6 +115,7 @@
 
 - 理论模板：`Common模板`
 - 工程优化：
+    - `流水优化（Multi Buffer）`
     - `Scalar开销消减`
 - 关键交付件
     - host：[31_small_matmul](../../../examples/31_small_matmul/small_matmul.cpp)
@@ -122,6 +130,7 @@
 
 - 理论模板：`单核切K模板 SingleCoreSplitK`
 - 工程优化：
+    - `流水优化（Multi Buffer）`
     - `读取带宽优化（Padding）- PaddingMatrixNZ`
     - `写出带宽优化`
 - 关键交付件
@@ -243,13 +252,46 @@ $2Byte * MNK / k_1$
 ## 工程优化清单
 
 <details>
+<summary><strong><font size="4">流水优化（Multi Buffer）</font></strong></summary>
+
+### 现象分析
+
+如下图构造一个`Common`模板下的简单场景，对于单个AIC处理一个基本任务块C，需要的A/B矩阵Tile块较小，可以直接全部放入L1，且A/B矩阵从L1搬入L0时需要切4次搬入。
+
+<img src="https://raw.gitcode.com/user-images/assets/7801479/a62726da-f3c2-4c37-8a32-711046cfd239/8pingpong0.png" width="80%">
+
+各pipe的指令流水图示例如下：
+
+<img src="https://raw.gitcode.com/user-images/assets/7801479/1dca48b1-2b5d-450c-9f66-18dbc1f7e2d1/8pingpong1.png" width="100%">
+
+如果在AIC的L1/L0A/L0B/L0C上，每次载入数据tile块时都尽量塞满所有空间，会导致各PIPE的流水串行，整体效率低下
+
+### 优化方案
+
+使用常规优化手段Multi Buffer，即在L1/L0A/L0B/L0C上启用多buffer，使得流水尽可能并行，提升效率。如下图在L1/L0A/L0B上采用double buffer：
+
+
+<img src="https://raw.gitcode.com/user-images/assets/7801479/40315511-85cc-44ac-be3f-9efb6b5c0194/8pingpong2.png" width="80%">
+
+各pipe的指令流水图示例如下，MTE1上指令的0、1表示pingpong流水：
+
+<img src="https://raw.gitcode.com/user-images/assets/7801479/5917e1ca-dea0-4e00-8322-ef5ba2f32f46/8pingpong3.png" width="100%">
+
+⚠️ 需要注意的是，与`L1常驻`优化结合时，常驻的A/B矩阵的tile块，不启用多buffer。
+
+### 特性承载代码
+
+由于是常规优化手段，所有blockMmad组件均使能。
+
+</details>
+
+<details>
 <summary><strong><font size="4">流水优化（Preload）</font></strong></summary>
 
 ### 现象分析
 
 通过仿真流水发现pingpong策略的blockMmad存在问题：
 - MTE2流水上，“当前C矩阵基本块计算的最后一个A矩阵（B矩阵）的tile块”和“下一个C矩阵基本块计算的第一个A矩阵（B矩阵）的tile块”之间加载的空泡。
-- 缓解L1->L0的MTE1指令发射阻塞MTE2指令发射的问题
 ### 优化方案
 
 针对GM->L1过程，读取当前轮次的$m_1k_1$（$k_1n_1$）时，计算上一轮读取的数据（假设Preload一轮，PRELOAD_STAGES = 1），步骤伪代码如下：
@@ -267,6 +309,17 @@ for ... {
     }
 }
 ```
+
+如下图构造一个`Common`模板下的简单场景，对于单个AIC处理两个基本任务块C1和C2，需要的A/B矩阵Tile块放入L1需要切2次，且A/B矩阵L1Tile块从L1搬入L0时需要切4次搬入（可以先学习前文`流水优化（Multi Buffer）`来增强理解）。这里给出`MmadAtlasA2Pingpong`和`MmadAtlasA2Preload`、`MmadAtlasA2PreloadAsync`的指令对比：
+- `MmadAtlasA2Pingpong`中，调用两次blockMmad分别完成C1和C2的计算
+- `MmadAtlasA2Preload`中，两次blockMmad也是分别完成C1和C2的计算，但A3/B3的GmToL1搬运提前到了第一次blockMmad中执行
+- `MmadAtlasA2PreloadAsync`中，调用两次blockMmad和一次收尾的SynchronizeBlock。A2/B2的L1ToL0搬运、tileMmad以及C1的搬出从第一次blockMmad中推迟到第二次blockMmad中；A4/B4的L1ToL0搬运、tileMmad以及C2的搬出从第二次blockMmad中推迟到SynchronizeBlock中
+
+<img src="https://raw.gitcode.com/user-images/assets/7801479/3e523c2a-741c-4c9b-9915-128cffeb067b/9preload0.png" width="100%">
+
+各pipe的指令流水图示例如下，最终达成了A3、B3块的GmToL1搬运提前，减缓了MTE2上的搬运空泡：
+
+<img src="https://raw.gitcode.com/user-images/assets/7801479/c37daf57-bed2-444f-a355-7bb637608b49/9preload1.png" width="100%">
 ### 特性承载代码
 - [block_mmad_preload.hpp](../../../include/catlass/gemm/block/block_mmad_preload.hpp)，对应dispatchPolicy：`MmadAtlasA2Preload`，需要在kernel内手动计算传入下一块预载数据的信息。
 - [block_mmad_preload_async.hpp](../../../include/catlass/gemm/block/block_mmad_preload_async.hpp)，对应dispatchPolicy：`MmadAtlasA2PreloadAsync`，通过异步控制，无需手动计算下一块预载数据信息，并支持mmad计算完成后的`Callback`传入。
