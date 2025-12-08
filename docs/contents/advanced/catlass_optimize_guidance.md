@@ -77,7 +77,7 @@ L0C实际占用 = L0::M * L0::N * 4(Byte)
 
 ### 样例覆盖和选择
 
-当前库上基础Matmul算子有：
+当前库上基础Matmul算子如下，更详细介绍请见[矩阵乘模板清单](./matmul_template_summary.md)：
 
 - [00_basic_matmul](../examples/00_basic_matmul/basic_matmul.cpp)，采用`MmadAtlasA2Pingpong`的dispatchPolicy，使能pingpong策略
 
