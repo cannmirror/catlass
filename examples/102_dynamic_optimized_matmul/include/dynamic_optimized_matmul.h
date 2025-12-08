@@ -15,29 +15,32 @@
 #include <iomanip>
 
 #include "do_tiling_b16.h"
+#include "do_tiling_b32.h"
 #include "select_kernel_b16.h"
+#include "select_kernel_b32.h"
 #include "launch_map.h"
 
 template <class DType>
-void DoTiling(TilingParams &tilingParams, PlatformInfo &platformInfo)
+void DoTilingAndSelectKernel(TilingParams &tilingParams, PlatformInfo &platformInfo) {}
+
+template <>
+void DoTilingAndSelectKernel<fp16_t>(TilingParams &tilingParams, PlatformInfo &platformInfo)
 {
     uint32_t layoutTagA = tilingParams.layoutTagA;
     uint32_t layoutTagB = tilingParams.layoutTagB;
 
     DoTilingB16[layoutTagA][layoutTagB](tilingParams, platformInfo);
-}
-
-template <class DType>
-void SelectKernel(TilingParams &tilingParams, PlatformInfo &platformInfo)
-{
     SelectKernelB16(tilingParams, platformInfo);
 }
 
-template <class DType>
-void DoTilingAndSelectKernel(TilingParams &tilingParams, PlatformInfo &platformInfo)
+template <>
+void DoTilingAndSelectKernel<float>(TilingParams &tilingParams, PlatformInfo &platformInfo)
 {
-    DoTiling<DType>(tilingParams, platformInfo);
-    SelectKernel<DType>(tilingParams, platformInfo);
+    uint32_t layoutTagA = tilingParams.layoutTagA;
+    uint32_t layoutTagB = tilingParams.layoutTagB;
+
+    DoTilingB32[layoutTagA][layoutTagB](tilingParams, platformInfo);
+    SelectKernelB32(tilingParams, platformInfo);
 }
 
 size_t DynamicOptimizedMatmulGetWorkspace(TilingParams &tilingParams)
@@ -67,6 +70,7 @@ void PrintTilingParams(TilingParams &tilingParams, PlatformInfo& platformInfo)
             k0 = k0 / c0NumPerFractal * c0NumPerFractal;
         }
     }
+    std::cout << "--BATCH_TEST_MARKER--" << std::endl;
     std::cout << std::dec << "┌─────────────────────────────────────────────┐\n"
               << "│            Tiling Parameters                │\n"
               << "├───────────────────┬─────────────────────────┤\n"

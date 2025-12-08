@@ -25,9 +25,10 @@ if __name__ == "__main__":
     kernel_info = {}
 
     os.makedirs(Config.WRAPPER_CODE_PATH, exist_ok=True)
-    CommonMatmulTemplate.gen_code("half", kernel_info)
-    SmallMatmulTemplate.gen_code("half", kernel_info)
-    PaddingCommonMatmulTemplate.gen_code("half", kernel_info)
-    PaddingMultiCoreSplitkMatmulTemplate.gen_code("half", kernel_info)
-    PaddingStreamkMatmulTemplate.gen_code("half", kernel_info)
+    for Dtype in ["half", "float"]:
+        CommonMatmulTemplate.gen_code(Dtype, kernel_info)
+        SmallMatmulTemplate.gen_code(Dtype, kernel_info)
+        PaddingCommonMatmulTemplate.gen_code(Dtype, kernel_info)
+        PaddingMultiCoreSplitkMatmulTemplate.gen_code(Dtype, kernel_info)
+        PaddingStreamkMatmulTemplate.gen_code(Dtype, kernel_info)
     LaunchMapTemplate.gen_code(kernel_info)

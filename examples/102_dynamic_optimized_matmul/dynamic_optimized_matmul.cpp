@@ -13,28 +13,29 @@
 #include "catlass/layout/layout.hpp"
 #include "dynamic_optimized_matmul.h"
 
+template <class Dtype>
 void Run(aclrtStream &stream, uint32_t m, uint32_t n, uint32_t k, LayoutTag layoutTagA, LayoutTag layoutTagB,
     PlatformInfo &platformInfo)
 {
     LayoutTag layoutTagC = LayoutTag::TagRowMajor;
     TilingParams tilingParams{m, n, k, layoutTagA, layoutTagB, layoutTagC};
-    DoTilingAndSelectKernel<fp16_t>(tilingParams, platformInfo);
-    PrintTilingParams<fp16_t>(tilingParams, platformInfo);
+    DoTilingAndSelectKernel<Dtype>(tilingParams, platformInfo);
+    PrintTilingParams<Dtype>(tilingParams, platformInfo);
 
     size_t lenA = static_cast<size_t>(m) * k;
     size_t lenB = static_cast<size_t>(k) * n;
     size_t lenC = static_cast<size_t>(m) * n;
 
-    size_t sizeA = lenA * sizeof(fp16_t);
-    size_t sizeB = lenB * sizeof(fp16_t);
-    size_t sizeC = lenC * sizeof(fp16_t);
+    size_t sizeA = lenA * sizeof(Dtype);
+    size_t sizeB = lenB * sizeof(Dtype);
+    size_t sizeC = lenC * sizeof(Dtype);
 
-    std::vector<fp16_t> hostA(lenA);
-    std::vector<fp16_t> hostB(lenB);
-    std::vector<fp16_t> hostC(lenC);
+    std::vector<Dtype> hostA(lenA);
+    std::vector<Dtype> hostB(lenB);
+    std::vector<Dtype> hostC(lenC);
 
-    Catlass::golden::FillRandomData<fp16_t>(hostA, -5.0f, 5.0f);
-    Catlass::golden::FillRandomData<fp16_t>(hostB, -5.0f, 5.0f);
+    Catlass::golden::FillRandomData<Dtype>(hostA, -5.0f, 5.0f);
+    Catlass::golden::FillRandomData<Dtype>(hostB, -5.0f, 5.0f);
 
     uint8_t *dA, *dB, *dC, *dW, *dTilingParams;
 
@@ -117,7 +118,7 @@ int main(int argc, const char **argv)
     uint32_t k = std::atoi(argv[3]);
     LayoutTag layoutTagA = static_cast<LayoutTag>(std::atoi(argv[4]));
     LayoutTag layoutTagB = static_cast<LayoutTag>(std::atoi(argv[5]));
-    Run(stream, m, n, k, layoutTagA, layoutTagB, platformInfo);
+    Run<fp16_t>(stream, m, n, k, layoutTagA, layoutTagB, platformInfo);
 
     ACL_CHECK(aclrtDestroyStream(stream));
     ACL_CHECK(aclrtResetDevice(deviceId));
