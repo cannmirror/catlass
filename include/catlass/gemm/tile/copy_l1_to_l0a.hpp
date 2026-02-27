@@ -424,7 +424,7 @@ struct TileCopyTla<Arch::AtlasA2,
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<ElementSrc>::value;
     static constexpr uint32_t ELE_NUM_PER_FRACTAL = BytesToBits(BYTE_PER_FRACTAL) / SizeOfBits<ElementSrc>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     TileCopyTla() {};
@@ -476,7 +476,7 @@ struct TileCopyTla<Arch::AtlasA2,
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
     static constexpr uint32_t ELE_NUM_PER_FRACTAL = BytesToBits(BYTE_PER_FRACTAL) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     TileCopyTla() {};
@@ -523,7 +523,7 @@ struct TileCopyTla<Arch::AtlasA2,
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<ElementSrc>::value;
     static constexpr uint32_t ELE_NUM_PER_FRACTAL = BytesToBits(BYTE_PER_FRACTAL) / SizeOfBits<ElementSrc>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     TileCopyTla() {};
@@ -574,7 +574,7 @@ struct TileCopyTla<Arch::AtlasA2,
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
     static constexpr uint32_t ELE_NUM_PER_FRACTAL = BytesToBits(BYTE_PER_FRACTAL) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     TileCopyTla() {};
@@ -626,7 +626,7 @@ struct TileCopyTla<Arch::AtlasA2,
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
     static constexpr uint32_t ELE_NUM_PER_FRACTAL = BytesToBits(BYTE_PER_FRACTAL) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     TileCopyTla() {};

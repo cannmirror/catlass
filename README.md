@@ -80,7 +80,7 @@ catlass
 
 CATLASS所需的软硬件环境依赖如下：
 
-- 昇腾产品：[Atlas A2训练/推理产品](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html), [Atlas A3训练/推理产品](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)
+- 昇腾产品：[Atlas A2训练/推理产品](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html), [Atlas A3训练/推理产品](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html), Ascend 950PR/Ascend 950DT
 - CPU架构：`aarch64`/`x86_64`
 - 系统：支持的Linux（进行[兼容性查询](https://www.hiascend.com/hardware/compatibility)）
 - 软件依赖：
@@ -105,19 +105,28 @@ CATLASS所需的软硬件环境依赖如下：
   </thead>
   <tbody style="text-align: center">
   <tr>
-          <td><a href="https://gitcode.com/cann/releases/v1.2.2">v.1.2.2 及以上</a>
-          <td>社区版<a href="https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1">8.2.RC1</a></td>
+      <td>当前</td>
+      <td>Atlas A2 & Atlas A3: <a href="https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1">8.2.RC1</a><br>
+      Ascend 950: 9.0</td>
+      <td><a href="https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html">Atlas A2训练/推理产品</a> <br>
+          <a href="https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html">Atlas A3训练/推理产品</a><br>
+      Ascend 950</td>
+      </tr>
+  <tr>
+          <td><a href="https://gitcode.com/cann/releases/v1.2.2">v1.4.0-v.1.2.2</a>
+          <td><a href="https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1">8.2.RC1</a></td>
           <td><a href="https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html">Atlas A2训练/推理产品</a> <br>
           <a href="https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html">Atlas A3训练/推理产品</a></td>
       </tr>
       <tr>
           <td><a href="https://gitcode.com/cann/catlass/releases/v1.2.1">v1.2.1</a>~<a href="https://gitcode.com/cann/catlass/releases/v1.0.0">v1.0.0</a></td>
-          <td>社区版<a href="https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002">8.2.RC1.alpha002</a></td>
+          <td><a href="https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.2.RC1.alpha002">8.2.RC1.alpha002</a></td>
           <td><a href="https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html">Atlas A2训练/推理产品</a> <br>
           <a href="https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html">Atlas A3训练/推理产品</a></td>
       </tr>
   </tbody>
 </table>
+
 
 - 对于某些调测工具，可能需要较上述更新的CANN版本，详情参考[调测工具文档](./docs/evaluation_collections.md)。
 

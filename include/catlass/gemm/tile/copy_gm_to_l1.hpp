@@ -69,7 +69,7 @@ struct CopyGmToL1DynamicOptimized<Arch::AtlasA2, Gemm::GemmType<Element, layout:
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1DynamicOptimized() {};
@@ -134,7 +134,7 @@ struct CopyGmToL1DynamicOptimized<Arch::AtlasA2, Gemm::GemmType<Element, layout:
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1DynamicOptimized() {};
@@ -219,7 +219,7 @@ struct CopyGmToL1GMMPTD<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1GMMPTD() {};
@@ -316,7 +316,7 @@ struct CopyGmToL1IntervalDataCopy<Arch::AtlasA2, Gemm::GemmType<half, layout::Ro
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1IntervalDataCopy() {};
@@ -350,7 +350,7 @@ struct CopyGmToL1IntervalDataCopy<Arch::AtlasA2, Gemm::GemmType<half, layout::Pa
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1IntervalDataCopy() {};
@@ -384,7 +384,7 @@ struct CopyGmToL1IntervalDataCopy<Arch::AtlasA2, Gemm::GemmType<half, layout::Co
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1IntervalDataCopy() {};
@@ -418,7 +418,7 @@ struct CopyGmToL1IntervalDataCopy<Arch::AtlasA2, Gemm::GemmType<half, layout::Pa
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1IntervalDataCopy() {};
@@ -449,7 +449,7 @@ struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::RowMajor>, Gemm::Gemm
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1() {};
@@ -491,7 +491,7 @@ struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::RowMajor>, Gemm::Gemm
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1() {};
@@ -596,7 +596,7 @@ struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::ColumnMajor>, Gemm::G
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1() {};
@@ -701,7 +701,7 @@ struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::ColumnMajor>, Gemm::G
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1() {};
@@ -743,7 +743,7 @@ struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::ColumnMajor>, Gemm::G
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1() {};
@@ -818,7 +818,7 @@ struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::NDC1HWC0, AscendC::TP
     using LayoutDst = layout::NDC1HWC0;
     using LayoutSrc = layout::NDC1HWC0;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1() {};
@@ -891,7 +891,7 @@ struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::KDC1KHKWN1N0C0, Ascen
     using LayoutDst = layout::nZ;
     using LayoutSrc = layout::KDC1KHKWN1N0C0;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1() {};
@@ -1094,7 +1094,7 @@ struct CopyGmToL1<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>> {
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1() {};
@@ -1180,7 +1180,7 @@ struct CopyGmToL1<Arch::AtlasA2, Gemm::GemmType<Element, layout::ColumnMajor>> {
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1() {};
@@ -1234,7 +1234,7 @@ struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::zN>> {
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1() {};
@@ -1282,7 +1282,7 @@ struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::nZ>> {
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1() {};
@@ -1326,7 +1326,7 @@ struct CopyGmToL1<Arch::AtlasA2, Gemm::GemmType<Element, layout::PaddingRowMajor
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1() {};
@@ -1362,7 +1362,7 @@ struct CopyGmToL1<Arch::AtlasA2, Gemm::GemmType<Element, layout::PaddingColumnMa
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1() {};
@@ -1399,7 +1399,7 @@ struct CopyGmToL1<Arch::AtlasA2, Gemm::GemmType<Element, layout::RowMajor>,
     static constexpr uint32_t BLOCK_LEN_LIMIT = 65536;
     static constexpr uint32_t MAX_REPEAT = 4095;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1() {};
@@ -1445,7 +1445,7 @@ struct TileCopyTla<Arch::AtlasA2,
                      tla::detail::iszN<ElementDst, LayoutDst>::value>> {
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<ElementSrc>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     TileCopyTla() {};
@@ -1504,7 +1504,7 @@ struct TileCopyTla<Arch::AtlasA2,
                      tla::detail::isnZ<ElementDst, LayoutDst>::value>> {
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<ElementSrc>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     TileCopyTla() {};
@@ -1564,7 +1564,7 @@ struct TileCopyTla<Arch::AtlasA2,
                      tla::detail::iszN<ElementDst, LayoutDst>::value>> {
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<ElementSrc>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     TileCopyTla() {};
@@ -1618,7 +1618,7 @@ struct TileCopyTla<Arch::AtlasA2,
                      tla::detail::isnZ<ElementDst, LayoutDst>::value>> {
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<ElementSrc>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     TileCopyTla() {};
@@ -1674,7 +1674,7 @@ struct TileCopyTlaExt<Arch::AtlasA2,
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<ElementSrc>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     TileCopyTlaExt() {};
@@ -1716,7 +1716,7 @@ struct TileCopyTlaExt<Arch::AtlasA2,
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<ElementSrc>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     TileCopyTlaExt() {};
@@ -1757,7 +1757,7 @@ struct TileCopyTlaExt<Arch::AtlasA2,
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<ElementSrc>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     TileCopyTlaExt() {};
@@ -1800,7 +1800,7 @@ struct TileCopyTlaExt<Arch::AtlasA2,
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<ElementSrc>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     TileCopyTlaExt() {};
@@ -1842,7 +1842,7 @@ struct TileCopyTlaExt<Arch::AtlasA2,
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<ElementSrc>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     TileCopyTlaExt() {};
@@ -1897,7 +1897,7 @@ struct TileCopyTlaExt<Arch::AtlasA2,
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<ElementSrc>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     TileCopyTlaExt() {};
@@ -1950,7 +1950,7 @@ struct CopyGmToL1<ArchTag, Gemm::GemmType<Element, layout::VectorLayout, AscendC
 
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
 
-    // Mehtods
+    // Methods
 
     CATLASS_DEVICE
     CopyGmToL1() {};

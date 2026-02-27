@@ -1,6 +1,6 @@
 #!/bin/bash
 # -----------------------------------------------------------------------------------------------------------
-# Copyright (c) 2025 Huawei Technologies Co., Ltd.
+# Copyright (c) 2025-2026 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ function show_help() {
     echo "  --enable_print  Enable built-in compiler print feature"
     echo "  --enable_ascendc_dump   Enable AscendC dump API"
     echo "  --tests         Enable building targets in tests"
-    echo "  -DCATLASS_BISHENG_ARCH  NPU arch. Only supports a2/a3."
+    echo "  -DCATLASS_BISHENG_ARCH  NPU arch. Only supports a2/a3/950."
     echo "  -D<option>      Additional CMake options"
     echo -e "\n${BLUE}Targets:${NC}"
     echo "  catlass_examples  Build Catlass examples"
