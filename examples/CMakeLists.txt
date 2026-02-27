@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------------------------------------
-# Copyright (c) 2025-2026 Huawei Technologies Co., Ltd.
+# Copyright (c) 2025 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@ add_custom_target(catlass_examples)
 # arch specific compile options
 if(CATLASS_BISHENG_ARCH STREQUAL "a2" OR CATLASS_BISHENG_ARCH STREQUAL "a3")
     set(CCE_AICORE_ARCH_BASE dav-c220)
-    add_compile_definitions(CATLASS_ARCH=2201)
     add_compile_options(
         "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-stack-size=0x8000>"
         "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-function-stack-size=0x8000>"
@@ -24,14 +23,11 @@ if(CATLASS_BISHENG_ARCH STREQUAL "a2" OR CATLASS_BISHENG_ARCH STREQUAL "a3")
     )
 endif()
 
-if(CATLASS_BISHENG_ARCH STREQUAL "950")
-    set(CCE_AICORE_ARCH_BASE dav-c310)
-    add_compile_definitions(CATLASS_ARCH=3101)
-endif()
 # common compile options
 add_compile_options(
     $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-macro-redefined>
     $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-ignored-attributes>
+    "SHELL:$<$<COMPILE_LANGUAGE:ASCEND>:-mllvm -cce-aicore-addr-transform>"
     # these options may be removed after CANN 8.5.0
     $<$<COMPILE_LANGUAGE:ASCEND>:-Wno-unused-value>
 )
@@ -43,17 +39,14 @@ add_link_options($<$<COMPILE_LANGUAGE:ASCEND>:-Wno-unused-command-line-argument>
 if(DEFINED ENABLE_PRINT AND ENABLE_PRINT)
     add_compile_options($<$<COMPILE_LANGUAGE:ASCEND>:--cce-enable-print>)
 endif()
-
-if(CATLASS_BISHENG_ARCH STREQUAL "a2" OR CATLASS_BISHENG_ARCH STREQUAL "a3")
-    if(NOT DEFINED NPU_MODEL OR NPU_MODEL STREQUAL "")
-        determine_npu_model(NPU_MODEL CATLASS_BISHENG_ARCH)
-        if(NPU_MODEL STREQUAL "")
-            message(FATAL_ERROR "Failed to determine NPU_MODEL. Please set NPU_MODEL manually by -DNPU_MODEL=Ascendxxxyy.")
-            return()
-        endif()
-    endif() 
-    message("NPU MODEL: ${NPU_MODEL}")
+if(NOT DEFINED NPU_MODEL OR NPU_MODEL STREQUAL "")
+    determine_npu_model(NPU_MODEL CATLASS_BISHENG_ARCH)
+    if(NPU_MODEL STREQUAL "")
+        message(FATAL_ERROR "Failed to determine NPU_MODEL. Please set NPU_MODEL manually by -DNPU_MODEL=Ascendxxxyy.")
+        return()
+    endif()
 endif()
+message("NPU MODEL: ${NPU_MODEL}")
 
 if(DEFINED ENABLE_SIMULATOR AND ENABLE_SIMULATOR)
     message("To run examples in simulator mode, execute the following commands in your terminal:")
@@ -145,15 +138,8 @@ foreach(EXAMPLE
     41_sparse_matmul_tla
     102_dynamic_optimized_matmul
 )
-if(NOT DEFINED CATLASS_BISHENG_ARCH OR NOT CATLASS_BISHENG_ARCH OR CATLASS_BISHENG_ARCH STREQUAL "a2" OR CATLASS_BISHENG_ARCH STREQUAL "a3")
     add_subdirectory(${EXAMPLE})
-endif()
 endforeach()
-
-if(CATLASS_BISHENG_ARCH STREQUAL "950")
-    add_subdirectory(42_950_basic_matmul)
-endif()
-
 # advanded examples
 add_subdirectory(shared_lib)
 add_subdirectory(python_extension)

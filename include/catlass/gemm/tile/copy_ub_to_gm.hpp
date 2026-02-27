@@ -28,7 +28,7 @@ struct TileCopyTla<Arch::AtlasA2,
                      tla::detail::isRowMajor<LayoutDst>::value>> {
     static constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 / sizeof(ElementSrc);
 
-    // Methods
+    // Mehtods
 
     CATLASS_DEVICE
     TileCopyTla() {};
@@ -65,7 +65,7 @@ struct TileCopyTlaExt<Arch::AtlasA2,
     layout::RowMajor, layout::PaddingRowMajor> {
     static constexpr uint32_t ELE_NUM_PER_C0 = BYTE_PER_C0 / sizeof(ElementSrc);
 
-    // Methods
+    // Mehtods
 
     CATLASS_DEVICE
     TileCopyTlaExt() {};

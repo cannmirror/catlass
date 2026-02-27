@@ -521,7 +521,7 @@ struct TileCopyTla<Arch::AtlasA2,
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<ElementSrc>::value;
     static constexpr uint32_t ELE_NUM_PER_FRACTAL = BytesToBits(BYTE_PER_FRACTAL) / SizeOfBits<ElementSrc>::value;
 
-    // Methods
+    // Mehtods
 
     CATLASS_DEVICE
     TileCopyTla() {};
@@ -573,7 +573,7 @@ struct TileCopyTla<Arch::AtlasA2,
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<ElementSrc>::value;
     static constexpr uint32_t ELE_NUM_PER_FRACTAL = BytesToBits(BYTE_PER_FRACTAL) / SizeOfBits<ElementSrc>::value;
 
-    // Methods
+    // Mehtods
 
     CATLASS_DEVICE
     TileCopyTla() {};
@@ -636,7 +636,7 @@ struct TileCopyTla<Arch::AtlasA2,
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
     static constexpr uint32_t ELE_NUM_PER_FRACTAL = BytesToBits(BYTE_PER_FRACTAL) / SizeOfBits<Element>::value;
 
-    // Methods
+    // Mehtods
 
     CATLASS_DEVICE
     TileCopyTla() {};
@@ -689,7 +689,7 @@ struct TileCopyTla<Arch::AtlasA2,
     static constexpr uint32_t ELE_NUM_PER_C0 = BytesToBits(BYTE_PER_C0) / SizeOfBits<Element>::value;
     static constexpr uint32_t ELE_NUM_PER_FRACTAL = BytesToBits(BYTE_PER_FRACTAL) / SizeOfBits<Element>::value;
 
-    // Methods
+    // Mehtods
 
     CATLASS_DEVICE
     TileCopyTla() {};
@@ -745,7 +745,7 @@ struct CopyL1ToL0BSparseTla<Arch::AtlasA2, ElementA,
                      tla::detail::iszN<ElementIdx, LayoutIdx>::value>> {
     static constexpr uint8_t INDEX_SHIFT = 2;              ///< Shift value for index manipulation
 
-    // Methods
+    // Mehtods
 
     CATLASS_DEVICE
     CopyL1ToL0BSparseTla() {};
@@ -832,7 +832,7 @@ struct CopyL1ToL0BSparseTla<Arch::AtlasA2, ElementA,
                     tla::detail::isnZ<ElementIdx, LayoutIdx>::value>> {
     static constexpr uint8_t INDEX_SHIFT = 2;              ///< Shift value for index manipulation
 
-    // Methods
+    // Mehtods
 
     CATLASS_DEVICE
     CopyL1ToL0BSparseTla() {};

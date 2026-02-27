@@ -15,10 +15,6 @@
 #include <kernel_operator.h>
 #endif
 
-#if defined(__NPU_ARCH__) && !defined(CATLASS_ARCH)
-#define CATLASS_ARCH __NPU_ARCH__
-#endif
-
 #define CATLASS_DEVICE __forceinline__ __aicore__
 #ifdef __CCE__
 #define CATLASS_HOST_DEVICE __forceinline__ [host, aicore]
