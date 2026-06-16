@@ -23,7 +23,7 @@ extern "C" void Ascend950StreamkMatmul(
 {
     auto macros = JitMacroGenerator<TParams>::generate("ascend950_streamk_matmul", tParams);
     auto* entry = JitCompiler::instance().getKernel(
-        "ascend950_streamk_matmul_impl.cpp", macros, JitKernelType::AIC);
+        "ascend950_streamk_matmul_impl.cpp", macros, JitKernelType::MIX);
     if (entry) {
         entry(blockNum, stream, &params);
     }
